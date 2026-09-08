@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro Cuidador — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-elora"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="login.html" class="btn btn-elora-outline btn-sm">Já tenho conta</a></div></nav>
+<div class="container py-5">
+  <div class="row justify-content-center"><div class="col-lg-9">
+    <div class="card-elora p-4 p-md-5">
+      <div class="stepper mb-4"><span class="step active">1</span><span class="step-line"></span><span class="step">2</span><span class="step-line"></span><span class="step">3</span><span class="step done"><i class="bi bi-check"></i></span></div>
+      <h2 class="section-title">Cadastro de Cuidador</h2>
+      <p class="text-muted small">Seu perfil ficará <strong>PENDING → UNDER_REVIEW → APPROVED</strong> após validação de documentos pelo jurídico/moderador.</p>
+      <form id="formCg" novalidate>
+        <h5 class="mt-4">Dados pessoais</h5>
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nome completo *</label><input class="form-control" name="name" required></div>
+          <div class="col-md-3"><label class="form-label">CPF *</label><input class="form-control" name="cpf" placeholder="000.000.000-00" required></div>
+          <div class="col-md-3"><label class="form-label">Nascimento *</label><input type="date" class="form-control" name="birthDate" required></div>
+          <div class="col-md-4"><label class="form-label">Telefone *</label><input class="form-control" name="phone" required></div>
+          <div class="col-md-4"><label class="form-label">E-mail *</label><input type="email" class="form-control" name="email" required></div>
+          <div class="col-md-4"><label class="form-label">Senha *</label><input type="password" class="form-control" name="password" required></div>
+          <div class="col-md-4"><label class="form-label">Anos experiência *</label><input type="number" min="0" class="form-control" name="experience" required></div>
+          <div class="col-md-4"><label class="form-label">Valor/hora (R$)</label><input type="number" step="0.01" class="form-control" name="hourlyRate" placeholder="45.00"></div>
+          <div class="col-md-4"><label class="form-label">Formação</label><input class="form-control" name="education" placeholder="Técnico Enfermagem - Senac"></div>
+          <div class="col-12"><label class="form-label">Especialidades</label>
+            <div class="d-flex gap-2 flex-wrap">
+              <label class="form-check"><input type="checkbox" value="idoso" class="form-check-input spec"> Idoso</label>
+              <label class="form-check"><input type="checkbox" value="alzheimer" class="form-check-input spec"> Alzheimer</label>
+              <label class="form-check"><input type="checkbox" value="parkinson" class="form-check-input spec"> Parkinson</label>
+              <label class="form-check"><input type="checkbox" value="mobilidade_reduzida" class="form-check-input spec"> Mobilidade reduzida</label>
+              <label class="form-check"><input type="checkbox" value="pos_operatorio" class="form-check-input spec"> Pós-operatório</label>
+              <label class="form-check"><input type="checkbox" value="medicacao" class="form-check-input spec"> Medicação</label>
+            </div>
+          </div>
+          <div class="col-12"><label class="form-label">Bio</label><textarea class="form-control" name="bio" rows="2" placeholder="Conte sua experiência..."></textarea></div>
+        </div>
+        <h5 class="mt-4">Endereço & disponibilidade</h5>
+        <div class="row g-3">
+          <div class="col-md-3"><label class="form-label">CEP</label><input class="form-control" name="cep" id="cepCg"></div>
+          <div class="col-md-3"><label class="form-label">Cidade</label><input class="form-control" name="city" id="cityCg"></div>
+          <div class="col-md-3"><label class="form-label">Bairro</label><input class="form-control" name="neighborhood" id="neighCg"></div>
+          <div class="col-md-3"><label class="form-label">Rua</label><input class="form-control" name="street" id="streetCg"></div>
+          <div class="col-md-3"><label class="form-label">Dias</label>
+            <div class="d-flex gap-2 flex-wrap">
+              <label class="form-check"><input type="checkbox" value="1" class="form-check-input day"> Seg</label>
+              <label class="form-check"><input type="checkbox" value="2" class="form-check-input day"> Ter</label>
+              <label class="form-check"><input type="checkbox" value="3" class="form-check-input day"> Qua</label>
+              <label class="form-check"><input type="checkbox" value="4" class="form-check-input day"> Qui</label>
+              <label class="form-check"><input type="checkbox" value="5" class="form-check-input day"> Sex</label>
+              <label class="form-check"><input type="checkbox" value="6" class="form-check-input day"> Sáb</label>
+              <label class="form-check"><input type="checkbox" value="0" class="form-check-input day"> Dom</label>
+            </div>
+          </div>
+          <div class="col-md-3"><label class="form-label">Início</label><input type="time" class="form-control" name="scheduleStart" value="07:00"></div>
+          <div class="col-md-3"><label class="form-label">Fim</label><input type="time" class="form-control" name="scheduleEnd" value="19:00"></div>
+          <div class="col-md-3"><label class="form-label">Raio máx (km)</label><input type="number" class="form-control" name="maxDistance" value="15"></div>
+        </div>
+        <h5 class="mt-4">Documentos <small class="text-muted">(mock — envio real via multipart quando API online)</small></h5>
+        <div class="row g-3">
+          <div class="col-md-3"><label class="form-label">RG</label><input type="file" class="form-control" name="doc_rg"></div>
+          <div class="col-md-3"><label class="form-label">CPF</label><input type="file" class="form-control" name="doc_cpf"></div>
+          <div class="col-md-3"><label class="form-label">Comprov. endereço</label><input type="file" class="form-control" name="doc_address"></div>
+          <div class="col-md-3"><label class="form-label">Certificados</label><input type="file" class="form-control" name="doc_cert"></div>
+        </div>
+        <div class="form-check mt-4"><input class="form-check-input" type="checkbox" id="lgpd2" required><label class="form-check-label small" for="lgpd2">Aceito Termos e LGPD *</label></div>
+        <div id="formAlert2" class="alert d-none mt-3"></div>
+        <button type="submit" class="btn btn-elora-primary btn-lg w-100 mt-3">Cadastrar e enviar para análise</button>
+      </form>
+    </div>
+  </div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/clientService.js"></script>
+<script src="../../services/caregiverService.js"></script>
+<script src="../../services/contractService.js"></script>
+<script src="../../services/paymentService.js"></script>
+<script src="../../services/mapsService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  document.getElementById('cepCg')?.addEventListener('blur', async e=>{
+    const d=await fetchAddressFromCEP(e.target.value); if(d){ document.getElementById('cityCg').value=d.city; document.getElementById('neighCg').value=d.neighborhood; document.getElementById('streetCg').value=d.street; }
+  });
+  document.getElementById('formCg').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const specialties=[...document.querySelectorAll('.spec:checked')].map(el=>el.value);
+    const days=[...document.querySelectorAll('.day:checked')].map(el=>parseInt(el.value));
+    const payload={
+      name:fd.get('name'), cpf:fd.get('cpf'), birthDate:fd.get('birthDate'), phone:fd.get('phone'), email:fd.get('email'), password:fd.get('password'),
+      experience: parseInt(fd.get('experience')), hourlyRate: parseFloat(fd.get('hourlyRate'))||35,
+      education: fd.get('education'), specialties, bio: fd.get('bio'),
+      address:{ cep: fd.get('cep'), city: fd.get('city'), neighborhood: fd.get('neighborhood'), street: fd.get('street') },
+      availability:{ days, schedule:{ start: fd.get('scheduleStart'), end: fd.get('scheduleEnd') }, maxDistanceKm: parseInt(fd.get('maxDistance')) }
+    };
+    const btn=e.target.querySelector('button[type="submit"]'); showLoading(btn,'Enviando...');
+    try{
+      if(!validateCPF(payload.cpf)) throw new Error('CPF inválido');
+      await authService.register(payload, CONFIG.USER_TYPES.CAREGIVER);
+      // Simula upload docs se houver arquivos
+      const files={}; ['doc_rg','doc_cpf','doc_address','doc_cert'].forEach(k=>{ const f=fd.get(k); if(f && f.size) files[k]=f; });
+      if(Object.keys(files).length){ /* loga para testar fluxo */ localStorage.setItem('elora_pending_docs', JSON.stringify(Object.keys(files))); }
+      notificationService.showSuccess('Cadastro enviado! Aguarde aprovação.');
+      setTimeout(()=> window.location.href='login.html', 900);
+    }catch(err){ const al=document.getElementById('formAlert2'); al.textContent=err.message; al.className='alert alert-danger mt-3'; al.classList.remove('d-none'); hideLoading(btn); }
+  });
+</script>
+</body>
+</html>

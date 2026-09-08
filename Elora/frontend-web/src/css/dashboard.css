@@ -1,0 +1,17 @@
+/* ELORA - Dashboard */
+.dashboard{--sidebar-w:260px}
+.sidebar{width:var(--sidebar-w);min-height:100vh;background:#0f2430;color:#cfe3e3;position:fixed;top:0;left:0;padding:1.2rem .9rem;z-index:1040}
+.sidebar .brand{font-weight:800;font-size:1.4rem;color:#fff}
+.sidebar .brand span{color:#2bb3a6}
+.sidebar .nav-link{color:#b7cbd0!important;border-radius:12px;padding:.6rem .8rem;margin:.15rem 0;display:flex;align-items:center;gap:.6rem}
+.sidebar .nav-link.active,.sidebar .nav-link:hover{background:rgba(255,255,255,.08);color:#fff!important}
+.main{margin-left:var(--sidebar-w);min-height:100vh;background:var(--elora-bg)}
+.topbar{background:#fff;border-bottom:1px solid var(--elora-border);padding:.8rem 1.2rem;position:sticky;top:0;z-index:1020}
+.stat-card{border-radius:16px;background:#fff;border:1px solid var(--elora-border);box-shadow:var(--elora-shadow);padding:1rem}
+.stat-card h3{font-weight:800;margin:0}
+.table thead th{font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:var(--elora-muted);border-bottom:1px solid var(--elora-border)}
+.offcanvas-sidebar{--bs-offcanvas-width:280px}
+@media(max-width:991.98px){
+  .sidebar{display:none}
+  .main{margin-left:0}
+}

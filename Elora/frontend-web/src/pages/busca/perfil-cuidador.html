@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfil do Cuidador — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="../busca/buscar-cuidadores.html" class="btn btn-elora-outline btn-sm"><i class="bi bi-arrow-left me-1"></i> Voltar à busca</a></div></nav>
+<div class="container py-4" id="profileRoot">
+  <div class="text-center py-5"><div class="spinner-border"></div><p class="small text-muted mt-2">Carregando perfil...</p></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/clientService.js"></script>
+<script src="../../services/caregiverService.js"></script>
+<script src="../../services/contractService.js"></script>
+<script src="../../services/paymentService.js"></script>
+<script src="../../services/mapsService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  const id = new URLSearchParams(window.location.search).get('id');
+  async function load(){
+    const root=document.getElementById('profileRoot');
+    if(!id){ root.innerHTML='<div class="alert alert-warning">ID do cuidador não informado.</div>'; return; }
+    try{
+      const c = await caregiverService.getCaregiver(id);
+      const reviews = JSON.parse(localStorage.getItem('elora_mock_reviews')||'[]').filter(r=>r.caregiverId===id);
+      root.innerHTML=`
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <div class="card-elora p-4">
+              <div class="d-flex gap-4">
+                <div class="avatar-placeholder lg"><i class="bi bi-person"></i></div>
+                <div class="flex-grow-1">
+                  <h3 class="mb-1">${c.name} ${c.verified?'<span class="verified"><i class="bi bi-patch-check-fill"></i> Verificado</span>':''}</h3>
+                  <div class="mb-2"><span class="stars">${'★'.repeat(Math.floor(c.rating||0))}☆</span> ${(c.rating||0).toFixed(1)} (${c.reviewCount||0} avaliações) • ${c.experience||0} anos</div>
+                  <div class="d-flex gap-2 flex-wrap">${(c.specialties||[]).map(s=>`<span class="badge bg-primary-subtle text-primary border">${s}</span>`).join('')}</div>
+                  <p class="text-muted small mt-3 mb-2"><i class="bi bi-geo-alt me-1"></i>${c.address?.street||''} ${c.address?.neighborhood||''} — ${c.address?.city||''} • R$ ${Number(c.hourlyRate||0).toFixed(2)}/h</p>
+                  <div class="small ${c.status==='APPROVED'?'text-success':'text-warning'}"><i class="bi bi-info-circle me-1"></i>Status: ${c.status}</div>
+                </div>
+              </div>
+              <hr>
+              <h5>Sobre</h5><p class="text-muted">${c.bio||'Sem descrição.'}</p>
+              <h5>Formação & certificados</h5><p class="small">${c.education||''}</p><ul class="small">${(c.certifications||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
+              <h5>Disponibilidade</h5><p class="small">${(c.availability?.days||[]).map(d=>getDayShortName(d)).join(', ')} • ${c.availability?.schedule?.start||''} - ${c.availability?.schedule?.end||''} • até ${c.availability?.maxDistance||c.availability?.maxDistanceKm||15} km</p>
+            </div>
+            <div class="card-elora p-4 mt-3">
+              <h5>Avaliações (${reviews.length})</h5>
+              ${reviews.length? reviews.map(r=>`<div class="border-bottom py-2"><div><span class="stars">${'★'.repeat(r.rating)}</span> <small class="text-muted">${formatDate(r.createdAt)}</small></div><p class="small mb-1">${r.comment}</p>${r.response?`<div class="bg-light p-2 rounded small"><strong>Resposta:</strong> ${r.response}</div>`:''}</div>`).join('') : '<p class="small text-muted">Ainda sem avaliações.</p>'}
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="card-elora p-4 sticky-top" style="top:88px">
+              <h5>Contratar</h5>
+              <p class="small text-muted">Crie uma proposta, assine digitalmente e pague com segurança.</p>
+              <div class="d-grid gap-2">
+                <a href="../contratos/contratacao.html?caregiverId=${c.id}" class="btn btn-elora-primary btn-lg"><i class="bi bi-file-earmark-text me-1"></i> Solicitar contrato</a>
+                <button id="btnFav" class="btn btn-elora-outline"><i class="bi bi-heart me-1"></i> Favoritar</button>
+                <a href="../busca/buscar-cuidadores.html" class="btn btn-outline-secondary btn-sm">Voltar</a>
+              </div>
+              <hr>
+              <div class="small text-muted"><i class="bi bi-shield-check me-1 text-success"></i> Documentos validados pelo jurídico<br><i class="bi bi-lock me-1"></i> Pagamento protegido</div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('btnFav')?.addEventListener('click', async()=>{
+        if(!authService.isClient()){ notificationService.showWarning('Entre como cliente para favoritar'); window.location.href='login.html?redirect=perfil-cuidador.html?id='+c.id; return; }
+        try{ await clientService.addFavorite(c.id); notificationService.showSuccess('Favoritado!'); }catch(err){ notificationService.showError(err.message); }
+      });
+    }catch(err){ root.innerHTML='<div class="alert alert-danger">'+err.message+'</div>'; }
+  }
+  document.addEventListener('DOMContentLoaded', load);
+</script>
+</body>
+</html>

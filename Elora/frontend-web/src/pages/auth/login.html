@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-elora">
+  <div class="container">
+    <a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a>
+    <a href="../../../index.html" class="btn btn-elora-outline btn-sm"><i class="bi bi-arrow-left me-1"></i> Voltar</a>
+  </div>
+</nav>
+
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-5">
+      <div class="card-elora p-4 p-md-5">
+        <div class="text-center mb-4">
+          <h2 class="section-title mb-1">Bem-vindo de volta</h2>
+          <p class="text-muted small mb-0">Escolha seu perfil para entrar</p>
+        </div>
+
+        <ul class="nav nav-pills nav-fill mb-4" id="loginTabs" role="tablist">
+          <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-client" type="button">Cliente</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-caregiver" type="button">Cuidador</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-admin" type="button">Admin</button></li>
+        </ul>
+
+        <div class="tab-content">
+          <!-- Cliente -->
+          <div class="tab-pane fade show active" id="tab-client">
+            <form id="loginClientForm" novalidate>
+              <div class="mb-3">
+                <label class="form-label">E-mail ou CPF</label>
+                <input type="text" class="form-control" name="identifier" placeholder="maria@email.com ou 123.456.789-00" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Senha</label>
+                <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberClient"><label class="form-check-label small" for="rememberClient">Lembrar-me</label></div>
+                <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#resetModal">Esqueci a senha</a>
+              </div>
+              <button type="submit" class="btn btn-elora-primary w-100 btn-lg">Entrar como Cliente</button>
+              <div class="small text-muted mt-2">Demo: maria.santos@email.com / Senha@123</div>
+            </form>
+          </div>
+          <!-- Cuidador -->
+          <div class="tab-pane fade" id="tab-caregiver">
+            <form id="loginCaregiverForm" novalidate>
+              <div class="mb-3"><label class="form-label">E-mail ou CPF</label><input type="text" class="form-control" name="identifier" placeholder="ana.ferreira@email.com" required></div>
+              <div class="mb-3"><label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required></div>
+              <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberCg"><label class="form-check-label small" for="rememberCg">Lembrar-me</label></div>
+              <button type="submit" class="btn btn-elora-primary w-100 btn-lg">Entrar como Cuidador</button>
+              <div class="small text-muted mt-2">Demo: ana.ferreira@email.com / Senha@123</div>
+            </form>
+          </div>
+          <!-- Admin -->
+          <div class="tab-pane fade" id="tab-admin">
+            <form id="loginAdminForm" novalidate>
+              <div class="mb-3"><label class="form-label">Usuário ou E-mail</label><input type="text" class="form-control" name="identifier" placeholder="admin ou admin@elora.com.br" required></div>
+              <div class="mb-3"><label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required></div>
+              <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberAdmin"><label class="form-check-label small" for="rememberAdmin">Lembrar-me</label></div>
+              <button type="submit" class="btn btn-dark w-100 btn-lg">Entrar como Admin</button>
+              <div class="small text-muted mt-2">Demo: admin / Admin@123</div>
+            </form>
+          </div>
+        </div>
+
+        <hr class="my-4">
+        <p class="text-center small mb-0">Não tem conta? <a href="cadastro-cliente.html">Cadastre-se como Cliente</a> • <a href="cadastro-cuidador.html">Sou Cuidador</a></p>
+        <div id="loginAlert" class="alert alert-danger d-none mt-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Modal -->
+<div class="modal fade" id="resetModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">Recuperar senha</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div class="mb-3"><label class="form-label">E-mail ou CPF</label><input type="text" id="resetIdentifier" class="form-control"></div>
+    <div class="mb-3"><label class="form-label">Perfil</label><select id="resetType" class="form-select"><option value="client">Cliente</option><option value="caregiver">Cuidador</option><option value="admin">Admin</option></select></div>
+    <div id="resetMsg" class="small"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button class="btn btn-elora-primary" id="btnReset">Enviar link</button></div>
+</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/clientService.js"></script>
+<script src="../../services/caregiverService.js"></script>
+<script src="../../services/contractService.js"></script>
+<script src="../../services/paymentService.js"></script>
+<script src="../../services/mapsService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  function params(){ return new URLSearchParams(window.location.search); }
+  function showErr(msg){ const el=document.getElementById('loginAlert'); el.textContent=msg; el.classList.remove('d-none'); }
+  function handleLogin(formId, fn){
+    document.getElementById(formId)?.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const btn = e.target.querySelector('button[type="submit"]');
+      showLoading(btn,'Entrando...');
+      try{
+        await fn({ identifier: fd.get('identifier')?.trim(), password: fd.get('password'), rememberMe: fd.get('rememberMe')==='on' });
+        notificationService.showSuccess('Login realizado!');
+        const redirect = params().get('redirect');
+        setTimeout(()=> window.location.href = redirect ? redirect : authService.getDashboardUrl(), 600);
+      }catch(err){ showErr(err.message); notificationService.showError(err.message); hideLoading(btn); }
+    });
+  }
+  handleLogin('loginClientForm', c=> authService.loginCliente(c));
+  handleLogin('loginCaregiverForm', c=> authService.loginCuidador(c));
+  handleLogin('loginAdminForm', c=> authService.loginAdministrador(c));
+
+  document.getElementById('btnReset')?.addEventListener('click', async()=>{
+    const id=document.getElementById('resetIdentifier').value.trim();
+    const type=document.getElementById('resetType').value;
+    if(!id) return;
+    try{ await authService.requestPasswordReset(id, type); document.getElementById('resetMsg').innerHTML='<span class="text-success">Se o usuário existir, um e-mail será enviado.</span>'; }
+    catch(err){ document.getElementById('resetMsg').innerHTML='<span class="text-danger">'+err.message+'</span>'; }
+  });
+
+  // se já autenticado, redireciona
+  if(authService.isAuthenticated()){ /* não força, deixa escolher */ }
+</script>
+</body>
+</html>
