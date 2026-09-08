@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Admin — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet"><link href="../../css/dashboard.css" rel="stylesheet">
+</head>
+<body class="dashboard">
+  <nav class="sidebar d-none d-lg-block" style="background:#0e1b24">
+    <div class="brand mb-4">EL<span>ORA</span> <small class="d-block text-muted" style="font-size:.7rem">Admin / Jurídico</small></div>
+    <a class="nav-link active" href="../dashboards/dashboard-admin.html"><i class="bi bi-shield-check"></i> Validação</a>
+    <a class="nav-link" href="#"><i class="bi bi-people"></i> Usuários</a>
+    <a class="nav-link" href="#"><i class="bi bi-flag"></i> Denúncias</a>
+    <a class="nav-link" href="#"><i class="bi bi-graph-up"></i> Relatórios</a>
+    <hr class="border-secondary"><a class="nav-link" href="#" data-action="logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+  </nav>
+  <div class="main">
+    <div class="topbar d-flex justify-content-between align-items-center"><h5 class="mb-0">Painel Administrativo <small class="text-muted" data-user-name></small></h5><span class="badge bg-dark" id="adminRole"></span></div>
+    <div class="p-4">
+      <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-card"><small class="text-muted">Pendentes</small><h3 id="statPending">0</h3></div></div>
+        <div class="col-md-3"><div class="stat-card"><small class="text-muted">Em análise</small><h3 id="statReview">0</h3></div></div>
+        <div class="col-md-3"><div class="stat-card"><small class="text-muted">Aprovados</small><h3 id="statApproved">0</h3></div></div>
+        <div class="col-md-3"><div class="stat-card"><small class="text-muted">Total</small><h3 id="statTotal">0</h3></div></div>
+      </div>
+      <div class="card-elora p-3">
+        <div class="d-flex gap-2 mb-3 flex-wrap">
+          <select id="filterStatus" class="form-select form-select-sm" style="width:auto"><option value="">Todos status</option><option value="PENDING">PENDING</option><option value="UNDER_REVIEW">UNDER_REVIEW</option><option value="APPROVED">APPROVED</option><option value="REJECTED">REJECTED</option><option value="NEEDS_CORRECTION">NEEDS_CORRECTION</option></select>
+          <input id="search" class="form-control form-control-sm" placeholder="Buscar nome, CPF, e-mail" style="width:260px">
+          <button id="btnSearch" class="btn btn-elora-primary btn-sm">Buscar</button>
+        </div>
+        <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Cuidador</th><th>CPF</th><th>Status</th><th>Criado</th><th></th></tr></thead><tbody id="tbody"><tr><td colspan="5" class="text-center small text-muted">Carregando...</td></tr></tbody></table></div>
+        <nav><ul class="pagination pagination-sm" id="pagination"></ul></nav>
+      </div>
+    </div>
+  </div>
+  <!-- modal detalhe -->
+  <div class="modal fade" id="detailModal"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Detalhe do cuidador</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="detailBody"></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button id="btnApprove" class="btn btn-success">Aprovar</button><button id="btnReject" class="btn btn-danger">Reprovar</button><button id="btnCorrection" class="btn btn-warning">Pedir correção</button></div></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/clientService.js"></script>
+<script src="../../services/caregiverService.js"></script>
+<script src="../../services/contractService.js"></script>
+<script src="../../services/paymentService.js"></script>
+<script src="../../services/mapsService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  let currentPage=1, currentId=null;
+  async function load(page=1){
+    if(!authService.isAdmin()){ window.location.href='login.html?redirect=dashboard-admin.html'; return; }
+    document.getElementById('adminRole').textContent = authService.getCurrentUser().role||'admin';
+    const status=document.getElementById('filterStatus').value;
+    const search=document.getElementById('search').value.trim();
+    try{
+      const res = await caregiverService.getAllCaregivers({ page, limit:10, status: status||undefined, search: search||undefined });
+      const list=res.data||res;
+      const total=res.pagination?.total||list.length;
+      // stats
+      const all = await caregiverService.getAllCaregivers({ limit:100 });
+      const allList=all.data||all;
+      document.getElementById('statPending').textContent = allList.filter(c=>c.status==='PENDING').length;
+      document.getElementById('statReview').textContent = allList.filter(c=>c.status==='UNDER_REVIEW').length;
+      document.getElementById('statApproved').textContent = allList.filter(c=>c.status==='APPROVED').length;
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('tbody').innerHTML = list.map(c=>`<tr><td><strong>${c.name}</strong><div class="small text-muted">${c.email}</div></td><td class="small">${c.cpf}</td><td><span class="badge ${c.status==='APPROVED'?'bg-success': c.status==='PENDING'?'bg-warning text-dark':'bg-info'}">${c.status}</span></td><td class="small">${formatDate(c.createdAt)}</td><td><button class="btn btn-sm btn-elora-outline btn-detail" data-id="${c.id}">Ver</button></td></tr>`).join('') || '<tr><td colspan="5" class="text-center small text-muted">Nenhum encontrado</td></tr>';
+      document.querySelectorAll('.btn-detail').forEach(b=> b.addEventListener('click', ()=> openDetail(b.dataset.id)));
+      // paginação simples
+      const pages=res.pagination?.totalPages||1;
+      document.getElementById('pagination').innerHTML = Array.from({length:pages},(_,i)=>`<li class="page-item ${i+1===page?'active':''}"><a class="page-link" href="#">${i+1}</a></li>`).join('');
+      document.querySelectorAll('#pagination .page-link').forEach((a,i)=> a.addEventListener('click', e=>{ e.preventDefault(); load(i+1); }));
+    }catch(err){ notificationService.showError(err.message); }
+  }
+  async function openDetail(id){
+    currentId=id;
+    try{
+      const c= await caregiverService.getFullProfile(id);
+      document.getElementById('detailBody').innerHTML=`
+        <div class="d-flex gap-3"><div class="avatar-placeholder"><i class="bi bi-person"></i></div><div><strong>${c.name}</strong><div class="small text-muted">${c.email} • ${c.phone}</div><div class="small">CPF ${c.cpf} • ${c.experience} anos • R$ ${Number(c.hourlyRate||0).toFixed(2)}/h</div><div class="small">Status: <strong>${c.status}</strong> ${c.verified?'<span class="verified">Verificado</span>':''}</div></div></div>
+        <hr><p class="small">${c.bio||''}</p><p class="small"><strong>Especialidades:</strong> ${(c.specialties||[]).join(', ')}</p><p class="small"><strong>Documentos:</strong> ${Object.entries(c.documents||{}).map(([k,v])=> k+': '+(v.status||JSON.stringify(v))).join(' | ')}</p>
+        <div class="small"><label class="form-label">Motivo / observação (para reprovação/correção)</label><textarea id="reason" class="form-control" rows="2"></textarea></div>
+      `;
+      new bootstrap.Modal(document.getElementById('detailModal')).show();
+    }catch(err){ notificationService.showError(err.message); }
+  }
+  async function changeStatus(status){
+    const reason=document.getElementById('reason')?.value||'';
+    try{ await caregiverService.updateCaregiverStatus(currentId, status, reason); notificationService.showSuccess('Status atualizado para '+status); bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide(); load(currentPage); }catch(err){ notificationService.showError(err.message); }
+  }
+  document.getElementById('btnApprove')?.addEventListener('click', ()=> changeStatus(CONFIG.CAREGIVER_STATUS.APPROVED));
+  document.getElementById('btnReject')?.addEventListener('click', ()=> changeStatus(CONFIG.CAREGIVER_STATUS.REJECTED));
+  document.getElementById('btnCorrection')?.addEventListener('click', ()=> changeStatus(CONFIG.CAREGIVER_STATUS.NEEDS_CORRECTION));
+  document.getElementById('btnSearch')?.addEventListener('click', ()=> load(1));
+  document.addEventListener('DOMContentLoaded', ()=> load(1));
+</script>
+</body>
+</html>

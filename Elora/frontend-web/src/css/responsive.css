@@ -1,8 +1,10 @@
-/* ELORA - Responsivo */
+/* ELORA - Responsivo + Acessibilidade (WCAG 2.1 AA) */
 @media(max-width:575.98px){
   .hero h1{font-size:2rem}
   .search-card{margin-top:16px}
   #map{min-height:300px}
+  .filter-sidebar{position:static}
+  .btn-elora-primary,.btn-elora-outline,.btn-accent{min-height:44px}
 }
 @media(min-width:576px) and (max-width:991.98px){
   .hero h1{font-size:2.6rem}
@@ -12,3 +14,46 @@
 }
 img{max-width:100%}
 .card-elora{overflow:hidden}
+
+/* Screenshot / touch: alvos mínimos 44x44px WCAG 2.5.5 */
+.btn, .nav-link, .form-control, .form-select{ min-height: 44px; }
+.btn-sm{ min-height: 36px; }
+
+/* Foco visível WCAG 2.4.7 */
+a:focus-visible, button:focus-visible, .form-control:focus-visible, .form-select:focus-visible{
+  outline: 3px solid #2bb3a6;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 .2rem rgba(43,179,166,.25);
+}
+
+/* Skip link */
+.skip-link{
+  position:absolute; left:-999px; top:auto; width:1px; height:1px; overflow:hidden;
+}
+.skip-link:focus{
+  left:16px; top:16px; width:auto; height:auto; padding:.5rem 1rem;
+  background:#0e7a7b; color:#fff; border-radius:8px; z-index:1100;
+}
+
+/* Contraste e texto: evita motion para quem prefere reduzido */
+@media (prefers-reduced-motion: reduce){
+  *{ animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+}
+
+/* Tabelas responsivas: empilha em mobile */
+@media(max-width:767.98px){
+  .table-responsive table, .table-responsive thead, .table-responsive tbody, .table-responsive th, .table-responsive td, .table-responsive tr{ display:block; width:100%; }
+  .table-responsive thead{ position:absolute; left:-9999px; }
+  .table-responsive tr{ border:1px solid var(--elora-border); border-radius:12px; margin-bottom:.75rem; padding:.5rem; }
+  .table-responsive td{ border:none; padding:.4rem .5rem; }
+  .table-responsive td::before{ content: attr(data-label); font-weight:600; display:block; font-size:.8rem; color:var(--elora-muted); }
+}
+
+/* Sidebar acessível: mantém navegável via teclado */
+.sidebar .nav-link:focus-visible{ background: rgba(255,255,255,.15); }
+
+/* Impresso: esconde navegação */
+@media print{
+  .navbar-elora, .sidebar, .footer, .search-card{ display:none !important; }
+  #map{ break-inside: avoid; }
+}
