@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Avatar padrão">
+  <rect width="120" height="120" rx="60" fill="#E6F4F4"/>
+  <circle cx="60" cy="48" r="26" fill="#BFE0E0"/>
+  <path d="M 18 110 C 18 84 36 68 60 68 C 84 68 102 84 102 110 Z" fill="#BFE0E0"/>
+  <circle cx="60" cy="48" r="22" fill="#CFE8E8"/>
+  <path d="M 26 106 C 28 88 40 74 60 74 C 80 74 92 88 94 106 Z" fill="#CFE8E8"/>
+  <text x="60" y="52" text-anchor="middle" font-size="28" fill="#0E7A7B" font-family="Arial, sans-serif">👤</text>
+</svg>

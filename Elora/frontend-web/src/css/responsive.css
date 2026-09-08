@@ -1,0 +1,14 @@
+/* ELORA - Responsivo */
+@media(max-width:575.98px){
+  .hero h1{font-size:2rem}
+  .search-card{margin-top:16px}
+  #map{min-height:300px}
+}
+@media(min-width:576px) and (max-width:991.98px){
+  .hero h1{font-size:2.6rem}
+}
+@media(min-width:992px){
+  .hero{padding:5rem 0 6rem}
+}
+img{max-width:100%}
+.card-elora{overflow:hidden}
