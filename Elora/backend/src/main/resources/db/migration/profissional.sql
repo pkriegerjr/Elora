@@ -1,0 +1,1 @@
+CREATE TABLE validacao_profissional (id_validacao INT AUTO_INCREMENT PRIMARY KEY, profissional_id INT NOT NULL, resultado ENUM('aprovado','reprovado','correcao'), observacao TEXT, validador_id INT, data_validacao DATETIME, FOREIGN KEY (profissional_id) REFERENCES usuario(id_usuario));
