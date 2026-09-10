@@ -138,7 +138,7 @@ MAPS_API_KEY=            # em prod vem de GET /api/config/maps-key (config.js:37
 
 ## Equipe
 
-Wallyson Barbosa, Lucas M. Carrijo, Tiago F. Dias, Mateus Xavier, Otávio Augusto
+Wallyson Barbosa, Lucas M. Carrijo, Tiago F. Dias, Mateus Xavier, Gabriel Krieger
 
 ## Licença
 
