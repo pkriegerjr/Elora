@@ -52,10 +52,15 @@ View (HTML/Bootstrap + services JS) -> API Gateway (Spring Boot /api) -> Serviç
 │       └── /utils/format.js, validation.js
 ├── /mobile-app/src/...
 ├── /backend
-│   ├── /database/elora_schema_v2.sql
+│   ├── /database/elora_schema_v2.sql  # schema V2 (DDL)
+│   ├── .env / .env.example            # DB_* / JWT_SECRET (gitignore)
 │   └── /src/main/java/com/elora/ (Spring Boot)
-├── /docs
 ├── /infra
+│   ├── docker-compose.yml             # MySQL 8.0 + Redis (volumes: ../backend/database/elora_schema_v2.sql)
+│   ├── /docker/                       # vazio (reservado para Dockerfiles)
+│   ├── /k8s/                          # manifests Kubernetes
+│   └── /scripts/
+├── /docs
 └── /.github/workflows
 ```
 
@@ -81,14 +86,15 @@ Compat front: `config.js:64` `CONTRACT_STATUS`/`PAYMENT_STATUS` com aliases ingl
 git clone https://github.com/seu-usuario/elora.git
 cd elora
 
-# 2. Banco (Docker) — schema v2
-docker-compose up -d postgres redis   # ou mysql:8.0
-mysql -u root -p < Elora/backend/database/elora_schema_v2.sql
-# ou psql -U postgres -f Elora/backend/database/elora_schema_v2.sql
+# 2. Banco (Docker) — schema v2 (infra centralizada)
+docker compose -f infra/docker-compose.yml up -d
+# ou: docker compose -f Elora/infra/docker-compose.yml up -d  (quando rodar da raiz)
+# O volume já importa Elora/backend/database/elora_schema_v2.sql -> /docker-entrypoint-initdb.d/01-schema.sql
+# Sem Docker (XAMPP): mysql -u root < Elora/backend/database/elora_schema_v2.sql
 
 # 3. Backend (opcional — se MOCK_MODE=false)
-cd Elora/backend
-# ./mvnw spring-boot:run  -> http://localhost:8080/api
+cd Elora/backend  # .env com JWT_SECRET já gerado em backend/.env
+# ./mvnw spring-boot:run  -> http://localhost:8080/api (context-path /api)
 
 # 4. Frontend Web — 100% estático, MOCK_MODE=true
 # Opção A: abrir direto

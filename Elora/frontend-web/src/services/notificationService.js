@@ -108,19 +108,29 @@ class NotificationService {
     /**
      * Update unread count
      */
+    // Fase 2: PT mapping + 7 endpoints (NotificacaoController.java:40)
+    mapToPt(n){ // front EN -> API PT
+        return { titulo: n.title||n.titulo, corpo: n.message||n.corpo||n.body, lida: n.read??n.lida, canal: (n.canal||'sistema').toLowerCase() };
+    }
+    mapFromPt(p){ // API PT -> front
+        return { id: p.id, titulo: p.titulo, corpo: p.corpo, lida: p.lida, read: p.lida, enviadoEm: p.enviadoEm, createdAt: p.enviadoEm, tipo: p.referenciaTipo, referenciaTipo: p.referenciaTipo, canal: p.canal };
+    }
     async updateUnreadCount() {
-        if (!authService.isAuthenticated()) {
-            this.unreadCount = 0;
-            return;
-        }
-        
+        if (!authService.isAuthenticated()) { this.unreadCount = 0; return; }
         try {
-            const notifications = await this.getNotifications({ unreadOnly: true });
-            this.unreadCount = notifications.length;
+            if(!CONFIG.API.MOCK_MODE){
+                const count = await apiService.get(CONFIG.ENDPOINTS.notifications + "/unread-count");
+                this.unreadCount = typeof count==='number'? count : (count?.data??0);
+            } else {
+                const notifications = await this.getNotifications({ unreadOnly: true });
+                this.unreadCount = notifications.length;
+            }
             this.notifyListeners("unreadCountChange", this.unreadCount);
-        } catch (error) {
-            console.error("Erro ao atualizar contagem:", error);
-        }
+            // atualiza badge DOM direto (app.js também faz)
+            document.querySelectorAll("[data-notification-badge]").forEach(b=>{
+                if(this.unreadCount>0){ b.textContent=this.unreadCount>99?"99+":this.unreadCount; b.classList.remove("d-none"); } else b.classList.add("d-none");
+            });
+        } catch (error) { console.error("Erro ao atualizar contagem:", error); }
     }
 
     /**
@@ -129,33 +139,24 @@ class NotificationService {
      * @returns {Promise<Array>} Notifications
      */
     async getNotifications(options = {}) {
-        // In production: return await apiService.get("/notifications", options);
-        
-        await this.delay(300);
-        
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser) {
-            throw new Error("Usuário não autenticado");
+        if(!CONFIG.API.MOCK_MODE){
+            const params={};
+            if(options.unreadOnly) params.unreadOnly=true;
+            if(options.tipo||options.type) params.tipo=options.tipo||options.type;
+            if(options.limit) params.limit=options.limit;
+            const list = await apiService.get(CONFIG.ENDPOINTS.notifications, params);
+            const arr = Array.isArray(list)? list : (list?.content||list?.data||[]);
+            return arr.map(p=>this.mapFromPt(p));
         }
-        
+        await this.delay(300);
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) throw new Error("Usuário não autenticado");
         const notifications = this.getMockNotifications();
         let userNotifications = notifications.filter(n => n.userId === currentUser.id);
-        
-        if (options.unreadOnly) {
-            userNotifications = userNotifications.filter(n => !n.read);
-        }
-        
-        if (options.type) {
-            userNotifications = userNotifications.filter(n => n.type === options.type);
-        }
-        
-        // Sort by date (newest first)
+        if (options.unreadOnly) userNotifications = userNotifications.filter(n => !n.read);
+        if (options.type) userNotifications = userNotifications.filter(n => n.type === options.type);
         userNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
-        if (options.limit) {
-            userNotifications = userNotifications.slice(0, options.limit);
-        }
-        
+        if (options.limit) userNotifications = userNotifications.slice(0, options.limit);
         return userNotifications;
     }
 
@@ -164,8 +165,7 @@ class NotificationService {
      * @returns {Promise<number>} Unread count
      */
     async getUnreadCount() {
-        // In production: return await apiService.get("/notifications/unread-count");
-        
+        if(!CONFIG.API.MOCK_MODE) return await apiService.get(CONFIG.ENDPOINTS.notifications + "/unread-count");
         await this.delay(100);
         return this.unreadCount;
     }
@@ -176,28 +176,20 @@ class NotificationService {
      * @returns {Promise<Object>} Updated notification
      */
     async markAsRead(notificationId) {
-        // In production: return await apiService.patch(`/notifications/${notificationId}`, { read: true });
-        
-        await this.delay(200);
-        
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser) {
-            throw new Error("Usuário não autenticado");
+        if(!CONFIG.API.MOCK_MODE){
+            const r=await apiService.patch(`${CONFIG.ENDPOINTS.notifications}/${notificationId}`, { lida: true });
+            this.updateUnreadCount();
+            return this.mapFromPt(r);
         }
-        
+        await this.delay(200);
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) throw new Error("Usuário não autenticado");
         const notifications = this.getMockNotifications();
         const index = notifications.findIndex(n => n.id === notificationId && n.userId === currentUser.id);
-        
-        if (index === -1) {
-            throw new Error("Notificação não encontrada");
-        }
-        
-        notifications[index].read = true;
-        notifications[index].readAt = new Date().toISOString();
+        if (index === -1) throw new Error("Notificação não encontrada");
+        notifications[index].read = true; notifications[index].readAt = new Date().toISOString();
         localStorage.setItem("elora_mock_notifications", JSON.stringify(notifications));
-        
         this.updateUnreadCount();
-        
         return notifications[index];
     }
 
@@ -206,29 +198,21 @@ class NotificationService {
      * @returns {Promise<number>} Count of marked notifications
      */
     async markAllAsRead() {
-        // In production: return await apiService.patch("/notifications/read-all");
-        
-        await this.delay(300);
-        
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser) {
-            throw new Error("Usuário não autenticado");
+        if(!CONFIG.API.MOCK_MODE){
+            const c=await apiService.patch(CONFIG.ENDPOINTS.notifications + "/read-all");
+            this.updateUnreadCount();
+            return typeof c==='number'? c : 0;
         }
-        
+        await this.delay(300);
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) throw new Error("Usuário não autenticado");
         const notifications = this.getMockNotifications();
         let count = 0;
-        
         notifications.forEach((n, index) => {
-            if (n.userId === currentUser.id && !n.read) {
-                notifications[index].read = true;
-                notifications[index].readAt = new Date().toISOString();
-                count++;
-            }
+            if (n.userId === currentUser.id && !n.read) { notifications[index].read = true; notifications[index].readAt = new Date().toISOString(); count++; }
         });
-        
         localStorage.setItem("elora_mock_notifications", JSON.stringify(notifications));
         this.updateUnreadCount();
-        
         return count;
     }
 
@@ -238,25 +222,15 @@ class NotificationService {
      * @returns {Promise<void>}
      */
     async deleteNotification(notificationId) {
-        // In production: return await apiService.delete(`/notifications/${notificationId}`);
-        
+        if(!CONFIG.API.MOCK_MODE){ await apiService.delete(`${CONFIG.ENDPOINTS.notifications}/${notificationId}`); this.updateUnreadCount(); return; }
         await this.delay(200);
-        
         const currentUser = authService.getCurrentUser();
-        if (!currentUser) {
-            throw new Error("Usuário não autenticado");
-        }
-        
+        if (!currentUser) throw new Error("Usuário não autenticado");
         const notifications = this.getMockNotifications();
         const index = notifications.findIndex(n => n.id === notificationId && n.userId === currentUser.id);
-        
-        if (index === -1) {
-            throw new Error("Notificação não encontrada");
-        }
-        
+        if (index === -1) throw new Error("Notificação não encontrada");
         notifications.splice(index, 1);
         localStorage.setItem("elora_mock_notifications", JSON.stringify(notifications));
-        
         this.updateUnreadCount();
     }
 
@@ -266,34 +240,20 @@ class NotificationService {
      * @returns {Promise<Object>} Created notification
      */
     async sendNotification(notification) {
-        // In production: return await apiService.post("/notifications", notification);
-        // This would be called by backend services
-        
-        await this.delay(300);
-        
-        // Validate required fields
-        if (!notification.userId || !notification.title || !notification.message) {
-            throw new Error("Campos obrigatórios: userId, title, message");
+        if(!CONFIG.API.MOCK_MODE){
+            // Back espera CriarNotificacaoRequest PT: destinatarioId, titulo, corpo, canal, referenciaTipo/id
+            const pt={ destinatarioId: notification.userId||notification.destinatarioId, titulo: notification.title||notification.titulo, corpo: notification.message||notification.corpo, canal: (notification.canal||'sistema'), referenciaTipo: notification.referenciaTipo, referenciaId: notification.referenciaId };
+            const r=await apiService.post(CONFIG.ENDPOINTS.notifications, pt);
+            return this.mapFromPt(r);
         }
-        
-        const newNotification = {
-            id: this.generateId(),
-            ...notification,
-            read: false,
-            createdAt: new Date().toISOString()
-        };
-        
+        await this.delay(300);
+        if (!notification.userId || !notification.title || !notification.message) throw new Error("Campos obrigatórios: userId, title, message");
+        const newNotification = { id: this.generateId(), ...notification, read: false, createdAt: new Date().toISOString() };
         const notifications = this.getMockNotifications();
         notifications.push(newNotification);
         localStorage.setItem("elora_mock_notifications", JSON.stringify(notifications));
-        
-        // If it's for current user, notify listeners
         const currentUser = authService.getCurrentUser();
-        if (currentUser && currentUser.id === notification.userId) {
-            this.notifyListeners("newNotifications", [newNotification]);
-            this.updateUnreadCount();
-        }
-        
+        if (currentUser && currentUser.id === notification.userId) { this.notifyListeners("newNotifications", [newNotification]); this.updateUnreadCount(); }
         return newNotification;
     }
 
@@ -319,29 +279,12 @@ class NotificationService {
      * @returns {Promise<Object>} User preferences
      */
     async getPreferences() {
-        // In production: return await apiService.get("/notifications/preferences");
-        
+        if(!CONFIG.API.MOCK_MODE) return await apiService.get(CONFIG.ENDPOINTS.notifications + "/preferences");
         await this.delay(200);
-        
         const currentUser = authService.getCurrentUser();
-        if (!currentUser) {
-            throw new Error("Usuário não autenticado");
-        }
-        
+        if (!currentUser) throw new Error("Usuário não autenticado");
         const prefs = JSON.parse(localStorage.getItem(`${CONFIG.STORAGE_KEYS.USER_PREFERENCES}_${currentUser.id}`) || "{}");
-        
-        return {
-            email: prefs.email !== false,
-            push: prefs.push !== false,
-            inApp: prefs.inApp !== false,
-            types: prefs.types || {
-                contract: true,
-                payment: true,
-                caregiver: true,
-                review: true,
-                system: true
-            }
-        };
+        return { email: prefs.email !== false, push: prefs.push !== false, inApp: prefs.inApp !== false, sms: prefs.sms===true, types: prefs.types || { contract: true, payment: true, caregiver: true, review: true, system: true } };
     }
 
     /**
@@ -350,20 +293,14 @@ class NotificationService {
      * @returns {Promise<Object>} Updated preferences
      */
     async updatePreferences(preferences) {
-        // In production: return await apiService.patch("/notifications/preferences", preferences);
-        
+        if(!CONFIG.API.MOCK_MODE) return await apiService.patch(CONFIG.ENDPOINTS.notifications + "/preferences", preferences);
         await this.delay(300);
-        
         const currentUser = authService.getCurrentUser();
-        if (!currentUser) {
-            throw new Error("Usuário não autenticado");
-        }
-        
+        if (!currentUser) throw new Error("Usuário não autenticado");
         const key = `${CONFIG.STORAGE_KEYS.USER_PREFERENCES}_${currentUser.id}`;
         const currentPrefs = JSON.parse(localStorage.getItem(key) || "{}");
         const newPrefs = { ...currentPrefs, ...preferences };
         localStorage.setItem(key, JSON.stringify(newPrefs));
-        
         return newPrefs;
     }
 

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatórios — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet"><link href="../../css/dashboard.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="#" data-action="dashboard" class="btn btn-elora-outline btn-sm">Painel</a></div></nav>
+<div class="container py-4">
+  <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+    <h4 class="mb-0">Relatórios Gerenciais</h4>
+    <div class="ms-auto d-flex gap-2">
+      <input type="date" id="inicio" class="form-control form-control-sm">
+      <input type="date" id="fim" class="form-control form-control-sm">
+      <button id="btnFiltrar" class="btn btn-elora-primary btn-sm">Filtrar período</button>
+      <button id="btnLimpar" class="btn btn-outline-secondary btn-sm">Limpar</button>
+    </div>
+  </div>
+  <div id="alert403" class="alert alert-warning d-none"></div>
+  <ul class="nav nav-pills mb-3" id="tabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-resumo">Resumo</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-financeiro">Financeiro</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-usuarios">Usuários</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-contratos">Contratos</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-avaliacoes">Avaliações</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-denuncias">Denúncias</button></li>
+  </ul>
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-resumo"><div id="resumo" class="row g-3"></div></div>
+    <div class="tab-pane fade" id="tab-financeiro"><div id="financeiro"></div></div>
+    <div class="tab-pane fade" id="tab-usuarios"><div id="usuarios"></div></div>
+    <div class="tab-pane fade" id="tab-contratos"><div id="contratos"></div></div>
+    <div class="tab-pane fade" id="tab-avaliacoes"><div id="avaliacoes"></div></div>
+    <div class="tab-pane fade" id="tab-denuncias"><div id="denuncias"></div></div>
+  </div>
+  <p class="small text-muted mt-3">Fonte: <code>RelatorioController.java:32</code> — financeiro exige <code>admin/financeiro</code>, resto exige equipe (403 caso contrário, RelatorioService.java:255).</p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/relatorioService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  function show403(err){
+    const el=document.getElementById('alert403');
+    if(err && err.status===403){
+      el.textContent='Acesso negado (403) — relatórios restritos à equipe Elora. Faça login como admin/jurídico/financeiro (RelatorioService.java:255).';
+      el.classList.remove('d-none');
+      notificationService.showWarning(el.textContent,'403');
+      return true;
+    }
+    el.classList.add('d-none');
+    return false;
+  }
+  function kv(obj){ return Object.entries(obj||{}).map(([k,v])=>`<span class="badge bg-light text-dark border me-1">${k}: ${v}</span>`).join(''); }
+  async function loadAll(){
+    if(!authService.isAuthenticated()){ window.location.href=authService.getLoginUrl('relatorios/relatorios.html'); return; }
+    const inicio=document.getElementById('inicio').value||null;
+    const fim=document.getElementById('fim').value||null;
+    try{
+      const r=await relatorioService.resumo();
+      document.getElementById('resumo').innerHTML=`
+        <div class="col-md-3"><div class="stat-card"><small>Total usuários</small><h3>${r.totalUsuarios}</h3></div></div>
+        <div class="col-md-3"><div class="stat-card"><small>Ativos</small><h3>${r.usuariosAtivos}</h3></div></div>
+        <div class="col-md-3"><div class="stat-card"><small>Profissionais pendentes</small><h3>${r.profissionaisPendentes}</h3></div></div>
+        <div class="col-md-3"><div class="stat-card"><small>Média avaliações</small><h3>${r.mediaAvaliacoes}</h3></div></div>
+        <div class="col-12"><div class="card-elora p-3 small">Contratos ativos ${r.contratosAtivos} | Em disputa ${r.contratosEmDisputa} | Pagamentos pendentes ${r.pagamentosPendentes} | Denúncias abertas ${r.denunciasAbertas}</div></div>
+      `;
+    }catch(e){ if(!show403(e)) document.getElementById('resumo').innerHTML='<div class="alert alert-danger">'+e.message+'</div>'; }
+    try{
+      const f=await relatorioService.financeiro(inicio,fim);
+      document.getElementById('financeiro').innerHTML=`<div class="card-elora p-3"><div class="row g-3"><div class="col-md-3"><small>Total</small><h4>${f.totalPagamentos}</h4></div><div class="col-md-3"><small>Bruto</small><h4>${formatCurrency(f.bruto)}</h4></div><div class="col-md-3"><small>Taxa</small><h4>${formatCurrency(f.taxa)}</h4></div><div class="col-md-3"><small>Líquido</small><h4>${formatCurrency(f.liquido)}</h4></div></div><div class="mt-2">Por método ${kv(f.porMetodo)} Por status ${kv(f.porStatus)}</div></div>`;
+    }catch(e){ if(!show403(e)) document.getElementById('financeiro').innerHTML='<div class="alert alert-danger">'+e.message+'</div>'; }
+    try{
+      const u=await relatorioService.usuarios(inicio,fim);
+      document.getElementById('usuarios').innerHTML=`<div class="card-elora p-3"><div>Total ${u.total} | Ativos ${u.ativos} | Novos ${u.novos}</div><div class="mt-2">Perfis ${kv(u.porPerfil)} Status ${kv(u.porStatus)} Verificação ${kv(u.porVerificacao)}</div></div>`;
+    }catch(e){ if(!show403(e)) document.getElementById('usuarios').innerHTML='<div class="alert alert-danger">'+e.message+'</div>'; }
+    try{
+      const c=await relatorioService.contratos(inicio,fim);
+      document.getElementById('contratos').innerHTML=`<div class="card-elora p-3"><div>Total ${c.total} | Novos ${c.novos} | Média valor/hora ${formatCurrency(c.mediaValorHora)}</div><div class="mt-2">${kv(c.porStatus)}</div></div>`;
+    }catch(e){ if(!show403(e)) document.getElementById('contratos').innerHTML='<div class="alert alert-danger">'+e.message+'</div>'; }
+    try{
+      const a=await relatorioService.avaliacoes();
+      document.getElementById('avaliacoes').innerHTML=`<div class="card-elora p-3"><div>Total ${a.total} | Média ${a.media}</div><div class="mt-2">Distribuição ${kv(a.distribuicao)}</div></div>`;
+    }catch(e){ if(!show403(e)) document.getElementById('avaliacoes').innerHTML='<div class="alert alert-danger">'+e.message+'</div>'; }
+    try{
+      const d=await relatorioService.denuncias();
+      document.getElementById('denuncias').innerHTML=`<div class="card-elora p-3"><div>Total ${d.total} | Abertas ${d.abertas}</div><div class="mt-2">${kv(d.porStatus)}</div></div>`;
+    }catch(e){ if(!show403(e)) document.getElementById('denuncias').innerHTML='<div class="alert alert-danger">'+e.message+'</div>'; }
+  }
+  document.getElementById('btnFiltrar')?.addEventListener('click', loadAll);
+  document.getElementById('btnLimpar')?.addEventListener('click', ()=>{ document.getElementById('inicio').value=''; document.getElementById('fim').value=''; loadAll(); });
+  document.addEventListener('DOMContentLoaded', loadAll);
+</script>
+</body>
+</html>

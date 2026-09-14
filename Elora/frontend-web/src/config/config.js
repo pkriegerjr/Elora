@@ -6,11 +6,11 @@
  */
 
 const CONFIG = {
-    // API Configuration — Spring Boot
+    // API Configuration — Spring Boot — Fase 1: base http://localhost:8080/api (application.properties:3 /api)
     API: {
-        // Em produção (Spring servindo static/ ou Nginx + API): use relativo "/api"
-        // Em desenvolvimento isolado: "http://localhost:8080/api"
-        baseURL: "/api",
+        // Em produção (Spring servindo static/): use relativo "/api"
+        // Em desenvolvimento isolado: "http://localhost:8080/api" (exigido pela equipe Back)
+        baseURL: "http://localhost:8080/api",
         version: "v1",
         timeout: 30000,
         headers: {
@@ -18,7 +18,7 @@ const CONFIG = {
             "Accept": "application/json"
         },
         // Flag para alternar mock vs API real sem quebrar protótipo
-        MOCK_MODE: true, // <- altere para false quando backend Spring estiver online
+        MOCK_MODE: false, // <- altere para false quando backend Spring estiver online
         // Spring Security: JWT em Authorization: Bearer <token>
         auth: {
             headerName: "Authorization",
@@ -157,21 +157,22 @@ const CONFIG = {
     // Conversão período disponível <-> matutino/vespertino/noturno (V2)
     scheduleToPeriodos: null,
 
-    // Spring Boot endpoints (para referência rápida e documentação)
+    // Spring Boot endpoints — Fase 2/3 (NotificacaoController.java:34, RelatorioController)
     ENDPOINTS: {
         auth: {
-            login: "/auth/login",              // POST {identifier,password} -> {accessToken, refreshToken, user}
-            registerClient: "/clients",       // POST
-            registerCaregiver: "/caregivers", // POST multipart
-            refresh: "/auth/refresh",         // POST {refreshToken}
-            me: "/auth/me"                    // GET
+            login: "/auth/login",
+            registerClient: "/clients",
+            registerCaregiver: "/caregivers",
+            refresh: "/auth/refresh",
+            me: "/auth/me"
         },
         clients: "/clients",
         caregivers: "/caregivers",
         caregiversSearch: "/caregivers/search",
         contracts: "/contracts",
         payments: "/payments",
-        notifications: "/notifications",
+        notifications: "/notifications", // GET ?unreadOnly&tipo&limit, GET /unread-count, PATCH /read-all, PATCH /{id}, GET/PATCH /preferences, DELETE /{id}, POST /
+        relatorios: "/relatorios", // GET /resumo|financeiro|usuarios|contratos|avaliacoes|denuncias (?inicio&fim)
         admin: "/admin/caregivers"
     }
 };
