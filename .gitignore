@@ -1,0 +1,31 @@
+# Pasta privada com segredos originais — NUNCA subir
+backup-privado-NAO-SUBIR/
+
+# Segredos / ambiente local
+.env
+.env.local
+*.pem
+*.key
+
+# Build Java
+**/target/
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Node / mobile
+**/node_modules/
+dist/
+build/
+
+# SO
+Thumbs.db
+.DS_Store
