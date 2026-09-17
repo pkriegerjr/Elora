@@ -15,7 +15,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,9 +26,10 @@ import java.time.LocalDateTime;
 /**
  * Espelha {@code usuario} do schema v2 (sem alterar o banco).
  *
- * Observação: {@code geo_ponto} é coluna gerada no MySQL e NÃO é mapeada —
- * INSERT/SELECT a ignoram e o {@code validate} passa. O módulo busca fará
- * consultas de proximidade por query nativa quando precisar.
+ * Observação: {@code geo_ponto} é mantido por trigger no banco (MySQL: coluna
+ * gerada; Postgres: trigger fn_usuario_geo) e NÃO é mapeado — INSERT/SELECT
+ * a ignoram e o {@code validate} passa. O módulo busca fará consultas de
+ * proximidade por query nativa quando precisar.
  */
 @Entity
 @Table(name = "usuario")
@@ -53,11 +56,12 @@ public class Usuario {
     private String fotoUrl;
 
     /** Somente dígitos (CHAR(11) no banco). */
-    @Column(length = 11, unique = true)
+    @Column(length = 11, unique = true, columnDefinition = "CHAR(11)")
+    @JdbcTypeCode(SqlTypes.CHAR)
     private String cpf;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 30)
+    @Column(length = 24)
     private Genero genero;
 
     @Column(name = "data_nascimento")

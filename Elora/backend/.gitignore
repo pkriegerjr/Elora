@@ -10,3 +10,4 @@ mvnw.cmd
 .factorypath
 HELP.md
 .env
+application-local.properties

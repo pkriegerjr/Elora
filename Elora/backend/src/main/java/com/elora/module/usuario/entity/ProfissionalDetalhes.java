@@ -45,7 +45,7 @@ public class ProfissionalDetalhes {
 
     /** v2.2: fluxo de validação do cuidador (fonte oficial da situação). */
     @Enumerated(EnumType.STRING)
-    @Column(name = "status_verificacao", nullable = false, length = 15)
+    @Column(name = "status_verificacao", nullable = false, length = 12)
     private StatusVerificacao statusVerificacao = StatusVerificacao.pendente;
 
     /** Mantido por trigger no banco (trg_avaliacao_*) — backend só lê. */
