@@ -73,7 +73,7 @@
         </div>
       `;
       document.getElementById('btnFav')?.addEventListener('click', async()=>{
-        if(!authService.isClient()){ notificationService.showWarning('Entre como cliente para favoritar'); window.location.href='login.html?redirect=perfil-cuidador.html?id='+c.id; return; }
+        if(!authService.isClient()){ notificationService.showWarning('Entre como cliente para favoritar'); window.location.href='../auth/login.html?redirect=busca/perfil-cuidador.html?id='+c.id; return; }
         try{ await clientService.addFavorite(c.id); notificationService.showSuccess('Favoritado!'); }catch(err){ notificationService.showError(err.message); }
       });
     }catch(err){ root.innerHTML='<div class="alert alert-danger">'+err.message+'</div>'; }

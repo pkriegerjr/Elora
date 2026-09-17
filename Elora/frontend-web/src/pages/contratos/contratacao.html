@@ -66,7 +66,7 @@
   const cgId = new URLSearchParams(window.location.search).get('caregiverId');
   let caregiver=null;
   async function init(){
-    if(!authService.isClient()){ notificationService.showWarning('Entre como cliente para contratar'); window.location.href='login.html?redirect=contratacao.html?caregiverId='+cgId; return; }
+    if(!authService.isClient()){ notificationService.showWarning('Entre como cliente para contratar'); window.location.href='../auth/login.html?redirect=contratos/contratacao.html?caregiverId='+cgId; return; }
     if(!cgId){ document.getElementById('caregiverInfo').textContent='Cuidador não informado'; return; }
     try{ caregiver = await caregiverService.getCaregiver(cgId); document.getElementById('caregiverInfo').innerHTML=`<strong>${caregiver.name}</strong> • R$ ${Number(caregiver.hourlyRate).toFixed(2)}/h • ${caregiver.verified?'<span class="verified">Verificado</span>':''}`; document.getElementById('hourlyRate').value=caregiver.hourlyRate; updateSummary(); }catch(err){ document.getElementById('caregiverInfo').textContent=err.message; }
   }

@@ -36,7 +36,7 @@
 
   async function init(){
     const root=document.getElementById('root');
-    if(!authService.isAuthenticated()){ window.location.href='login.html?redirect=pagamento.html?contractId='+contractId; return; }
+    if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect=financeiro/pagamento.html?contractId='+contractId; return; }
     if(!contractId && !paymentIdParam){ root.innerHTML='<div class="alert alert-warning">Contrato não informado</div>'; return; }
     try{
       if(contractId) contract = await contractService.getContract(contractId);

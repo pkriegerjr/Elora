@@ -11,7 +11,7 @@
 <body>
 <nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a>
   <div class="ms-auto d-flex align-items-center gap-2">
-    <span data-auth-buttons><a href="login.html" class="btn btn-elora-outline btn-sm">Entrar</a></span>
+    <span data-auth-buttons><a href="../auth/login.html" class="btn btn-elora-outline btn-sm">Entrar</a></span>
     <span data-user-menu class="d-none"><span data-user-name class="fw-semibold small"></span> <a href="#" data-action="dashboard" class="btn btn-elora-primary btn-sm">Painel</a> <a href="#" data-action="logout" class="btn btn-outline-danger btn-sm">Sair</a></span>
   </div>
 </div></nav>
@@ -131,7 +131,7 @@
       </div>
     `).join('');
     el.querySelectorAll('.fav-btn').forEach(btn=> btn.addEventListener('click', async()=>{
-      if(!authService.isAuthenticated()){ window.location.href='login.html?redirect=buscar-cuidadores.html'; return; }
+      if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect=busca/buscar-cuidadores.html'; return; }
       try{ await clientService.addFavorite(btn.dataset.id); notificationService.showSuccess('Adicionado aos favoritos!'); btn.innerHTML='<i class="bi bi-heart-fill text-danger"></i>'; }catch(err){ notificationService.showError(err.message); }
     }));
   }
