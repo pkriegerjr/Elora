@@ -1,14 +1,13 @@
-import java.time.LocalDate;
-
-import javax.annotation.processing.Generated;
-
-@Entity @Table (name="artigo_conhecimento")
-@Getter @Setter @NoArgsConstructor @Builder
-public class ArtigoConhecimento extends BaseEntity {
-    @Id @GeneratedValue(IDENTITY) @Column(name="id_artigo") Long idArtigo;
-    @Column (nullable=false) String titulo;
-    @Column (nullable=false, columnDefinition="TEXT") String Conteudo;
-    @Column (length=100) String categoria;
-    @Column (name="data_publicacao") LocalDate dataPublicaco;
-    @ManyToOne(fetch=LAZY) @JoinColumn(name="categoria_id") CategoriaConteudo CategoriaConteudo; 
+package com.elora.module.conhecimento.entity;
+import jakarta.persistence.*; import lombok.*; import java.time.LocalDateTime;
+@Entity @Table(name="artigo_conhecimento") @Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class ArtigoConhecimento {
+  @Id @GeneratedValue(strategy=GenerationType.IDENTITY) @Column(name="id_artigo") private Integer id;
+  @Column(nullable=false, length=150) private String titulo;
+  @Column(name="corpo", nullable=false, columnDefinition="TEXT") private String corpo;
+  @Column(length=80) private String categoria; // denormalizado p/ busca rápida
+  @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="categoria_id") private CategoriaConteudo categoriaRef;
+  @Column(name="autor_id") private Integer autorId;
+  @Column(nullable=false) private Boolean publicado=false;
+  private LocalDateTime criadoEm, atualizadoEm;
 }

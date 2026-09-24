@@ -1,9 +1,12 @@
 package com.elora.module.profissional.service;
-import com.elora.common.exception.*; import com.elora.module.profissional.dto.*; import com.elora.module.profissional.entity.*; import com.elora.module.profissional.mapper.ProfissionalMapper;
-import com.elora.module.profissional.repository.*; import com.elora.module.usuario.entity.*; import com.elora.module.usuario.enums.StatusVerificacao;
-import com.elora.module.usuario.repository.*; import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
-import java.util.*; import java.util.stream.Collectors;
+import com.elora.common.exception.*; import com.elora.module.profissional.dto.*;
+import com.elora.module.profissional.entity.*; import com.elora.module.profissional.mapper.ProfissionalMapper;
+import com.elora.module.usuario.entity.Usuario;
+import com.elora.module.profissional.repository.*; import com.elora.module.usuario.entity.ProfissionalDetalhes;
+import com.elora.module.usuario.enums.StatusVerificacao; import com.elora.module.usuario.repository.*;
+import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.*; 
 
 @Service @RequiredArgsConstructor
 public class ProfissionalService {
@@ -12,11 +15,13 @@ public class ProfissionalService {
   private final DocumentoProfissionalRepository docsRepo;
   private final DisponibilidadeRepository dispRepo;
   private final EspecialidadeRepository espRepo;
+  private final UsuarioEspecialidadeRepository ueRepo;
   private final UsuarioPerfilRepository usuarioPerfis;
   private final ProfissionalMapper mapper;
 
-  private Usuario getProfissional(Integer id){
-    var u=usuarios.findById(id).filter(x->x.getDeletedAt()==null).orElseThrow(()->new ResourceNotFoundException("Profissional não encontrado"));
+  private Usuario getProfissional(Integer id){ // valida que é profissional
+    var u = usuarios.findById(id).filter(x->x.getDeletedAt()==null)
+      .orElseThrow(()->new ResourceNotFoundException("Profissional não encontrado"));
     if(usuarioPerfis.findByUsuario_Id(id).stream().noneMatch(up->up.getPerfil().getNome().equals("profissional")))
       throw new BusinessException("Usuário não é profissional");
     return u;
@@ -24,19 +29,16 @@ public class ProfissionalService {
 
   @Transactional(readOnly=true)
   public ProfissionalResponse getById(Integer id){
-    var u=getProfissional(id); var d=detalhesRepo.findByUsuarioId(id).orElse(null);
-    var specs=espRepo.findAll().stream().filter(e-> true).limit(0).toList(); // placeholder
-    // busca N:N via jdbc nativo
-    var nomes=usuarios.findById(id).map(x-> new ArrayList<String>()).orElse(new ArrayList<>());
-    // query N:N simplificada: busca via usuario_especialidade
-    List<String> especialidades = dispRepo.getEntityManager()!=null? List.of(): List.of();
-    // fallback: lê tabela usuario_especialidade com native query via UsuarioRepository custom
-    List<ProfissionalResponse.DocumentoDTO> docs=docsRepo.findByUsuarioId(id).stream().map(this::toDocDTO).toList();
-    return mapper.toResponse(u,d,especialidades,docs);
+    var u=getProfissional(id);
+    var d=detalhesRepo.findByUsuarioId(id).orElse(null);
+    List<String> specs = ueRepo.findNomesByUsuarioId(id); // FIX: antes era limit(0)
+    var docs = docsRepo.findByUsuarioId(id).stream().map(this::toDocDTO).toList();
+    return mapper.toResponse(u,d,specs,docs);
   }
-
   private ProfissionalResponse.DocumentoDTO toDocDTO(DocumentoProfissional d){
-    var dto=new ProfissionalResponse.DocumentoDTO(); dto.setId(d.getId()); dto.setTipo(d.getTipo()); dto.setArquivoUrl(d.getArquivoUrl()); dto.setStatus(d.getStatus().name()); return dto;
+    var dto=new ProfissionalResponse.DocumentoDTO();
+    dto.setId(d.getId()); dto.setTipo(d.getTipo()); dto.setArquivoUrl(d.getArquivoUrl());
+    dto.setStatus(d.getStatus().name()); return dto;
   }
 
   @Transactional
@@ -49,12 +51,12 @@ public class ProfissionalService {
     if(req.getDescricaoPerfil()!=null) d.setDescricaoPerfil(req.getDescricaoPerfil());
     if(req.getPrecoHora()!=null) d.setPrecoHora(req.getPrecoHora());
     detalhesRepo.save(d);
-    // especialidades N:N
     if(req.getEspecialidades()!=null){
-      // limpa e reinsere (native)
-      // mantém compat com mock: especialidades string livre
+      ueRepo.deleteByUsuarioId(authId);
       for(String nome: req.getEspecialidades()){
-        espRepo.findByNome(nome).orElseGet(()->{ var e=new Especialidade(); e.setNome(nome); return espRepo.save(e); });
+        var esp = espRepo.findByNomeIgnoreCase(nome)
+          .orElseGet(()-> espRepo.save(new Especialidade(null, nome.trim())));
+        ueRepo.save(new UsuarioEspecialidade(authId, esp.getId(), null));
       }
     }
     return getById(authId);
@@ -71,33 +73,35 @@ public class ProfissionalService {
   @Transactional
   public DocumentoProfissional uploadDocumento(Integer profId, String tipo, String url){
     getProfissional(profId);
-    var doc=new DocumentoProfissional(); doc.setUsuarioId(profId); doc.setTipo(tipo); doc.setArquivoUrl(url);
+    var doc=new DocumentoProfissional(); doc.setUsuarioId(profId);
+    doc.setTipo(tipo); doc.setArquivoUrl(url);
     return docsRepo.save(doc);
   }
 
-  // fluxo PENDING -> UNDER_REVIEW -> APPROVED | REJECTED | NEEDS_CORRECTION
-  // mapeado para pendente -> em_analise -> aprovado | rejeitado | correcao
   @Transactional
   public ProfissionalResponse validar(Integer profId, Integer validadorId, ValidacaoRequest req){
     var d=detalhesRepo.findByUsuarioId(profId).orElseThrow(()->new ResourceNotFoundException("Profissional não encontrado"));
-    var atual=d.getStatusVerificacao();
-    Map<String,StatusVerificacao> map=Map.of("aprovado",StatusVerificacao.aprovado,"reprovado",StatusVerificacao.rejeitado,"correcao",StatusVerificacao.correcao);
-    var novo=map.get(req.getResultado().toLowerCase());
-    if(novo==null) throw new BusinessException("Resultado inválido");
-    // transição válida
-    if(atual==StatusVerificacao.aprovado && novo!=StatusVerificacao.aprovado) throw new BusinessException("Profissional já aprovado");
+    // regra integrada com UsuarioService.java:40 PERFIS_STAFF
+    var novo = switch(req.getResultado().toLowerCase()){
+      case "aprovado" -> StatusVerificacao.aprovado;
+      case "reprovado","rejeitado" -> StatusVerificacao.rejeitado;
+      case "correcao" -> StatusVerificacao.correcao;
+      default -> throw new BusinessException("Resultado inválido use: aprovado|reprovado|correcao");
+    };
+    if(d.getStatusVerificacao()==StatusVerificacao.aprovado && novo!=StatusVerificacao.aprovado)
+      throw new BusinessException("Profissional já aprovado");
     d.setStatusVerificacao(novo);
     d.setDocumentoVerificado(novo==StatusVerificacao.aprovado);
     detalhesRepo.save(d);
     return getById(profId);
   }
 
-  @Transactional public void salvarDisponibilidade(Integer profId, List<Map<String,String>> periodos){
+  @Transactional public void salvarDisponibilidade(Integer profId, List<Map<String,String>> body){
     dispRepo.deleteByUsuarioId(profId);
-    for(var p: periodos){
+    for(var p: body){
       var disp=new Disponibilidade(); disp.setUsuarioId(profId);
       disp.setData(java.time.LocalDate.parse(p.get("data")));
-      disp.setPeriodo(com.elora.module.profissional.enums.Periodo.valueOf(p.get("periodo")));
+      disp.setPeriodo(Periodo.valueOf(p.get("periodo"))); // matutino/vespertino/noturno
       dispRepo.save(disp);
     }
   }
