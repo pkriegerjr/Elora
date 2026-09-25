@@ -1,6 +1,7 @@
 package com.elora.common.exception;
 
 import com.elora.common.dto.ApiResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -34,6 +35,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<?>> business(BusinessException ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(ApiResponse.fail(ex.getMessage()));
+    }
+
+    /**
+     * Rede de segurança contra corrida: se dois pedidos duplicados chegarem
+     * juntos, a checagem do service pode passar nos dois e o banco barra um
+     * via UNIQUE. Sem este handler viraria 500; aqui vira 409 (Conflict).
+     * Única alteração fora dos 3 módulos (mínima e indispensável p/ §8).
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<?>> conflito(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.fail("Operação duplicada: este registro já existe"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
