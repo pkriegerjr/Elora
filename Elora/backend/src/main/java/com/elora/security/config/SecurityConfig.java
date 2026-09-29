@@ -45,6 +45,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/clients", "/caregivers").permitAll()
+                        // Vitrine pública: index (destaques) e buscar precisam funcionar
+                        // sem login — get(id) já retorna só o card público p/ terceiros.
+                        .requestMatchers(HttpMethod.GET, "/caregivers/search", "/caregivers/{id}").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers("/juridico/**").permitAll() // stub in-memory; travar com JWT no módulo usuario

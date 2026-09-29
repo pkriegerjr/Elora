@@ -8,11 +8,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
-/**
- * MÓDULO CONTRATO - DTO de saída. Nomes das partes p/ exibição
- * (sem CPF/senha). LAZY: mapper roda dentro de @Transactional.
- */
+/** Visão completa do contrato + assinaturas registradas. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,18 +19,16 @@ public class ContratoResponse {
     private Integer id;
     private String codigo;
     private Integer clienteId;
-    private String clienteNome;
     private Integer profissionalId;
-    private String profissionalNome;
     private String titulo;
     private String descricaoNecessidade;
     private BigDecimal valorHora;
     private BigDecimal valorTotal;
     private String enderecoAtendimento;
+    private StatusContrato status;
     private LocalDate dataInicio;
     private LocalDate dataFim;
-    private StatusContrato status;
-    private Integer criadoPorId;
+    private List<AssinaturaResponse> assinaturas;
     private LocalDateTime criadoEm;
     private LocalDateTime atualizadoEm;
 }

@@ -1,4 +1,5 @@
 package com.elora.module.relatorio;
+
 import com.elora.common.exception.ForbiddenException;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
 import com.elora.module.usuario.entity.Perfil;
@@ -15,7 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDate;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -26,20 +29,28 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @SpringBootTest
 @Transactional
 class RelatorioFlowTest {
+
     @Autowired
     private RelatorioService relatorioService;
+
     @Autowired
     private UsuarioService usuarioService;
+
     @Autowired
     private JdbcTemplate jdbc;
+
     @Autowired
     private PerfilRepository perfilRepository;
+
     @Autowired
     private UsuarioRepository usuarioRepository;
+
     @Autowired
     private UsuarioPerfilRepository usuarioPerfilRepository;
+
     private Integer adminId;
     private Integer clienteId;
+
     @BeforeEach
     void setup() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS pagamento (id_pagamento INT AUTO_INCREMENT PRIMARY KEY, "
@@ -49,36 +60,51 @@ class RelatorioFlowTest {
                 + "valor DECIMAL(12,2), status VARCHAR(20))");
         jdbc.execute("CREATE TABLE IF NOT EXISTS contrato (id_contrato INT AUTO_INCREMENT PRIMARY KEY, "
                 + "status VARCHAR(20), valor_hora DECIMAL(10,2), criado_em DATETIME)");
-        jdbc.execute("CREATE TABLE IF NOT EXISTS avaliacao (id_avaliacao INT AUTO_INCREMENT PRIMARY KEY, nota INT)");
         jdbc.execute("CREATE TABLE IF NOT EXISTS denuncia (id_denuncia INT AUTO_INCREMENT PRIMARY KEY, status VARCHAR(20))");
-        // DDL do H2 não sofre rollback: limpa para cada teste ser isolado (filho antes do pai por causa da FK).
+        // DDL do H2 não sofre rollback: limpa para cada teste ser isolado.
         jdbc.execute("DELETE FROM avaliacao");
-        jdbc.execute("DELETE FROM pagamento");
         jdbc.execute("DELETE FROM repasse");
+        jdbc.execute("DELETE FROM pagamento");
         jdbc.execute("DELETE FROM contrato");
         jdbc.execute("DELETE FROM denuncia");
         perfil("cliente");
         perfil("admin");
         clienteId = usuarioService.registerCliente(cadastro("cli@teste.com", "52998224725")).getId();
         adminId = usuarioService.registerCliente(cadastro("adm@teste.com", "11144477735")).getId();
+
         Usuario admin = usuarioRepository.findById(adminId).orElseThrow();
         UsuarioPerfil vinculo = new UsuarioPerfil();
         vinculo.setUsuario(admin);
         vinculo.setPerfil(perfilRepository.findByNome("admin").orElseThrow());
         usuarioPerfilRepository.save(vinculo);
-        jdbc.update("INSERT INTO pagamento (valor_bruto, valor_taxa, valor_liquido, metodo, status, criado_em)"
-                + " VALUES (100.00, 10.00, 90.00, 'pix', 'aprovado', CURRENT_TIMESTAMP)");
-        jdbc.update("INSERT INTO pagamento (valor_bruto, valor_taxa, valor_liquido, metodo, status, criado_em)"
-                + " VALUES (200.00, 20.00, 180.00, 'cartao', 'pendente', DATEADD('DAY', -40, CURRENT_TIMESTAMP))");
-        jdbc.update("INSERT INTO repasse (valor, status) VALUES (90.00, 'pendente')");
-        jdbc.update("INSERT INTO contrato (codigo, cliente_id, profissional_id, titulo, status, valor_hora, criado_em, atualizado_em) VALUES ('TST-001', ?, ?, 'Teste', 'ativo', 50.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", clienteId, adminId);
-        jdbc.update("INSERT INTO contrato (codigo, cliente_id, profissional_id, titulo, status, valor_hora, criado_em, atualizado_em) VALUES ('TST-002', ?, ?, 'Teste 2', 'ativo', 50.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", adminId, clienteId);
-        Integer c1 = jdbc.queryForObject("SELECT id_contrato FROM contrato WHERE codigo='TST-001'", Integer.class);
-        Integer c2 = jdbc.queryForObject("SELECT id_contrato FROM contrato WHERE codigo='TST-002'", Integer.class);
-        jdbc.update("INSERT INTO avaliacao (contrato_id, avaliador_id, avaliado_id, nota, criado_em) VALUES (?, ?, ?, 5, CURRENT_TIMESTAMP)", c1, clienteId, adminId);
-        jdbc.update("INSERT INTO avaliacao (contrato_id, avaliador_id, avaliado_id, nota, criado_em) VALUES (?, ?, ?, 3, CURRENT_TIMESTAMP)", c2, adminId, clienteId);
+
+        jdbc.update("INSERT INTO contrato (codigo, cliente_id, profissional_id, titulo, valor_hora, status, criado_em, atualizado_em) VALUES ('ELO-T-REL', "
+                + clienteId + ", " + adminId + ", 'Rel', 50.00, 'ativo', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+        Integer cid = jdbc.queryForObject("SELECT id_contrato FROM contrato WHERE codigo = 'ELO-T-REL'", Integer.class);
+        jdbc.update("INSERT INTO pagamento (contrato_id, pagador_id, valor_bruto, valor_taxa, valor_liquido, metodo, status, idempotency_key, criado_em, atualizado_em)"
+                + " VALUES (" + cid + ", " + clienteId + ", 100.00, 10.00, 90.00, 'pix', 'aprovado', 'rel-1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+        jdbc.update("INSERT INTO pagamento (contrato_id, pagador_id, valor_bruto, valor_taxa, valor_liquido, metodo, status, idempotency_key, criado_em, atualizado_em)"
+                + " VALUES (" + cid + ", " + clienteId + ", 200.00, 20.00, 180.00, 'cartao', 'pendente', 'rel-2', DATEADD('DAY', -40, CURRENT_TIMESTAMP), DATEADD('DAY', -40, CURRENT_TIMESTAMP))");
+        Integer pid = jdbc.queryForObject("SELECT id_pagamento FROM pagamento WHERE idempotency_key = 'rel-1'", Integer.class);
+        jdbc.update("INSERT INTO repasse (pagamento_id, profissional_id, valor, status) VALUES (" + pid + ", " + adminId + ", 90.00, 'pendente')");
+        jdbc.update("""
+            INSERT INTO avaliacao (
+                contrato_id,
+                avaliador_id,
+                avaliado_id,
+                nota,
+                criado_em
+            )
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            cid,
+            clienteId,
+            adminId,
+            5
+        );
         jdbc.update("INSERT INTO denuncia (status) VALUES ('aberta')");
     }
+
     private void perfil(String nome) {
         if (perfilRepository.findByNome(nome).isEmpty()) {
             Perfil p = new Perfil();
@@ -87,6 +113,7 @@ class RelatorioFlowTest {
             perfilRepository.save(p);
         }
     }
+
     private ClienteRegisterRequest cadastro(String email, String cpf) {
         ClienteRegisterRequest req = new ClienteRegisterRequest();
         req.setNome("Teste");
@@ -96,31 +123,36 @@ class RelatorioFlowTest {
         req.setConsentimentoLgpd(true);
         return req;
     }
+
     @Test
     void resumoConsolida() {
         var r = relatorioService.resumo(adminId);
         assertEquals(2, r.getTotalUsuarios());
         assertEquals(2, r.getUsuariosAtivos());
-        assertEquals(2, r.getContratosAtivos());
+        assertEquals(1, r.getContratosAtivos());
         assertEquals(1, r.getPagamentosPendentes());
         assertEquals(1, r.getRepassesPendentes());
         assertEquals(1, r.getDenunciasAbertas());
     }
+
     @Test
     void financeiroRespeitaPeriodo() {
         var todos = relatorioService.financeiro(adminId, null, null);
         assertEquals(2, todos.getTotalPagamentos());
+
         var recente = relatorioService.financeiro(adminId, LocalDate.now().minusDays(7), LocalDate.now());
         assertEquals(1, recente.getTotalPagamentos());
         assertEquals(1L, recente.getPorMetodo().get("pix"));
     }
+
     @Test
     void demaisRelatorios() {
-        assertEquals(2, relatorioService.contratos(adminId, null, null).getTotal());
-        assertEquals(2, relatorioService.avaliacoes(adminId).getTotal());
+        assertEquals(1, relatorioService.contratos(adminId, null, null).getTotal());
+        assertEquals(1, relatorioService.avaliacoes(adminId).getTotal());
         assertEquals(1, relatorioService.denuncias(adminId).getTotal());
         assertEquals(2, relatorioService.usuarios(adminId, null, null).getTotal());
     }
+
     @Test
     void naoStaffNaoVe() {
         assertThrows(ForbiddenException.class, () -> relatorioService.resumo(clienteId));

@@ -9,7 +9,7 @@
   <link href="../../css/style.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-elora"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><span data-user-menu class="d-none small" data-user-name></span></div></nav>
+<nav class="navbar navbar-elora"><div class="container"><a class="navbar-brand" href="../../index.html">EL<span>ORA</span></a><span data-user-menu class="d-none small" data-user-name></span></div></nav>
 <div class="container py-4" id="root">
   <div class="text-center py-5"><div class="spinner-border"></div></div>
 </div>
@@ -30,7 +30,7 @@
   async function load(){
     const root=document.getElementById('root');
     if(!id){ root.innerHTML='<div class="alert alert-warning">Contrato não informado</div>'; return; }
-    if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect=contratos/contrato.html?id='+id; return; }
+    if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect=/pages/contratos/contrato.html?id='+id; return; }
     try{
       const c = await contractService.getContract(id);
       const status = await contractService.getContractStatus(id);

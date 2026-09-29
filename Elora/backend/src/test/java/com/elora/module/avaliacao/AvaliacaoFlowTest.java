@@ -231,7 +231,7 @@ class AvaliacaoFlowTest {
         req.setProfissionalId(profissionalId);
         req.setTitulo("Cuidado teste");
         req.setValorHora(new BigDecimal("40.00"));
-        return contratoService.criar(clienteId, req).getId();
+        return contratoService.criar(clienteId, req, "127.0.0.1").getId();
     }
 
     private CriarAvaliacaoRequest req(Integer contratoId, Integer nota, String comentario) {

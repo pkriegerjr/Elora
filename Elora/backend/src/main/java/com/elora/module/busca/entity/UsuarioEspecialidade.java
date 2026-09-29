@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
  * MÓDULO BUSCA - Vínculo N:N {@code usuario_especialidade}.
  * Só os 2 IDs (para a busca, "quais" basta; nomes vêm da Especialidade).
  */
-@Entity
+@Entity(name = "BuscaUsuarioEspecialidade")
 @Table(name = "usuario_especialidade")
 @IdClass(UsuarioEspecialidadeId.class)
 @Data

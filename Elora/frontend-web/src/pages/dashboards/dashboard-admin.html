@@ -55,7 +55,7 @@
 <script>
   let currentPage=1, currentId=null;
   async function load(page=1){
-    if(!authService.isAdmin()){ window.location.href='../auth/login.html?redirect=dashboards/dashboard-admin.html'; return; }
+    if(!authService.isAdmin()){ window.location.href='../auth/login.html?redirect=/pages/dashboards/dashboard-admin.html'; return; }
     document.getElementById('adminRole').textContent = authService.getCurrentUser().role||'admin';
     const status=document.getElementById('filterStatus').value;
     const search=document.getElementById('search').value.trim();

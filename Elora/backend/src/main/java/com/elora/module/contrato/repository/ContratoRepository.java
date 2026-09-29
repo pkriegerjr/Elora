@@ -7,10 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * MÓDULO CONTRATO - Repository Spring Data JPA (query methods, sem SQL).
- * Escopo do dono (por ID + parte) igual ao das notificações.
- */
+/** Escopo do dono (por ID + parte), igual ao das notificações. */
 public interface ContratoRepository extends JpaRepository<Contrato, Integer> {
 
     List<Contrato> findByCliente_IdOrderByCriadoEmDesc(Integer clienteId);
@@ -24,4 +21,6 @@ public interface ContratoRepository extends JpaRepository<Contrato, Integer> {
     List<Contrato> findByStatusOrderByCriadoEmDesc(StatusContrato status);
 
     boolean existsByCodigo(String codigo);
+
+    boolean existsByCliente_IdAndProfissional_Id(Integer clienteId, Integer profissionalId);
 }

@@ -1,19 +1,18 @@
 package com.elora.module.escala.repository;
 
 import com.elora.module.escala.entity.EscalaTrabalho;
-import com.elora.module.escala.enums.Periodo;
+import com.elora.module.escala.enums.PeriodoTurno;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
 
-/** MÓDULO ESCALA - Turnos por contrato (ordenados p/ a agenda do front). */
 public interface EscalaTrabalhoRepository extends JpaRepository<EscalaTrabalho, Integer> {
 
-    List<EscalaTrabalho> findByContratoIdOrderByDataAscPeriodoAsc(Integer contratoId);
+    boolean existsByContratoIdAndDataAndPeriodo(Integer contratoId, LocalDate data,
+                                               PeriodoTurno periodo);
 
-    List<EscalaTrabalho> findByContratoIdAndDataBetweenOrderByDataAscPeriodoAsc(
-            Integer contratoId, LocalDate inicio, LocalDate fim);
+    List<EscalaTrabalho> findByContratoId(Integer contratoId);
 
-    boolean existsByContratoIdAndDataAndPeriodo(Integer contratoId, LocalDate data, Periodo periodo);
+    List<EscalaTrabalho> findByContratoIdAndDataBetween(Integer contratoId, LocalDate inicio, LocalDate fim);
 }

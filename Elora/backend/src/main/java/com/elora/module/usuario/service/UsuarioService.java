@@ -5,6 +5,7 @@ import com.elora.common.exception.ForbiddenException;
 import com.elora.common.exception.ResourceNotFoundException;
 import com.elora.common.util.DocumentUtils;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
+import com.elora.module.usuario.dto.CuidadorCardResponse;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
 import com.elora.module.usuario.dto.UsuarioResponse;
 import com.elora.module.usuario.entity.ContratanteDetalhes;
@@ -17,6 +18,7 @@ import com.elora.module.usuario.enums.StatusVerificacao;
 import com.elora.module.usuario.enums.UsuarioStatus;
 import com.elora.module.usuario.repository.ContratanteDetalhesRepository;
 import com.elora.module.usuario.repository.PerfilRepository;
+import com.elora.module.usuario.repository.ProfissionalBuscaRepository;
 import com.elora.module.usuario.repository.ProfissionalDetalhesRepository;
 import com.elora.module.usuario.repository.UsuarioPerfilRepository;
 import com.elora.module.usuario.repository.UsuarioRepository;
@@ -27,8 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Cadastro e leitura de usuários. Não altera o schema — só JPA sobre o v2.
@@ -43,6 +48,7 @@ public class UsuarioService {
     private final PerfilRepository perfis;
     private final UsuarioPerfilRepository usuarioPerfis;
     private final ProfissionalDetalhesRepository profissionalDetalhes;
+    private final ProfissionalBuscaRepository profissionalBusca;
     private final ContratanteDetalhesRepository contratanteDetalhes;
     private final PasswordEncoder passwordEncoder;
 
@@ -108,6 +114,81 @@ public class UsuarioService {
         return usuarios.findById(id)
                 .filter(u -> u.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+    }
+
+    /**
+     * Vitrine de cuidadores (GET /caregivers/search). Lê a view
+     * {@code vw_profissional_busca} — inclui ativos de qualquer situação de
+     * verificação (o front exibe o selo); o fluxo de aprovação entra na
+     * evolução do módulo jurídico/admin.
+     */
+    @Transactional(readOnly = true)
+    public List<CuidadorCardResponse> buscarProfissionais(String specialty, BigDecimal minRating,
+                                                         Double lat, Double lng, Double radiusKm) {
+        String esp = (specialty == null || specialty.isBlank()) ? null : specialty.trim();
+        List<CuidadorCardResponse> cards = profissionalBusca.buscar(esp, minRating).stream()
+                .map(this::toCard)
+                .collect(Collectors.toList());
+        if (lat != null && lng != null) {
+            for (CuidadorCardResponse c : cards) {
+                if (c.getLatitude() != null && c.getLongitude() != null) {
+                    c.setDistanceKm(haversineKm(lat, lng,
+                            c.getLatitude().doubleValue(), c.getLongitude().doubleValue()));
+                }
+            }
+            if (radiusKm != null) {
+                cards = cards.stream()
+                        .filter(c -> c.getDistanceKm() != null && c.getDistanceKm() <= radiusKm)
+                        .collect(Collectors.toList());
+            }
+        }
+        return cards;
+    }
+
+    /**
+     * Perfil público de um cuidador (qualquer autenticado pode ver — marketplace).
+     * Sem e-mail/CPF/telefone (LGPD); esses só via {@link #toResponse} (próprio usuário/staff).
+     */
+    @Transactional(readOnly = true)
+    public CuidadorCardResponse verPerfilProfissional(Integer targetId) {
+        if (!perfisDe(targetId).contains("profissional")) {
+            throw new ResourceNotFoundException("Cuidador não encontrado");
+        }
+        return profissionalBusca.buscarPorId(targetId)
+                .map(this::toCard)
+                .orElseThrow(() -> new ResourceNotFoundException("Cuidador não encontrado"));
+    }
+
+    private CuidadorCardResponse toCard(Map<String, Object> row) {
+        CuidadorCardResponse c = new CuidadorCardResponse();
+        c.setId((Integer) row.get("id_usuario"));
+        c.setName((String) row.get("nome"));
+        c.setFotoUrl((String) row.get("foto_url"));
+        c.setBio((String) row.get("descricao_perfil"));
+        c.setHourlyRate((BigDecimal) row.get("preco_hora"));
+        c.setRating((BigDecimal) row.get("nota_media"));
+        Object total = row.get("total_avaliacoes");
+        c.setReviewCount(total == null ? 0L : ((Number) total).longValue());
+        String situacao = (String) row.get("status_verificacao");
+        boolean aprovado = "aprovado".equalsIgnoreCase(situacao);
+        c.setVerified(aprovado);
+        c.setStatus(aprovado ? "APPROVED" : "PENDING");
+        String espec = (String) row.get("especialidades");
+        c.setSpecialties(espec == null || espec.isBlank() ? List.of()
+                : Arrays.stream(espec.split(",")).map(String::trim)
+                        .filter(s -> !s.isEmpty()).collect(Collectors.toList()));
+        c.setLatitude((BigDecimal) row.get("latitude"));
+        c.setLongitude((BigDecimal) row.get("longitude"));
+        return c;
+    }
+
+    private double haversineKm(double lat1, double lng1, double lat2, double lng2) {
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10.0;
     }
 
     @Transactional(readOnly = true)

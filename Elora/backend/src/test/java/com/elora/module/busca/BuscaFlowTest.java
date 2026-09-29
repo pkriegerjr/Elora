@@ -9,9 +9,9 @@ import com.elora.module.busca.entity.Especialidade;
 import com.elora.module.busca.entity.UsuarioEspecialidade;
 import com.elora.module.busca.enums.Periodo;
 import com.elora.module.busca.enums.StatusDisponibilidade;
-import com.elora.module.busca.repository.DisponibilidadeRepository;
-import com.elora.module.busca.repository.EspecialidadeRepository;
-import com.elora.module.busca.repository.UsuarioEspecialidadeRepository;
+import com.elora.module.busca.repository.BuscaDisponibilidadeRepository;
+import com.elora.module.busca.repository.BuscaEspecialidadeRepository;
+import com.elora.module.busca.repository.BuscaUsuarioEspecialidadeRepository;
 import com.elora.module.busca.service.BuscaService;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
@@ -60,13 +60,13 @@ class BuscaFlowTest {
     private PerfilRepository perfilRepository;
 
     @Autowired
-    private EspecialidadeRepository especialidadeRepository;
+    private BuscaEspecialidadeRepository especialidadeRepository;
 
     @Autowired
-    private UsuarioEspecialidadeRepository vinculosRepository;
+    private BuscaUsuarioEspecialidadeRepository vinculosRepository;
 
     @Autowired
-    private DisponibilidadeRepository disponibilidadeRepository;
+    private BuscaDisponibilidadeRepository disponibilidadeRepository;
 
     private Integer cli;
     private Integer p1;

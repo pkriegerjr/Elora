@@ -1,11 +1,9 @@
 package com.elora.module.profissional.entity;
-import jakarta.persistence.*;
-import lombok.*;
-@Entity(name = "ProfissionalUsuarioEspecialidade") @Table(name="usuario_especialidade")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+import jakarta.persistence.*; import lombok.*;
+import java.io.Serializable;
+@Entity(name = "ProfissionalUsuarioEspecialidade")
+@Table(name = "usuario_especialidade")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 @IdClass(UsuarioEspecialidadeId.class)
 public class UsuarioEspecialidade {
     @Id

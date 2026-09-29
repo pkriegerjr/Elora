@@ -24,14 +24,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * MÓDULO CONTRATO - Entity JPA (tabela {@code contrato}, schema v2).
- *
- * <p>Campos vindos da documentação (schema + comentário "código gerado na app"):
- * código único, cliente/profissional (cliente ≠ profissional), título,
- * descrição, valor/hora, total, endereço, período (fim ≥ início), status
- * (funil de 9 — ver {@link StatusContrato}), criador e carimbos.
- * Proposta/mensagem/assinatura/escala são tabelas vizinhas já existentes e
- * ficam como evolução (decisão: MVP simples, sem inventar fluxo).</p>
+ * Espelha {@code contrato} do schema v2 (REQ-008/009).
+ * Partes como associação (padrão do projeto, vide Notificacao).
  */
 @Entity
 @Table(name = "contrato")
@@ -71,15 +65,15 @@ public class Contrato {
     @Column(name = "endereco_atendimento", length = 255)
     private String enderecoAtendimento;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private StatusContrato status = StatusContrato.rascunho;
+
     @Column(name = "data_inicio")
     private LocalDate dataInicio;
 
     @Column(name = "data_fim")
     private LocalDate dataFim;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private StatusContrato status = StatusContrato.rascunho;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "criado_por")

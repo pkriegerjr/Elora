@@ -1,5 +1,6 @@
 package com.elora.module.contrato.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -9,27 +10,25 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/**
- * MÓDULO CONTRATO - DTO do PUT /contratos/{id}. Tudo opcional:
- * null = "não mexer". Partes/código/status não mudam por aqui.
- */
+/** PUT /contracts/{id} — só não-finalizado; null = não mexer. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AtualizarContratoRequest {
 
-    @Size(max = 150, message = "Título deve ter no máximo 150 caracteres")
+    @Size(max = 150)
     private String titulo;
 
     private String descricaoNecessidade;
 
-    @DecimalMin(value = "0.0", message = "valorHora não pode ser negativo")
+    @DecimalMin(value = "0.0")
     private BigDecimal valorHora;
 
-    @DecimalMin(value = "0.0", message = "valorTotal não pode ser negativo")
+    @DecimalMin(value = "0.0")
     private BigDecimal valorTotal;
 
-    @Size(max = 255, message = "Endereço deve ter no máximo 255 caracteres")
+    @Size(max = 255)
     private String enderecoAtendimento;
 
     private LocalDate dataInicio;

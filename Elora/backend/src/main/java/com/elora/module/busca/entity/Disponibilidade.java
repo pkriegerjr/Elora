@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
  * MÓDULO BUSCA - Agenda do cuidador (tabela {@code disponibilidade}).
  * Filtro de data+período da busca. UNIQUE(usuario_id,data,periodo) no banco.
  */
-@Entity
+@Entity(name = "BuscaDisponibilidade")
 @Table(name = "disponibilidade", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"usuario_id", "data", "periodo"})
 })

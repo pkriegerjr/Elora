@@ -1,6 +1,6 @@
 package com.elora.module.escala.entity;
 
-import com.elora.module.escala.enums.Periodo;
+import com.elora.module.escala.enums.PeriodoTurno;
 import com.elora.module.escala.enums.StatusEscala;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,18 +18,18 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 /**
- * MÓDULO ESCALA - Turno da escala de trabalho (tabela
- * {@code escala_trabalho}, REQ-ELO-013).
- *
- * <p>{@code contratoId} é número puro de propósito: o módulo contrato ainda
- * não existe neste backend, então não há entity para relacionar (mesmo
- * padrão do módulo profissional: IDs, sem dependência cruzada). A FK é
- * garantida pelo banco — contrato inexistente vira 422 no service.</p>
+ * Espelha {@code escala_trabalho} do schema v2 (REQ-013).
+ * Turno = (contrato, data, periodo), único por {@code uq_escala}.
  */
 @Entity
-@Table(name = "escala_trabalho", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"contrato_id", "data", "periodo"})
-})
+@Table(
+    name = "escala_trabalho",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            columnNames = {"contrato_id", "data", "periodo"}
+        )
+    }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -48,7 +48,7 @@ public class EscalaTrabalho {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 12)
-    private Periodo periodo;
+    private PeriodoTurno periodo;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 12)

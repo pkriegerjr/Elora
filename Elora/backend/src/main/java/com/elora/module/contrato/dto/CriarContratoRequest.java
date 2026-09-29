@@ -1,5 +1,6 @@
 package com.elora.module.contrato.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -12,12 +13,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * MÓDULO CONTRATO - DTO do POST /contratos.
- * Código/status/criador são decididos no service (não vêm do front).
+ * POST /contracts. Código/status/criador decididos no service.
+ * Campos extras do front (days, schedule, paymentMethod...) são ignorados.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CriarContratoRequest {
 
     @NotNull(message = "clienteId é obrigatório")

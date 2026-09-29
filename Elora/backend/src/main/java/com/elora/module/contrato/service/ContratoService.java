@@ -1,21 +1,29 @@
 package com.elora.module.contrato.service;
 
+import com.elora.common.audit.AuditoriaService;
 import com.elora.common.exception.BusinessException;
 import com.elora.common.exception.ForbiddenException;
 import com.elora.common.exception.ResourceNotFoundException;
+import com.elora.module.contrato.dto.AssinaturaResponse;
 import com.elora.module.contrato.dto.AtualizarContratoRequest;
 import com.elora.module.contrato.dto.ContratoResponse;
 import com.elora.module.contrato.dto.CriarContratoRequest;
+import com.elora.module.contrato.entity.AssinaturaContrato;
 import com.elora.module.contrato.entity.Contrato;
 import com.elora.module.contrato.enums.StatusContrato;
-import com.elora.module.contrato.mapper.ContratoMapper;
+import com.elora.module.contrato.repository.AssinaturaContratoRepository;
 import com.elora.module.contrato.repository.ContratoRepository;
+import com.elora.module.notificacao.service.NotificacaoService;
 import com.elora.module.usuario.entity.Usuario;
 import com.elora.module.usuario.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,22 +34,21 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * MÓDULO CONTRATO - Regras de negócio (ciclo de vida vindo da documentação).
- *
- * <p>Funil (schema CHECK + fluxo do front): rascunho → proposta → negociacao →
- * aguard_assinatura → ativo → concluido; desvios: cancelado (antes de ativo),
- * rescindido e em_disputa (a partir de ativo/disputa). Finais não saem do lugar.
- * Cria: cliente dono ou staff; vê: partes ou staff; edita: cliente/staff e só
- * não-finalizado; exclui fisicamente: só rascunho (histórico se preserva).</p>
+ * REQ-008/009: ciclo de vida do contrato + assinatura digital simplificada.
+ * Funil: rascunho → proposta → negociacao → aguard_assinatura → ativo →
+ * concluido; desvios: cancelado, rescindido, em_disputa. Quando cliente E
+ * profissional assinam em aguard_assinatura, o contrato ativa sozinho —
+ * destravando o pagamento (REQ-007).
  */
 @Service
 @RequiredArgsConstructor
 public class ContratoService {
 
     private final ContratoRepository contratos;
+    private final AssinaturaContratoRepository assinaturas;
     private final UsuarioService usuarioService;
-
-    private static final String PERFIL_PROFISSIONAL = "profissional";
+    private final NotificacaoService notificacoes;
+    private final AuditoriaService auditoria;
 
     private static final Set<StatusContrato> FINAIS =
             Set.of(StatusContrato.concluido, StatusContrato.rescindido, StatusContrato.cancelado);
@@ -62,19 +69,18 @@ public class ContratoService {
                 Set.of(StatusContrato.ativo, StatusContrato.concluido, StatusContrato.rescindido));
     }
 
-    /** Cria (sempre rascunho, código único gerado na app). */
+    /** Cria sempre em rascunho, com código único gerado na app. */
     @Transactional
-    public ContratoResponse criar(Integer viewerId, CriarContratoRequest req) {
+    public ContratoResponse criar(Integer viewerId, CriarContratoRequest req, String ip) {
         Usuario cliente = usuarioService.getVisivel(req.getClienteId());
         Usuario profissional = usuarioService.getVisivel(req.getProfissionalId());
-
         if (!cliente.getId().equals(viewerId) && !usuarioService.ehStaff(viewerId)) {
             throw new ForbiddenException("Somente o próprio cliente ou a equipe Elora pode criar o contrato");
         }
         if (cliente.getId().equals(profissional.getId())) {
             throw new BusinessException("Cliente e profissional não podem ser o mesmo usuário");
         }
-        if (!usuarioService.perfisDe(profissional.getId()).contains(PERFIL_PROFISSIONAL)) {
+        if (!usuarioService.perfisDe(profissional.getId()).contains("profissional")) {
             throw new BusinessException("O usuário contratado não possui perfil de profissional");
         }
         validarDatas(req.getDataInicio(), req.getDataFim());
@@ -92,7 +98,12 @@ public class ContratoService {
         contrato.setDataFim(req.getDataFim());
         contrato.setStatus(StatusContrato.rascunho);
         contrato.setCriadoPor(usuarioService.getVisivel(viewerId));
-        return ContratoMapper.toResponse(contratos.save(contrato));
+        Contrato salvo = contratos.save(contrato);
+        auditoria.registrar(viewerId, "contrato.criar", "contrato", salvo.getId(), ip);
+        notificacoes.notificarSistema(profissional.getId(), "Nova proposta de contrato",
+                cliente.getNome() + " propôs: " + salvo.getTitulo() + " (" + salvo.getCodigo() + ")",
+                "contrato", salvo.getId());
+        return mapear(salvo);
     }
 
     /** Meus contratos (papel cliente/profissional/os dois, mais novos antes). */
@@ -106,18 +117,18 @@ public class ContratoService {
             base.addAll(contratos.findByProfissional_IdOrderByCriadoEmDesc(viewerId));
         }
         base.sort(Comparator.comparing(Contrato::getCriadoEm).reversed());
-        return base.stream().map(ContratoMapper::toResponse).toList();
+        return base.stream().map(this::mapear).toList();
     }
 
     /** Um contrato (partes ou staff; 404 para não revelar existência). */
     @Transactional(readOnly = true)
     public ContratoResponse buscarPorId(Integer viewerId, Integer id) {
-        return ContratoMapper.toResponse(exigirAcesso(viewerId, id));
+        return mapear(exigirAcesso(viewerId, id));
     }
 
     /** Edita dados (cliente/staff, só não-finalizado, null = não mexer). */
     @Transactional
-    public ContratoResponse atualizar(Integer viewerId, Integer id, AtualizarContratoRequest req) {
+    public ContratoResponse atualizar(Integer viewerId, Integer id, AtualizarContratoRequest req, String ip) {
         Contrato contrato = exigirAcesso(viewerId, id);
         if (!contrato.getCliente().getId().equals(viewerId) && !usuarioService.ehStaff(viewerId)) {
             throw new ForbiddenException("Somente o cliente ou a equipe Elora pode editar o contrato");
@@ -147,12 +158,14 @@ public class ContratoService {
             contrato.setDataFim(req.getDataFim());
         }
         validarDatas(contrato.getDataInicio(), contrato.getDataFim());
-        return ContratoMapper.toResponse(contratos.save(contrato));
+        Contrato salvo = contratos.save(contrato);
+        auditoria.registrar(viewerId, "contrato.atualizar", "contrato", salvo.getId(), ip);
+        return mapear(salvo);
     }
 
     /** Avança no funil (transição proibida = 422). */
     @Transactional
-    public ContratoResponse atualizarStatus(Integer viewerId, Integer id, StatusContrato novoStatus) {
+    public ContratoResponse atualizarStatus(Integer viewerId, Integer id, StatusContrato novoStatus, String ip) {
         Contrato contrato = exigirAcesso(viewerId, id);
         Set<StatusContrato> permitidos = TRANSICOES.get(contrato.getStatus());
         if (permitidos == null || !permitidos.contains(novoStatus)) {
@@ -160,12 +173,75 @@ public class ContratoService {
                     "Transição de " + contrato.getStatus() + " para " + novoStatus + " não é permitida");
         }
         contrato.setStatus(novoStatus);
-        return ContratoMapper.toResponse(contratos.save(contrato));
+        Contrato salvo = contratos.save(contrato);
+        auditoria.registrar(viewerId, "contrato.status", "contrato", salvo.getId(), ip);
+        Integer outro = salvo.getCliente().getId().equals(viewerId)
+                ? salvo.getProfissional().getId() : salvo.getCliente().getId();
+        notificacoes.notificarSistema(outro, "Contrato " + novoStatus,
+                "Contrato " + salvo.getCodigo() + " agora está " + novoStatus, "contrato", salvo.getId());
+        return mapear(salvo);
+    }
+
+    /**
+     * Assinatura digital simplificada (hash SHA-256 do termo, provedor interno).
+     * Só as partes assinam, só em aguard_assinatura; com as duas assinaturas o
+     * contrato ativa sozinho e libera o pagamento.
+     */
+    @Transactional
+    public ContratoResponse assinar(Integer viewerId, Integer id, String ip) {
+        Contrato contrato = exigirAcesso(viewerId, id);
+        if (contrato.getStatus() != StatusContrato.aguard_assinatura) {
+            throw new BusinessException("Contrato não está aguardando assinatura");
+        }
+        String papel;
+        if (viewerId.equals(contrato.getCliente().getId())) {
+            papel = "cliente";
+        } else if (viewerId.equals(contrato.getProfissional().getId())) {
+            papel = "profissional";
+        } else {
+            throw new ForbiddenException("Somente as partes assinam o contrato");
+        }
+        if (assinaturas.existsByContratoIdAndUsuario_IdAndPapel(id, viewerId, papel)) {
+            throw new BusinessException("Você já assinou este contrato");
+        }
+        AssinaturaContrato a = new AssinaturaContrato();
+        a.setContratoId(id);
+        a.setUsuario(usuarioService.getVisivel(viewerId));
+        a.setPapel(papel);
+        a.setHashDocumento(sha256Hex(contrato.getCodigo() + "|" + viewerId + "|" + papel
+                + "|" + System.currentTimeMillis()));
+        a.setProvedor("interno");
+        a.setIpAssinatura(ip);
+        assinaturas.save(a);
+        auditoria.registrar(viewerId, "contrato.assinar", "contrato", id, ip);
+
+        boolean clienteAssinou = assinaturas.existsByContratoIdAndUsuario_IdAndPapel(
+                id, contrato.getCliente().getId(), "cliente");
+        boolean profissionalAssinou = assinaturas.existsByContratoIdAndUsuario_IdAndPapel(
+                id, contrato.getProfissional().getId(), "profissional");
+        if (clienteAssinou && profissionalAssinou) {
+            contrato.setStatus(StatusContrato.ativo);
+            contratos.save(contrato);
+            auditoria.registrar(viewerId, "contrato.ativar", "contrato", id, ip);
+            notificacoes.notificarSistema(contrato.getCliente().getId(), "Contrato ativo",
+                    "Contrato " + contrato.getCodigo() + " assinado pelas partes. Pagamento liberado.",
+                    "contrato", id);
+            notificacoes.notificarSistema(contrato.getProfissional().getId(), "Contrato ativo",
+                    "Contrato " + contrato.getCodigo() + " assinado pelas partes. Bom trabalho!",
+                    "contrato", id);
+        } else {
+            Integer outro = papel.equals("cliente")
+                    ? contrato.getProfissional().getId() : contrato.getCliente().getId();
+            notificacoes.notificarSistema(outro, "Assinatura pendente",
+                    "A outra parte assinou o contrato " + contrato.getCodigo() + ". Falta você!",
+                    "contrato", id);
+        }
+        return mapear(contratos.findById(id).orElseThrow());
     }
 
     /** Exclui fisicamente SÓ rascunho (criador/cliente/staff). */
     @Transactional
-    public void excluir(Integer viewerId, Integer id) {
+    public void excluir(Integer viewerId, Integer id, String ip) {
         Contrato contrato = exigirAcesso(viewerId, id);
         if (contrato.getStatus() != StatusContrato.rascunho) {
             throw new BusinessException("Somente contratos em rascunho podem ser excluídos");
@@ -175,6 +251,7 @@ public class ContratoService {
         if (!criador && !cliente && !usuarioService.ehStaff(viewerId)) {
             throw new ForbiddenException("Somente o criador ou a equipe Elora pode excluir este rascunho");
         }
+        auditoria.registrar(viewerId, "contrato.excluir", "contrato", id, ip);
         contratos.delete(contrato);
     }
 
@@ -203,7 +280,8 @@ public class ContratoService {
     private String gerarCodigoUnico() {
         int ano = LocalDate.now().getYear();
         for (int tentativa = 0; tentativa < 10; tentativa++) {
-            String codigo = String.format("ELO-%d-%06d", ano, ThreadLocalRandom.current().nextInt(0, 1000000));
+            String codigo = String.format("ELO-%d-%06d", ano,
+                    ThreadLocalRandom.current().nextInt(0, 1000000));
             if (!contratos.existsByCodigo(codigo)) {
                 return codigo;
             }
@@ -216,5 +294,30 @@ public class ContratoService {
             return null;
         }
         return texto.trim();
+    }
+
+    private String sha256Hex(String valor) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(valor.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 indisponível", e);
+        }
+    }
+
+    private ContratoResponse mapear(Contrato c) {
+        List<AssinaturaResponse> sigs = assinaturas.findByContratoId(c.getId()).stream()
+                .map(a -> new AssinaturaResponse(a.getId(), a.getPapel(), a.getAssinadoEm()))
+                .toList();
+        return new ContratoResponse(
+                c.getId(), c.getCodigo(), c.getCliente().getId(), c.getProfissional().getId(),
+                c.getTitulo(), c.getDescricaoNecessidade(), c.getValorHora(), c.getValorTotal(),
+                c.getEnderecoAtendimento(), c.getStatus(), c.getDataInicio(), c.getDataFim(),
+                sigs, c.getCriadoEm(), c.getAtualizadoEm());
     }
 }

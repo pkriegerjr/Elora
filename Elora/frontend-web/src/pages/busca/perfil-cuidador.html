@@ -9,7 +9,7 @@
   <link href="../../css/style.css" rel="stylesheet">
 </head>
 <body>
-<nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="../busca/buscar-cuidadores.html" class="btn btn-elora-outline btn-sm"><i class="bi bi-arrow-left me-1"></i> Voltar à busca</a></div></nav>
+<nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../index.html">EL<span>ORA</span></a><a href="../busca/buscar-cuidadores.html" class="btn btn-elora-outline btn-sm"><i class="bi bi-arrow-left me-1"></i> Voltar à busca</a></div></nav>
 <div class="container py-4" id="profileRoot">
   <div class="text-center py-5"><div class="spinner-border"></div><p class="small text-muted mt-2">Carregando perfil...</p></div>
 </div>
@@ -73,7 +73,7 @@
         </div>
       `;
       document.getElementById('btnFav')?.addEventListener('click', async()=>{
-        if(!authService.isClient()){ notificationService.showWarning('Entre como cliente para favoritar'); window.location.href='../auth/login.html?redirect=busca/perfil-cuidador.html?id='+c.id; return; }
+        if(!authService.isClient()){ notificationService.showWarning('Entre como cliente para favoritar'); window.location.href='../auth/login.html?redirect=/pages/busca/perfil-cuidador.html?id='+c.id; return; }
         try{ await clientService.addFavorite(c.id); notificationService.showSuccess('Favoritado!'); }catch(err){ notificationService.showError(err.message); }
       });
     }catch(err){ root.innerHTML='<div class="alert alert-danger">'+err.message+'</div>'; }

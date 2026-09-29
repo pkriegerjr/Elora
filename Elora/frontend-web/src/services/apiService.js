@@ -180,7 +180,17 @@ class ApiService {
         }
     }
 
-    async get(endpoint, params={}){ const qs=new URLSearchParams(params).toString(); return this.request(qs?`${endpoint}?${qs}`:endpoint,{method:"GET"}); }
+    async get(endpoint, params={}){
+        // Remove undefined/null/vazios: URLSearchParams os serializaria como
+        // as strings literais "undefined"/"null", que quebram a conversão de
+        // tipos no Spring (ex.: BigDecimal("undefined") -> 400 Character u...).
+        const clean = {};
+        for (const [k, v] of Object.entries(params)) {
+            if (v !== undefined && v !== null && v !== '') clean[k] = v;
+        }
+        const qs=new URLSearchParams(clean).toString();
+        return this.request(qs?`${endpoint}?${qs}`:endpoint,{method:"GET"});
+    }
     async post(endpoint, data={}){ return this.request(endpoint,{method:"POST",body:JSON.stringify(data)}); }
     async put(endpoint, data={}){ return this.request(endpoint,{method:"PUT",body:JSON.stringify(data)}); }
     async patch(endpoint, data={}){ return this.request(endpoint,{method:"PATCH",body:JSON.stringify(data)}); }
@@ -192,7 +202,11 @@ class ApiService {
     }
 
     async download(endpoint, params={}){
-        const qs=new URLSearchParams(params).toString();
+        const clean = {};
+        for (const [k, v] of Object.entries(params)) {
+            if (v !== undefined && v !== null && v !== '') clean[k] = v;
+        }
+        const qs=new URLSearchParams(clean).toString();
         const url=this.buildUrl(qs?`${endpoint}?${qs}`:endpoint);
         const res=await fetch(url,{method:"GET",headers:{...this.getAuthHeaders()},credentials:"include"});
         if(!res.ok) throw new Error(`Download failed: ${res.status}`);

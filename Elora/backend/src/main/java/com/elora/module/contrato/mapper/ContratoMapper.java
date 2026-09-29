@@ -15,9 +15,7 @@ public final class ContratoMapper {
         dto.setId(contrato.getId());
         dto.setCodigo(contrato.getCodigo());
         dto.setClienteId(contrato.getCliente().getId());
-        dto.setClienteNome(contrato.getCliente().getNome());
         dto.setProfissionalId(contrato.getProfissional().getId());
-        dto.setProfissionalNome(contrato.getProfissional().getNome());
         dto.setTitulo(contrato.getTitulo());
         dto.setDescricaoNecessidade(contrato.getDescricaoNecessidade());
         dto.setValorHora(contrato.getValorHora());
@@ -26,7 +24,6 @@ public final class ContratoMapper {
         dto.setDataInicio(contrato.getDataInicio());
         dto.setDataFim(contrato.getDataFim());
         dto.setStatus(contrato.getStatus());
-        dto.setCriadoPorId(contrato.getCriadoPor() == null ? null : contrato.getCriadoPor().getId());
         dto.setCriadoEm(contrato.getCriadoEm());
         dto.setAtualizadoEm(contrato.getAtualizadoEm());
         return dto;

@@ -6,12 +6,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** MÓDULO CONTRATO - DTO do PATCH /contratos/{id}/status. */
+/** PATCH /contracts/{id}/status — transição validada no service. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class AtualizarStatusRequest {
 
-    @NotNull(message = "status é obrigatório")
+    @NotNull(message = "Status é obrigatório")
     private StatusContrato status;
 }

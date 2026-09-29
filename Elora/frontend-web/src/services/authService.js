@@ -76,9 +76,10 @@ class AuthService {
     // Fase 1: helper perfis[] -> USER_TYPES
     mapPerfisToType(perfis){
         const p = (perfis||[]).map(x=>String(x).toLowerCase());
+        // Staff primeiro: usuário com [admin, cliente] é admin (antes caía no cliente).
+        if(p.some(x=>['admin','moderador','juridico','financeiro'].includes(x))) return CONFIG.USER_TYPES.ADMIN;
         if(p.includes('profissional')) return CONFIG.USER_TYPES.CAREGIVER;
         if(p.includes('cliente')) return CONFIG.USER_TYPES.CLIENT;
-        if(p.some(x=>['admin','moderador','juridico','financeiro'].includes(x))) return CONFIG.USER_TYPES.ADMIN;
         return CONFIG.USER_TYPES.CLIENT;
     }
     async getMe(){
@@ -282,30 +283,10 @@ class AuthService {
      * @returns {string} Relative URL correct for current location
      */
     resolveUrl(url) {
-        const clean = url.replace(/^\//, '');
-        // Novo layout: src/pages/<categoria>/* (auth, busca, dashboards...) + compatibilidade com /pages/
-        const path = window.location.pathname;
-        const inNewPages = path.includes('/src/pages/') || path.includes('/pages/');
-        if (inNewPages) {
-            // normaliza mapa antigo /pages/ -> src/pages/
-            let target = clean;
-            if (target.startsWith('pages/')) target = target.replace('pages/', 'src/pages/');
-            // profundidade: src/pages/<cat>/file.html = 3 níveis até frontend-web
-            const depth = (path.match(/\/src\/pages\//) ? 3 : 1);
-            // quando já dentro de src/pages, resolve relativo
-            if (target.startsWith('src/pages/')) {
-                // conta quantos ../ precisa para voltar à raiz frontend-web
-                const up = depth === 3 ? '../../../' : '';
-                // se target é login (auth), retorna relativo correto
-                // simplifica: retorna caminho relativo a partir da página atual
-                const currentDir = path.substring(0, path.lastIndexOf('/')+1);
-                // Usa URL API para resolver relativo corretamente
-                try { return new URL(target, window.location.origin + currentDir).pathname.replace(/^\//,''); } catch(e){ return target; }
-            }
-            if (target === 'index.html' || target === 'src/index.html') return '../../../index.html';
-            return target;
-        }
-        return clean;
+        // Raiz do servidor = frontend-web/src (python -m http.server rodando dentro de src/).
+        // Retorna caminho absoluto a partir dessa raiz: /pages/... ou /index.html
+        const clean = url.replace(/^\//, '').replace(/^src\//, '');
+        return '/' + clean;
     }
 
     /**
@@ -314,11 +295,11 @@ class AuthService {
      */
     getDashboardUrl() {
         const map = {
-            [CONFIG.USER_TYPES.CLIENT]: "/src/pages/dashboards/dashboard-cliente.html",
-            [CONFIG.USER_TYPES.CAREGIVER]: "/src/pages/dashboards/dashboard-cuidador.html",
-            [CONFIG.USER_TYPES.ADMIN]: "/src/pages/dashboards/dashboard-admin.html"
+            [CONFIG.USER_TYPES.CLIENT]: "/pages/dashboards/dashboard-cliente.html",
+            [CONFIG.USER_TYPES.CAREGIVER]: "/pages/dashboards/dashboard-cuidador.html",
+            [CONFIG.USER_TYPES.ADMIN]: "/pages/dashboards/dashboard-admin.html"
         };
-        const url = this.isAuthenticated() ? (map[this.currentUser.type] || "/src/pages/auth/login.html") : "/src/pages/auth/login.html";
+        const url = this.isAuthenticated() ? (map[this.currentUser.type] || "/pages/auth/login.html") : "/pages/auth/login.html";
         return this.resolveUrl(url);
     }
 
@@ -328,7 +309,7 @@ class AuthService {
      * @returns {string} Login URL
      */
     getLoginUrl(redirect = '') {
-        const base = this.resolveUrl("/src/pages/auth/login.html");
+        const base = this.resolveUrl("/pages/auth/login.html");
         return redirect ? `${base}?redirect=${redirect}` : base;
     }
 

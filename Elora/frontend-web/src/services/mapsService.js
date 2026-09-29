@@ -409,7 +409,7 @@ class MapsService {
                 </div>
                 <div class="mt-3">
                     <button class="btn btn-primary btn-sm w-100" 
-                            onclick="window.location.href=(window.authService?authService.resolveUrl('/src/pages/busca/perfil-cuidador.html'):'../busca/perfil-cuidador.html')+'?id=${caregiver.id}'">
+                            onclick="window.location.href=(window.authService?authService.resolveUrl('/pages/busca/perfil-cuidador.html'):'../busca/perfil-cuidador.html')+'?id=${caregiver.id}'">
                         Ver Perfil
                     </button>
                 </div>

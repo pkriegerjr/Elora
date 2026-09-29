@@ -101,6 +101,25 @@ public class NotificacaoService {
         return toResponse(notificacoes.save(notificacao));
     }
 
+    /**
+     * Alerta gerado pelo próprio sistema (sem exigir staff), ex.: mudança de
+     * turno/escala (REQ-013) — o ator da ação não precisa ser da equipe.
+     */
+    @Transactional
+    public NotificacaoResponse notificarSistema(Integer destinatarioId, String titulo,
+                                               String corpo, String referenciaTipo, Integer referenciaId) {
+        Usuario destinatario = usuarioService.getVisivel(destinatarioId);
+        Notificacao notificacao = new Notificacao();
+        notificacao.setDestinatario(destinatario);
+        notificacao.setCanal(Canal.sistema);
+        notificacao.setTitulo(titulo);
+        notificacao.setCorpo(corpo);
+        notificacao.setReferenciaTipo(referenciaTipo);
+        notificacao.setReferenciaId(referenciaId);
+        notificacao.setLida(false);
+        return toResponse(notificacoes.save(notificacao));
+    }
+
     @Transactional
     public List<NotificacaoResponse> enviarEmLote(Integer staffId, List<Integer> userIds, CriarNotificacaoRequest base) {
         exigirStaff(staffId);

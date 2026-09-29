@@ -2,6 +2,7 @@ package com.elora.module.profissional.service;
 import com.elora.common.exception.*; import com.elora.module.profissional.dto.*;
 import com.elora.module.profissional.entity.*; import com.elora.module.profissional.enums.Periodo; import com.elora.module.profissional.mapper.ProfissionalMapper;
 import com.elora.module.usuario.entity.Usuario;
+import com.elora.module.profissional.enums.Periodo;
 import com.elora.module.profissional.repository.*; import com.elora.module.usuario.entity.ProfissionalDetalhes;
 import com.elora.module.usuario.enums.StatusVerificacao; import com.elora.module.usuario.repository.*;
 import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service;
@@ -13,9 +14,9 @@ public class ProfissionalService {
   private final UsuarioRepository usuarios;
   private final ProfissionalDetalhesRepository detalhesRepo;
   private final DocumentoProfissionalRepository docsRepo;
-  private final DisponibilidadeRepository dispRepo;
-  private final EspecialidadeRepository espRepo;
-  private final UsuarioEspecialidadeRepository ueRepo;
+  private final ProfissionalDisponibilidadeRepository dispRepo;
+  private final ProfissionalEspecialidadeRepository espRepo;
+  private final ProfissionalUsuarioEspecialidadeRepository ueRepo;
   private final UsuarioPerfilRepository usuarioPerfis;
   private final ProfissionalMapper mapper;
 
@@ -54,9 +55,13 @@ public class ProfissionalService {
     if(req.getEspecialidades()!=null){
       ueRepo.deleteByUsuarioId(authId);
       for(String nome: req.getEspecialidades()){
-        var esp = espRepo.findByNomeIgnoreCase(nome)
-          .orElseGet(()-> espRepo.save(new Especialidade(null, nome.trim())));
-        ueRepo.save(new UsuarioEspecialidade(authId, esp.getId(), null));
+        String nomeNormalizado = nome.trim();
+        var esp = espRepo.findByNomeIgnoreCase(nomeNormalizado)
+          .orElseGet(() -> {
+            var nova = new Especialidade();
+            nova.setNome(nomeNormalizado);
+            return espRepo.save(nova);
+          });
       }
     }
     return getById(authId);

@@ -71,8 +71,11 @@ class CaregiverService {
      * @returns {Promise<Object>} Caregiver data
      */
     async getCaregiver(caregiverId) {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}`);
-        
+        // Modo real: GET /caregivers/{id} (card público p/ terceiros, completo p/ si mesmo/staff)
+        if (!CONFIG.API.MOCK_MODE) {
+            const dto = await apiService.get(`/caregivers/${caregiverId}`);
+            return this.adaptCard(dto);
+        }
         await this.delay(300);
         
         const caregivers = this.getMockCaregivers();
@@ -439,8 +442,18 @@ class CaregiverService {
      * @returns {Promise<Array>} Matching caregivers
      */
     async searchCaregivers(filters = {}) {
-        // In production: return await apiService.get("/caregivers/search", filters);
-        
+        // Modo real: GET /caregivers/search (Page do Spring — lê .content)
+        if (!CONFIG.API.MOCK_MODE) {
+            const params = { page: 0, size: 50 };
+            if (filters.specialty) params.specialty = filters.specialty;
+            if (filters.minRating) params.minRating = filters.minRating;
+            if (filters.distance) params.radius = filters.distance;
+            if (filters.userLocation?.lat != null) params.lat = filters.userLocation.lat;
+            if (filters.userLocation?.lng != null) params.lng = filters.userLocation.lng;
+            const page = await apiService.get(CONFIG.ENDPOINTS.caregiversSearch, params);
+            const arr = page.content || page;
+            return (Array.isArray(arr) ? arr : []).map(c => this.adaptCard(c));
+        }
         await this.delay(500);
         
         let caregivers = this.getMockCaregivers()
@@ -627,6 +640,38 @@ class CaregiverService {
     }
 
     // Helper methods
+
+    /**
+     * Normaliza o card do backend (CuidadorCardResponse) ou o UsuarioResponse
+     * para o formato usado pelas telas (renderList, perfil, destaques).
+     */
+    adaptCard(d = {}) {
+        const specialties = Array.isArray(d.specialties) ? d.specialties
+            : (typeof d.specialties === 'string' && d.specialties
+                ? d.specialties.split(',').map(s => s.trim()).filter(Boolean) : []);
+        const verified = !!((d.verified ?? d.documentoVerificado)
+            || d.situacaoCadastro === 'APPROVED' || d.status === 'APPROVED');
+        return {
+            id: d.id,
+            name: d.name || d.nome || '',
+            fotoUrl: d.fotoUrl || null,
+            bio: d.bio || d.descricaoPerfil || '',
+            hourlyRate: Number(d.hourlyRate ?? d.precoHora ?? 0),
+            rating: Number(d.rating ?? d.notaMedia ?? 0),
+            reviewCount: d.reviewCount || 0,
+            verified,
+            status: d.status || d.situacaoCadastro || (verified ? 'APPROVED' : 'PENDING'),
+            specialties,
+            latitude: d.latitude ?? null,
+            longitude: d.longitude ?? null,
+            distance: d.distance ?? d.distanceKm ?? null,
+            experience: d.experience || 0,
+            education: d.education || '',
+            certifications: d.certifications || [],
+            availability: d.availability || {},
+            address: d.address || null
+        };
+    }
 
     /**
      * Get mock caregivers from localStorage

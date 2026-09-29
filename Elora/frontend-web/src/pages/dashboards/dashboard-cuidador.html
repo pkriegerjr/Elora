@@ -69,7 +69,7 @@
 <script src="../../services/app.js"></script>
 <script>
   async function load(){
-    if(!authService.isCaregiver()){ window.location.href='../auth/login.html?redirect=dashboards/dashboard-cuidador.html'; return; }
+    if(!authService.isCaregiver()){ window.location.href='../auth/login.html?redirect=/pages/dashboards/dashboard-cuidador.html'; return; }
     const user=authService.getCurrentUser();
     try{
       const profile = await caregiverService.getProfile();

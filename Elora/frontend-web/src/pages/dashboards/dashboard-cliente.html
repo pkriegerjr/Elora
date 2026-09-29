@@ -73,7 +73,7 @@
 <script>
   document.getElementById('today').textContent = formatDate(new Date(), { weekday:'long', day:'2-digit', month:'long' });
   async function load(){
-    if(!authService.isClient()){ window.location.href='../auth/login.html?redirect=dashboards/dashboard-cliente.html'; return; }
+    if(!authService.isClient()){ window.location.href='../auth/login.html?redirect=/pages/dashboards/dashboard-cliente.html'; return; }
     const user=authService.getCurrentUser();
     document.getElementById('profileBox').innerHTML = `<div>${user.name}</div><div>${user.email}</div><div>${user.phone||''}</div>`;
     try{

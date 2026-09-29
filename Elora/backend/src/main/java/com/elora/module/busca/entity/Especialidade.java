@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
  * MÓDULO BUSCA - Catálogo de especialidades (tabela {@code especialidade}).
  * Tags qualitativas: filtram (não ordenam) — quem tem a tag entra no resultado.
  */
-@Entity
+@Entity(name = "BuscaEspecialidade")
 @Table(name = "especialidade")
 @Data
 @NoArgsConstructor

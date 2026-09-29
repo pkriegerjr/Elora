@@ -14,10 +14,10 @@ import com.elora.module.busca.enums.OrdenacaoBusca;
 import com.elora.module.busca.enums.Periodo;
 import com.elora.module.busca.enums.StatusDisponibilidade;
 import com.elora.module.busca.mapper.BuscaMapper;
-import com.elora.module.busca.repository.DisponibilidadeRepository;
-import com.elora.module.busca.repository.EspecialidadeRepository;
+import com.elora.module.busca.repository.BuscaDisponibilidadeRepository;
+import com.elora.module.busca.repository.BuscaEspecialidadeRepository;
 import com.elora.module.busca.repository.FavoritoRepository;
-import com.elora.module.busca.repository.UsuarioEspecialidadeRepository;
+import com.elora.module.busca.repository.BuscaUsuarioEspecialidadeRepository;
 import com.elora.module.usuario.entity.ProfissionalDetalhes;
 import com.elora.module.usuario.entity.Usuario;
 import com.elora.module.usuario.repository.ProfissionalDetalhesRepository;
@@ -58,9 +58,9 @@ public class BuscaService {
     private final UsuarioService usuarioService;
 
     // Tabelas próprias da busca.
-    private final EspecialidadeRepository especialidades;
-    private final UsuarioEspecialidadeRepository usuarioEspecialidades;
-    private final DisponibilidadeRepository disponibilidades;
+    private final BuscaEspecialidadeRepository especialidades;
+    private final BuscaUsuarioEspecialidadeRepository usuarioEspecialidades;
+    private final BuscaDisponibilidadeRepository disponibilidades;
     private final FavoritoRepository favoritos;
 
     private static final String PERFIL_PROFISSIONAL = "profissional";
