@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minha Agenda — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/dashboard.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+<nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="#" data-action="dashboard" class="btn btn-elora-outline btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a></div></nav>
+<div class="container py-4" id="main">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="mb-0">Minha agenda semanal</h4>
+    <span class="small text-muted">Disponibilidade (matutino/vespertino/noturno) × contratos ativos</span>
+  </div>
+  <div id="alert" class="alert d-none" role="status"></div>
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card-elora p-3">
+        <h5>Grade semanal</h5>
+        <p class="small text-muted mb-2"><span class="badge bg-success">Disponível</span> <span class="badge bg-secondary">Fora da disponibilidade</span> <span class="badge bg-warning text-dark">Com contrato</span></p>
+        <div class="table-responsive"><table class="table table-bordered align-middle text-center"><caption class="sr-only">Agenda semanal por período</caption><thead><tr><th scope="col">Dia</th><th scope="col">Matutino</th><th scope="col">Vespertino</th><th scope="col">Noturno</th></tr></thead><tbody id="gradeBody"><tr><td colspan="4" class="text-muted small">Carregando...</td></tr></tbody></table></div>
+        <div id="conflitos" class="mt-2"></div>
+      </div>
+      <div class="card-elora p-3 mt-3">
+        <h5>Contratos ativos</h5>
+        <div id="contratosBox" class="small"></div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card-elora p-3">
+        <h5>Disponibilidade</h5>
+        <form id="formDisp" class="row g-2">
+          <div class="col-12"><span class="small fw-semibold" id="diasLabel">Dias da semana</span><div class="d-flex gap-2 flex-wrap" role="group" aria-labelledby="diasLabel"><label class="form-check"><input type="checkbox" value="1" class="form-check-input day"> Seg</label><label class="form-check"><input type="checkbox" value="2" class="form-check-input day"> Ter</label><label class="form-check"><input type="checkbox" value="3" class="form-check-input day"> Qua</label><label class="form-check"><input type="checkbox" value="4" class="form-check-input day"> Qui</label><label class="form-check"><input type="checkbox" value="5" class="form-check-input day"> Sex</label><label class="form-check"><input type="checkbox" value="6" class="form-check-input day"> Sáb</label><label class="form-check"><input type="checkbox" value="0" class="form-check-input day"> Dom</label></div></div>
+          <div class="col-6"><label class="small" for="dispStart">Início</label><input type="time" class="form-control" id="dispStart" value="07:00"></div>
+          <div class="col-6"><label class="small" for="dispEnd">Fim</label><input type="time" class="form-control" id="dispEnd" value="19:00"></div>
+          <div class="col-12"><label class="small" for="dispKm">Distância máxima (km)</label><input type="number" class="form-control" id="dispKm" min="1" max="100" value="15"></div>
+          <div class="col-12 d-grid"><button class="btn btn-elora-primary" type="submit">Salvar disponibilidade</button></div>
+        </form>
+        <p class="small text-muted mt-2 mb-0">PUT /caregivers/me/disponibilidade (mock local até backend online).</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/clientService.js"></script>
+<script src="../../services/caregiverService.js"></script>
+<script src="../../services/contractService.js"></script>
+<script src="../../services/paymentService.js"></script>
+<script src="../../services/mapsService.js"></script>
+<script src="../../services/escalaService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  async function load(){
+    if(!authService.isCaregiver()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('escalas/agenda.html'); return; }
+    try{
+      const agenda = await escalaService.getAgenda();
+      const d = agenda.disponibilidade || {};
+      (d.days||[]).forEach(v=> document.querySelectorAll('.day').forEach(el=>{ if(Number(el.value)===v) el.checked=true; }));
+      if(d.schedule){ document.getElementById('dispStart').value=d.schedule.start||'07:00'; document.getElementById('dispEnd').value=d.schedule.end||'19:00'; }
+      if(d.maxDistanceKm||d.maxDistance) document.getElementById('dispKm').value=d.maxDistanceKm||d.maxDistance||15;
+      const g = agenda.grade;
+      document.getElementById('gradeBody').innerHTML = [1,2,3,4,5,6,0].map(dia=>{
+        const tds = escalaService.periodos().map(p=>{
+          const c = g[dia][p];
+          const cls = c.contratos.length ? 'bg-warning' : (c.disponivel ? 'bg-success text-white' : 'bg-light text-muted');
+          const txt = c.contratos.length ? escapeHtml(c.contratos.map(x=>x.cliente||x.id).join(', ')) : (c.disponivel ? 'Livre' : '—');
+          return `<td class="${cls} small">${txt}</td>`;
+        }).join('');
+        return `<tr><th scope="row">${DIAS[dia]}</th>${tds}</tr>`;
+      }).join('');
+      const fora = agenda.contratosAtivos.filter(c=> !(d.days||[]).includes((c.days||[])[0]) && (c.days||[]).length);
+      document.getElementById('conflitos').innerHTML = agenda.contratosAtivos.length
+        ? `<div class="alert alert-info small mb-0">${agenda.contratosAtivos.length} contrato(s) ativo(s) na grade. Ajuste a disponibilidade se algum período conflitar.</div>`
+        : '<p class="small text-muted mb-0">Nenhum contrato ativo.</p>';
+      document.getElementById('contratosBox').innerHTML = agenda.contratosAtivos.length
+        ? agenda.contratosAtivos.map(c=>`<div class="border-bottom py-2"><strong>${escapeHtml(c.client?.name||c.clientId||'')}</strong> <span class="text-muted">${formatDate(c.startDate)} – ${formatDate(c.endDate)}</span> <a href="../contratos/contrato.html?id=${encodeURIComponent(c.id)}" class="btn btn-sm btn-elora-outline ms-2">Ver</a></div>`).join('')
+        : '<p class="text-muted mb-0">Sem contratos ativos.</p>';
+    }catch(err){ const al=document.getElementById('alert'); al.textContent=err.message; al.className='alert alert-danger'; al.classList.remove('d-none'); }
+  }
+  document.getElementById('formDisp')?.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const days=[...document.querySelectorAll('.day:checked')].map(x=>Number(x.value));
+    try{
+      await escalaService.salvarDisponibilidade({ days, schedule:{ start: document.getElementById('dispStart').value, end: document.getElementById('dispEnd').value }, maxDistanceKm: Number(document.getElementById('dispKm').value)||15 });
+      notificationService.showSuccess('Disponibilidade atualizada'); load();
+    }catch(err){ notificationService.showError(err.message); }
+  });
+  document.addEventListener('DOMContentLoaded', load);
+</script>
+</body>
+</html>

@@ -6,10 +6,10 @@
  */
 
 const CONFIG = {
-    // API Configuration — Spring Boot
+    // API Configuration — Spring Boot — Fase 1: base http://localhost:8080/api (application.properties:3 /api)
     API: {
-        // Em produção (Spring servindo static/ ou Nginx + API): use relativo "/api"
-        // Em desenvolvimento isolado: "http://localhost:8080/api"
+        // Em produção (Spring servindo static/): relativo "/api" (context-path /api).
+        // P0: base relativa para funcionar em qualquer porta/host; MOCK_MODE=true roda 100% sem backend.
         baseURL: "/api",
         version: "v1",
         timeout: 30000,
@@ -18,7 +18,7 @@ const CONFIG = {
             "Accept": "application/json"
         },
         // Flag para alternar mock vs API real sem quebrar protótipo
-        MOCK_MODE: true, // <- altere para false quando backend Spring estiver online
+        MOCK_MODE: true, // P0: demo consistente 100% localStorage; altere para false só com backend Spring online
         // Spring Security: JWT em Authorization: Bearer <token>
         auth: {
             headerName: "Authorization",
@@ -157,21 +157,29 @@ const CONFIG = {
     // Conversão período disponível <-> matutino/vespertino/noturno (V2)
     scheduleToPeriodos: null,
 
-    // Spring Boot endpoints (para referência rápida e documentação)
+    // Spring Boot endpoints — Fase 2/3 (NotificacaoController.java:34, RelatorioController)
     ENDPOINTS: {
         auth: {
-            login: "/auth/login",              // POST {identifier,password} -> {accessToken, refreshToken, user}
-            registerClient: "/clients",       // POST
-            registerCaregiver: "/caregivers", // POST multipart
-            refresh: "/auth/refresh",         // POST {refreshToken}
-            me: "/auth/me"                    // GET
+            login: "/auth/login",
+            registerClient: "/clients",
+            registerCaregiver: "/caregivers",
+            refresh: "/auth/refresh",
+            me: "/auth/me"
         },
         clients: "/clients",
         caregivers: "/caregivers",
-        caregiversSearch: "/caregivers/search",
-        contracts: "/contracts",
+        // P0: alinhado ao BuscaController (@RequestMapping /busca + @GetMapping /profissionais)
+        caregiversSearch: "/busca/profissionais",
+        // P0: alinhado ao ContratoController (@RequestMapping /contratos)
+        contracts: "/contratos",
+        // TODO(P1): sem PaymentController no backend — segue mock até definir POST /pagamentos
         payments: "/payments",
-        notifications: "/notifications",
+        notifications: "/notifications", // GET ?unreadOnly&tipo&limit, GET /unread-count, PATCH /read-all, PATCH /{id}, GET/PATCH /preferences, DELETE /{id}, POST /
+        relatorios: "/relatorios", // GET /resumo|financeiro|usuarios|contratos|avaliacoes|denuncias (?inicio&fim)
+        // P2: AvaliacaoController (/avaliacoes), ConhecimentoController (/conhecimento/artigos), JuridicoController (/juridico)
+        avaliacoes: "/avaliacoes",
+        conhecimento: "/conhecimento",
+        juridico: "/juridico",
         admin: "/admin/caregivers"
     }
 };

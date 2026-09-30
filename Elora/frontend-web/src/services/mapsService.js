@@ -381,25 +381,26 @@ class MapsService {
      * @returns {string} HTML content
      */
     createInfoWindowContent(caregiver) {
+        const esc = (typeof window !== 'undefined' && window.escapeHtml) ? window.escapeHtml : (v => String(v ?? ''));
         const stars = "★".repeat(Math.floor(caregiver.rating)) + "☆".repeat(5 - Math.floor(caregiver.rating));
-        const distance = caregiver.distance ? `${caregiver.distance} km` : "Distância não disponível";
+        const distance = caregiver.distance ? `${esc(caregiver.distance)} km` : "Distância não disponível";
 
         return `
             <div class="p-2" style="min-width: 250px;">
                 <div class="d-flex align-items-center">
                     <div class="d-flex align-items-center justify-content-center bg-light rounded-circle me-2" style="width:50px;height:50px;"><i class="bi bi-person-circle" style="font-size:1.8rem;color:#0E7A7B"></i></div>
                     <div>
-                        <h6 class="mb-1">${caregiver.name}</h6>
+                        <h6 class="mb-1">${esc(caregiver.name)}</h6>
                         <small class="text-muted">${distance}</small>
                     </div>
                 </div>
                 <div class="mt-2">
                     <span class="text-warning">${stars}</span>
-                    <small class="text-muted ms-1">(${caregiver.reviewCount} avaliações)</small>
+                    <small class="text-muted ms-1">(${esc(caregiver.reviewCount)} avaliações)</small>
                 </div>
                 <div class="mt-2">
                     ${caregiver.specialties?.slice(0, 3).map(s => 
-                        `<span class="badge bg-primary-subtle text-primary me-1">${s}</span>`
+                        `<span class="badge bg-primary-subtle text-primary me-1">${esc(s)}</span>`
                     ).join("") || ""}
                 </div>
                 <div class="mt-2">
@@ -409,7 +410,7 @@ class MapsService {
                 </div>
                 <div class="mt-3">
                     <button class="btn btn-primary btn-sm w-100" 
-                            onclick="window.location.href=(window.authService?authService.resolveUrl('/src/pages/busca/perfil-cuidador.html'):'../busca/perfil-cuidador.html')+'?id=${caregiver.id}'">
+                            onclick="window.location.href=(window.authService?authService.resolveUrl('/src/pages/busca/perfil-cuidador.html'):'../busca/perfil-cuidador.html')+'?id=${encodeURIComponent(caregiver.id)}'">
                         Ver Perfil
                     </button>
                 </div>

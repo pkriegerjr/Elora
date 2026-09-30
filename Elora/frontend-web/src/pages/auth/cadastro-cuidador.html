@@ -7,10 +7,12 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
 </head>
 <body class="bg-light">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
 <nav class="navbar navbar-elora"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="login.html" class="btn btn-elora-outline btn-sm">Já tenho conta</a></div></nav>
-<div class="container py-5">
+<div class="container py-5" id="main">
   <div class="row justify-content-center"><div class="col-lg-9">
     <div class="card-elora p-4 p-md-5">
       <div class="stepper mb-4"><span class="step active">1</span><span class="step-line"></span><span class="step">2</span><span class="step-line"></span><span class="step">3</span><span class="step done"><i class="bi bi-check"></i></span></div>
@@ -19,15 +21,15 @@
       <form id="formCg" novalidate>
         <h5 class="mt-4">Dados pessoais</h5>
         <div class="row g-3">
-          <div class="col-md-6"><label class="form-label">Nome completo *</label><input class="form-control" name="name" required></div>
-          <div class="col-md-3"><label class="form-label">CPF *</label><input class="form-control" name="cpf" placeholder="000.000.000-00" required></div>
-          <div class="col-md-3"><label class="form-label">Nascimento *</label><input type="date" class="form-control" name="birthDate" required></div>
-          <div class="col-md-4"><label class="form-label">Telefone *</label><input class="form-control" name="phone" required></div>
-          <div class="col-md-4"><label class="form-label">E-mail *</label><input type="email" class="form-control" name="email" required></div>
-          <div class="col-md-4"><label class="form-label">Senha *</label><input type="password" class="form-control" name="password" required></div>
-          <div class="col-md-4"><label class="form-label">Anos experiência *</label><input type="number" min="0" class="form-control" name="experience" required></div>
-          <div class="col-md-4"><label class="form-label">Valor/hora (R$)</label><input type="number" step="0.01" class="form-control" name="hourlyRate" placeholder="45.00"></div>
-          <div class="col-md-4"><label class="form-label">Formação</label><input class="form-control" name="education" placeholder="Técnico Enfermagem - Senac"></div>
+          <div class="col-md-6"><label class="form-label">Nome completo *</label><input class="form-control" name="name" required aria-label="Nome completo *"></div>
+          <div class="col-md-3"><label class="form-label">CPF *</label><input class="form-control" name="cpf" placeholder="000.000.000-00" required aria-label="CPF *" inputmode="numeric" maxlength="14"></div>
+          <div class="col-md-3"><label class="form-label">Nascimento *</label><input type="date" class="form-control" name="birthDate" required aria-label="Nascimento *"></div>
+          <div class="col-md-4"><label class="form-label">Telefone *</label><input class="form-control" name="phone" required aria-label="Telefone *"></div>
+          <div class="col-md-4"><label class="form-label">E-mail *</label><input type="email" class="form-control" name="email" required aria-label="E-mail *"></div>
+          <div class="col-md-4"><label class="form-label">Senha *</label><input type="password" class="form-control" name="password" required aria-label="Senha *"></div>
+          <div class="col-md-4"><label class="form-label">Anos experiência *</label><input type="number" min="0" class="form-control" name="experience" required aria-label="Anos experiência *"></div>
+          <div class="col-md-4"><label class="form-label">Valor/hora (R$)</label><input type="number" step="0.01" class="form-control" name="hourlyRate" placeholder="45.00" aria-label="Valor/hora (R$)"></div>
+          <div class="col-md-4"><label class="form-label">Formação</label><input class="form-control" name="education" placeholder="Técnico Enfermagem - Senac" aria-label="Formação"></div>
           <div class="col-12"><label class="form-label">Especialidades</label>
             <div class="d-flex gap-2 flex-wrap">
               <label class="form-check"><input type="checkbox" value="idoso" class="form-check-input spec"> Idoso</label>
@@ -38,14 +40,14 @@
               <label class="form-check"><input type="checkbox" value="medicacao" class="form-check-input spec"> Medicação</label>
             </div>
           </div>
-          <div class="col-12"><label class="form-label">Bio</label><textarea class="form-control" name="bio" rows="2" placeholder="Conte sua experiência..."></textarea></div>
+          <div class="col-12"><label class="form-label">Bio</label><textarea class="form-control" name="bio" rows="2" placeholder="Conte sua experiência..." aria-label="Bio"></textarea></div>
         </div>
         <h5 class="mt-4">Endereço & disponibilidade</h5>
         <div class="row g-3">
-          <div class="col-md-3"><label class="form-label">CEP</label><input class="form-control" name="cep" id="cepCg"></div>
-          <div class="col-md-3"><label class="form-label">Cidade</label><input class="form-control" name="city" id="cityCg"></div>
-          <div class="col-md-3"><label class="form-label">Bairro</label><input class="form-control" name="neighborhood" id="neighCg"></div>
-          <div class="col-md-3"><label class="form-label">Rua</label><input class="form-control" name="street" id="streetCg"></div>
+          <div class="col-md-3"><label for="cepCg" class="form-label">CEP</label><input class="form-control" name="cep" id="cepCg"></div>
+          <div class="col-md-3"><label for="cityCg" class="form-label">Cidade</label><input class="form-control" name="city" id="cityCg"></div>
+          <div class="col-md-3"><label for="neighCg" class="form-label">Bairro</label><input class="form-control" name="neighborhood" id="neighCg"></div>
+          <div class="col-md-3"><label for="streetCg" class="form-label">Rua</label><input class="form-control" name="street" id="streetCg"></div>
           <div class="col-md-3"><label class="form-label">Dias</label>
             <div class="d-flex gap-2 flex-wrap">
               <label class="form-check"><input type="checkbox" value="1" class="form-check-input day"> Seg</label>
@@ -57,18 +59,18 @@
               <label class="form-check"><input type="checkbox" value="0" class="form-check-input day"> Dom</label>
             </div>
           </div>
-          <div class="col-md-3"><label class="form-label">Início</label><input type="time" class="form-control" name="scheduleStart" value="07:00"></div>
-          <div class="col-md-3"><label class="form-label">Fim</label><input type="time" class="form-control" name="scheduleEnd" value="19:00"></div>
-          <div class="col-md-3"><label class="form-label">Raio máx (km)</label><input type="number" class="form-control" name="maxDistance" value="15"></div>
+          <div class="col-md-3"><label class="form-label">Início</label><input type="time" class="form-control" name="scheduleStart" value="07:00" aria-label="Início"></div>
+          <div class="col-md-3"><label class="form-label">Fim</label><input type="time" class="form-control" name="scheduleEnd" value="19:00" aria-label="Fim"></div>
+          <div class="col-md-3"><label class="form-label">Raio máx (km)</label><input type="number" class="form-control" name="maxDistance" value="15" aria-label="Raio máx (km)"></div>
         </div>
         <h5 class="mt-4">Documentos <small class="text-muted">(mock — envio real via multipart quando API online)</small></h5>
         <div class="row g-3">
-          <div class="col-md-3"><label class="form-label">RG</label><input type="file" class="form-control" name="doc_rg"></div>
-          <div class="col-md-3"><label class="form-label">CPF</label><input type="file" class="form-control" name="doc_cpf"></div>
-          <div class="col-md-3"><label class="form-label">Comprov. endereço</label><input type="file" class="form-control" name="doc_address"></div>
-          <div class="col-md-3"><label class="form-label">Certificados</label><input type="file" class="form-control" name="doc_cert"></div>
+          <div class="col-md-3"><label class="form-label">RG</label><input type="file" class="form-control" name="doc_rg" aria-label="RG"></div>
+          <div class="col-md-3"><label class="form-label">CPF</label><input type="file" class="form-control" name="doc_cpf" aria-label="CPF"></div>
+          <div class="col-md-3"><label class="form-label">Comprov. endereço</label><input type="file" class="form-control" name="doc_address" aria-label="Comprov. endereço"></div>
+          <div class="col-md-3"><label class="form-label">Certificados</label><input type="file" class="form-control" name="doc_cert" aria-label="Certificados"></div>
         </div>
-        <div class="form-check mt-4"><input class="form-check-input" type="checkbox" id="lgpd2" required><label class="form-check-label small" for="lgpd2">Aceito Termos e LGPD *</label></div>
+        <div class="form-check mt-4"><input class="form-check-input" type="checkbox" id="lgpd2" required><label class="form-check-label small" for="lgpd2">Li e aceito os <a href="../termos/privacidade.html">Termos</a> e a <a href="../termos/privacidade.html">Política de Privacidade (LGPD)</a> *</label></div>
         <div id="formAlert2" class="alert d-none mt-3"></div>
         <button type="submit" class="btn btn-elora-primary btn-lg w-100 mt-3">Cadastrar e enviar para análise</button>
       </form>
@@ -97,7 +99,7 @@
     const specialties=[...document.querySelectorAll('.spec:checked')].map(el=>el.value);
     const days=[...document.querySelectorAll('.day:checked')].map(el=>parseInt(el.value));
     const payload={
-      name:fd.get('name'), cpf:fd.get('cpf'), birthDate:fd.get('birthDate'), phone:fd.get('phone'), email:fd.get('email'), password:fd.get('password'),
+      name:fd.get('name'), cpf:(fd.get('cpf')||'').trim(), birthDate:fd.get('birthDate'), phone:fd.get('phone'), email:fd.get('email'), password:fd.get('password'),
       experience: parseInt(fd.get('experience')), hourlyRate: parseFloat(fd.get('hourlyRate'))||35,
       education: fd.get('education'), specialties, bio: fd.get('bio'),
       address:{ cep: fd.get('cep'), city: fd.get('city'), neighborhood: fd.get('neighborhood'), street: fd.get('street') },

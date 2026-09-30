@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ajuda e Conhecimento — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+<nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="#" data-action="dashboard" class="btn btn-elora-outline btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a></div></nav>
+<div class="container py-4" id="main">
+  <h4>Ajuda e base de conhecimento</h4>
+  <p class="small text-muted">GET /conhecimento/artigos (mock local até backend online).</p>
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card-elora p-3 mb-3">
+        <div class="d-flex gap-2 flex-wrap">
+          <input id="search" class="form-control" style="max-width:320px" placeholder="Buscar artigo" aria-label="Buscar artigo">
+          <select id="filterCat" class="form-select" style="width:auto" aria-label="Filtrar por categoria"><option value="">Todas categorias</option></select>
+          <button id="btnSearch" class="btn btn-elora-primary btn-sm">Buscar</button>
+        </div>
+      </div>
+      <div id="artigoAberto" class="card-elora p-4 d-none"></div>
+      <div id="lista" class="vstack gap-2"></div>
+      <div id="empty" class="text-center text-muted py-4 d-none" role="status">Nenhum artigo encontrado.</div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card-elora p-3">
+        <h5>Perguntas frequentes</h5>
+        <div class="accordion" id="faqAcc"></div>
+      </div>
+      <div class="card-elora p-3 mt-3" id="novoBox">
+        <h5>Novo artigo (equipe)</h5>
+        <form id="formArtigo" class="vstack gap-2">
+          <div><label class="form-label small" for="aTitulo">Título *</label><input id="aTitulo" class="form-control" required maxlength="150"></div>
+          <div><label class="form-label small" for="aCat">Categoria</label><select id="aCat" class="form-select"><option>Guias</option><option>LGPD</option><option>Pagamentos</option><option>Segurança</option></select></div>
+          <div><label class="form-label small" for="aResumo">Resumo</label><input id="aResumo" class="form-control" maxlength="200"></div>
+          <div><label class="form-label small" for="aCorpo">Conteúdo *</label><textarea id="aCorpo" class="form-control" rows="4" required></textarea></div>
+          <button class="btn btn-elora-primary btn-sm" type="submit">Publicar (POST /artigos)</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/conhecimentoService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  let artigos = [];
+  async function load(){
+    try{
+      artigos = await conhecimentoService.listar();
+      const cats = [...new Set(artigos.map(a=>a.categoria).filter(Boolean))];
+      document.getElementById('filterCat').innerHTML = '<option value="">Todas categorias</option>' + cats.map(c=>`<option>${escapeHtml(c)}</option>`).join('');
+      document.getElementById('faqAcc').innerHTML = conhecimentoService.faq().map((f,i)=>`
+        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#faq${i}">${escapeHtml(f.q)}</button></h2>
+        <div id="faq${i}" class="accordion-collapse collapse" data-bs-parent="#faqAcc"><div class="accordion-body small">${escapeHtml(f.a)}</div></div></div>`).join('');
+      const id = new URLSearchParams(window.location.search).get('id');
+      if(id){ await abrir(id); }
+      render();
+    }catch(err){ notificationService.showError(err.message); }
+  }
+  function render(){
+    const q = (document.getElementById('search').value||'').toLowerCase();
+    const cat = document.getElementById('filterCat').value;
+    const list = artigos.filter(a=> (!cat || a.categoria===cat) && (!q || (a.titulo+' '+(a.resumo||'')+' '+(a.corpo||'')).toLowerCase().includes(q)));
+    document.getElementById('empty').classList.toggle('d-none', list.length>0);
+    document.getElementById('lista').innerHTML = list.map(a=>`
+      <div class="card-elora p-3"><span class="badge bg-primary-subtle text-primary border">${escapeHtml(a.categoria||'Geral')}</span>
+        <h6 class="mt-2 mb-1">${escapeHtml(a.titulo)}</h6>
+        <p class="small text-muted mb-2">${escapeHtml(a.resumo||'')}</p>
+        <div class="d-flex gap-2 align-items-center"><small class="text-muted">${escapeHtml(a.autor||'')} • ${a.createdAt?formatDate(a.createdAt):''}</small>
+        <button class="btn btn-sm btn-elora-outline ms-auto btn-ler" data-id="${escapeHtml(a.id)}">Ler</button></div></div>`).join('');
+    document.querySelectorAll('.btn-ler').forEach(b=> b.addEventListener('click', ()=> abrir(b.dataset.id)));
+  }
+  async function abrir(id){
+    try{
+      const a = await conhecimentoService.obter(id);
+      const box = document.getElementById('artigoAberto');
+      box.classList.remove('d-none');
+      box.innerHTML = `<span class="badge bg-primary-subtle text-primary border">${escapeHtml(a.categoria||'Geral')}</span>
+        <h4 class="mt-2">${escapeHtml(a.titulo)}</h4>
+        <p class="small text-muted">${escapeHtml(a.autor||'')} • ${a.createdAt?formatDate(a.createdAt):''}</p>
+        <p>${escapeHtml(a.corpo||'')}</p>
+        <button class="btn btn-sm btn-outline-secondary" id="btnFecharArtigo">Fechar</button>`;
+      document.getElementById('btnFecharArtigo')?.addEventListener('click', ()=> box.classList.add('d-none'));
+      box.scrollIntoView({ behavior:'smooth', block:'start' });
+    }catch(err){ notificationService.showError(err.message); }
+  }
+  document.getElementById('btnSearch')?.addEventListener('click', render);
+  document.getElementById('search')?.addEventListener('input', render);
+  document.getElementById('filterCat')?.addEventListener('change', render);
+  document.getElementById('formArtigo')?.addEventListener('submit', async e=>{
+    e.preventDefault();
+    if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('conhecimento/artigos.html'); return; }
+    try{
+      await conhecimentoService.criar({ titulo: document.getElementById('aTitulo').value, categoria: document.getElementById('aCat').value, resumo: document.getElementById('aResumo').value, corpo: document.getElementById('aCorpo').value });
+      notificationService.showSuccess('Artigo publicado'); e.target.reset(); load();
+    }catch(err){ notificationService.showError(err.message); }
+  });
+  document.addEventListener('DOMContentLoaded', load);
+</script>
+</body>
+</html>

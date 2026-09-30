@@ -7,24 +7,26 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
 </head>
 <body>
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
 <nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a>
   <div class="ms-auto d-flex align-items-center gap-2">
-    <span data-auth-buttons><a href="login.html" class="btn btn-elora-outline btn-sm">Entrar</a></span>
-    <span data-user-menu class="d-none"><span data-user-name class="fw-semibold small"></span> <a href="#" data-action="dashboard" class="btn btn-elora-primary btn-sm">Painel</a> <a href="#" data-action="logout" class="btn btn-outline-danger btn-sm">Sair</a></span>
+    <span data-auth-buttons><a href="../auth/login.html" class="btn btn-elora-outline btn-sm">Entrar</a></span>
+    <span data-user-menu class="d-none"><span data-user-name class="fw-semibold small"></span> <a href="#" data-action="dashboard" class="btn btn-elora-primary btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a> <a href="#" data-action="logout" class="btn btn-outline-danger btn-sm">Sair</a></span>
   </div>
 </div></nav>
-<div class="container py-4">
+<div class="container py-4" id="main">
   <div class="row g-4">
     <div class="col-lg-3">
       <div class="filter-sidebar">
         <h5 class="fw-bold">Filtros</h5>
-        <div class="mb-3"><label class="form-label small fw-semibold">Especialidade</label><select id="fSpecialty" class="form-select form-select-sm"><option value="">Todas</option><option value="idoso">Idoso</option><option value="alzheimer">Alzheimer</option><option value="parkinson">Parkinson</option><option value="mobilidade_reduzida">Mobilidade reduzida</option><option value="pos_operatorio">Pós-operatório</option><option value="medicacao">Medicação</option></select></div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Avaliação mínima</label><select id="fRating" class="form-select form-select-sm"><option value="">Qualquer</option><option value="4.5">4.5+</option><option value="4.0">4.0+</option></select></div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Preço máx/h <span class="range-value" id="priceVal">R$ 200</span></label><input type="range" id="fPrice" class="form-range" min="20" max="200" value="200"></div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Raio <span class="range-value" id="radiusVal">10 km</span></label><input type="range" id="fRadius" class="form-range" min="1" max="50" value="10"></div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Localização</label><input id="fLocation" class="form-control form-control-sm" placeholder="CEP ou lat,lng"><button id="btnLoc" class="btn btn-outline-primary btn-sm w-100 mt-2"><i class="bi bi-geo-fill me-1"></i> Usar minha localização</button></div>
+        <div class="mb-3"><label for="fSpecialty" class="form-label small fw-semibold">Especialidade</label><select id="fSpecialty" class="form-select form-select-sm"><option value="">Todas</option><option value="idoso">Idoso</option><option value="alzheimer">Alzheimer</option><option value="parkinson">Parkinson</option><option value="mobilidade_reduzida">Mobilidade reduzida</option><option value="pos_operatorio">Pós-operatório</option><option value="medicacao">Medicação</option></select></div>
+        <div class="mb-3"><label for="fRating" class="form-label small fw-semibold">Avaliação mínima</label><select id="fRating" class="form-select form-select-sm"><option value="">Qualquer</option><option value="4.5">4.5+</option><option value="4.0">4.0+</option></select></div>
+        <div class="mb-3"><label class="form-label small fw-semibold">Preço máx/h <span class="range-value" id="priceVal">R$ 200</span></label><input type="range" id="fPrice" class="form-range" min="20" max="200" value="200" aria-label="Preço máximo por hora"></div>
+        <div class="mb-3"><label class="form-label small fw-semibold">Raio <span class="range-value" id="radiusVal">10 km</span></label><input type="range" id="fRadius" class="form-range" min="1" max="50" value="10" aria-label="Raio de busca em km"></div>
+        <div class="mb-3"><label for="fLocation" class="form-label small fw-semibold">Localização</label><input id="fLocation" class="form-control form-control-sm" placeholder="CEP ou lat,lng"><button id="btnLoc" class="btn btn-outline-primary btn-sm w-100 mt-2"><i class="bi bi-geo-fill me-1"></i> Usar minha localização</button></div>
         <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="fVerified"><label class="form-check-label small" for="fVerified">Só verificados</label></div>
         <button id="btnSearch" class="btn btn-elora-primary w-100"><i class="bi bi-search me-1"></i> Aplicar</button>
         <button id="btnClear" class="btn btn-outline-secondary w-100 mt-2 btn-sm">Limpar</button>
@@ -32,10 +34,10 @@
       </div>
     </div>
     <div class="col-lg-9">
-      <div id="map" class="mb-3" style="min-height:340px"></div>
+      <div id="map" class="mb-3" style="min-height:340px" role="application" aria-label="Mapa de cuidadores"></div>
       <div id="caregiverList" class="row g-3"></div>
-      <div id="loading" class="text-center py-5 d-none"><div class="spinner-border text-primary"></div><p class="small text-muted mt-2">Buscando cuidadores...</p></div>
-      <div id="empty" class="text-center py-5 d-none"><i class="bi bi-inbox fs-1 text-muted"></i><p class="text-muted">Nenhum cuidador encontrado com esses filtros.</p></div>
+      <div id="loading" class="text-center py-5 d-none" role="status" aria-live="polite"><div class="spinner-border text-primary"></div><p class="small text-muted mt-2">Buscando cuidadores...</p></div>
+      <div id="empty" class="text-center py-5 d-none" role="status" aria-live="polite"><i class="bi bi-inbox fs-1 text-muted"></i><p class="text-muted">Nenhum cuidador encontrado com esses filtros.</p></div>
     </div>
   </div>
 </div>
@@ -90,8 +92,11 @@
       // tenta apiService se MOCK_MODE=false (Page), senão mock
       let caregivers=[];
       if(!CONFIG.API.MOCK_MODE){
-        const params={ specialty:filters.specialty, minRating:filters.minRating, radius:filters.distance, page:0, size:20 };
-        if(filters.userLocation){ params.lat=filters.userLocation.lat; params.lng=filters.userLocation.lng; }
+        // P0: params alinhados ao BuscaController GET /busca/profissionais
+        // (precoMax, notaMinima, especialidadeId, limit). Resposta é List (sem Page).
+        const params={ limit:20 };
+        if(filters.maxPrice) params.precoMax=filters.maxPrice;
+        if(filters.minRating) params.notaMinima=filters.minRating;
         const page = await apiService.get(CONFIG.ENDPOINTS.caregiversSearch, params);
         caregivers = page.content || page;
       } else {
@@ -115,14 +120,14 @@
           <div class="d-flex gap-3">
             <div class="avatar-placeholder"><i class="bi bi-person"></i></div>
             <div class="flex-grow-1">
-              <div class="d-flex align-items-center gap-2"><strong>${c.name}</strong> ${c.verified?'<span class="verified small"><i class="bi bi-patch-check-fill"></i> Verificado</span>':''}</div>
-              <div class="small text-muted">${(c.specialties||[]).slice(0,3).join(' • ')}</div>
+              <div class="d-flex align-items-center gap-2"><strong>${escapeHtml(c.name)}</strong> ${c.verified?'<span class="verified small"><i class="bi bi-patch-check-fill"></i> Verificado</span>':''}</div>
+              <div class="small text-muted">${escapeHtml((c.specialties||[]).slice(0,3).join(' • '))}</div>
               <div class="small"><span class="stars">${'★'.repeat(Math.floor(c.rating||0))}${'☆'.repeat(5-Math.floor(c.rating||0))}</span> ${(c.rating||0).toFixed(1)} (${c.reviewCount||0}) ${c.distance? '• '+c.distance+' km':''}</div>
-              <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>${c.address?.neighborhood||c.address?.city||''} • R$ ${Number(c.hourlyRate||0).toFixed(2)}/h</div>
+              <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>${escapeHtml(c.address?.neighborhood||c.address?.city||'')} • R$ ${Number(c.hourlyRate||0).toFixed(2)}/h</div>
             </div>
-            <button class="btn btn-outline-primary btn-sm align-self-start fav-btn" data-id="${c.id}" title="Favoritar"><i class="bi bi-heart"></i></button>
+            <button class="btn btn-outline-primary btn-sm align-self-start fav-btn" data-id="${c.id}" title="Favoritar" aria-label="Favoritar cuidador"><i class="bi bi-heart"></i></button>
           </div>
-          <p class="small text-muted mt-2 mb-2" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${c.bio||''}</p>
+          <p class="small text-muted mt-2 mb-2" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(c.bio||'')}</p>
           <div class="d-flex gap-2">
             <a href="../busca/perfil-cuidador.html?id=${c.id}" class="btn btn-elora-primary btn-sm flex-grow-1">Ver perfil</a>
             <a href="../contratos/contratacao.html?caregiverId=${c.id}" class="btn btn-elora-outline btn-sm">Contratar</a>
@@ -131,7 +136,7 @@
       </div>
     `).join('');
     el.querySelectorAll('.fav-btn').forEach(btn=> btn.addEventListener('click', async()=>{
-      if(!authService.isAuthenticated()){ window.location.href='login.html?redirect=buscar-cuidadores.html'; return; }
+      if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('busca/buscar-cuidadores.html'); return; }
       try{ await clientService.addFavorite(btn.dataset.id); notificationService.showSuccess('Adicionado aos favoritos!'); btn.innerHTML='<i class="bi bi-heart-fill text-danger"></i>'; }catch(err){ notificationService.showError(err.message); }
     }));
   }

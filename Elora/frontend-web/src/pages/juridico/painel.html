@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Jurídico — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/dashboard.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+<nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><div class="d-flex gap-2"><a href="../dashboards/dashboard-admin.html" class="btn btn-elora-outline btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a><a href="denunciar.html" class="btn btn-elora-primary btn-sm">Denunciar</a></div></div></nav>
+<div class="container py-4" id="main">
+  <h4>Painel jurídico</h4>
+  <p class="small text-muted">GET /juridico/painel • tabelas <code>denuncia</code>, <code>disputa</code>, rescisão via <code>contrato.status</code> (mock local até backend online).</p>
+  <div class="row g-3 mb-4">
+    <div class="col-md-2"><div class="stat-card"><small class="text-muted">Val. pendentes</small><h3 id="sPend">0</h3></div></div>
+    <div class="col-md-2"><div class="stat-card"><small class="text-muted">Em análise</small><h3 id="sAnalise">0</h3></div></div>
+    <div class="col-md-2"><div class="stat-card"><small class="text-muted">Denúncias abertas</small><h3 id="sDen">0</h3></div></div>
+    <div class="col-md-2"><div class="stat-card"><small class="text-muted">Den. em análise</small><h3 id="sDenAn">0</h3></div></div>
+    <div class="col-md-2"><div class="stat-card"><small class="text-muted">Rescisões</small><h3 id="sRes">0</h3></div></div>
+    <div class="col-md-2"><div class="stat-card"><small class="text-muted">Em disputa</small><h3 id="sDis">0</h3></div></div>
+  </div>
+  <ul class="nav nav-pills mb-3" role="tablist" aria-label="Filas do jurídico">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-den" role="tab" aria-selected="true">Denúncias</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-res" role="tab" aria-selected="false">Rescisões</button></li>
+  </ul>
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-den"><div class="card-elora p-3"><div class="table-responsive"><table class="table align-middle"><caption class="sr-only">Denúncias</caption><thead><tr><th scope="col">Data</th><th scope="col">Motivo</th><th scope="col">Contrato</th><th scope="col">Status</th></tr></thead><tbody id="denBody"><tr><td colspan="4" class="text-muted small text-center">Carregando...</td></tr></tbody></table></div></div></div>
+    <div class="tab-pane fade" id="tab-res">
+      <div class="card-elora p-3 mb-3">
+        <h5>Solicitar rescisão</h5>
+        <form id="formRescisao" class="row g-2">
+          <div class="col-md-4"><label class="form-label small" for="rContrato">Contrato *</label><input id="rContrato" class="form-control" placeholder="ID do contrato" required></div>
+          <div class="col-md-6"><label class="form-label small" for="rMotivo">Motivo *</label><input id="rMotivo" class="form-control" placeholder="Motivo da rescisão" required minlength="5"></div>
+          <div class="col-md-2 d-grid align-items-end"><button class="btn btn-outline-danger" type="submit">Solicitar</button></div>
+        </form>
+        <p class="small text-muted mt-2 mb-0">POST /juridico/rescisoes + cancela o contrato (mock).</p>
+      </div>
+      <div class="card-elora p-3"><div class="table-responsive"><table class="table align-middle"><caption class="sr-only">Rescisões</caption><thead><tr><th scope="col">Data</th><th scope="col">Contrato</th><th scope="col">Motivo</th><th scope="col">Status</th></tr></thead><tbody id="resBody"><tr><td colspan="4" class="text-muted small text-center">Carregando...</td></tr></tbody></table></div></div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/clientService.js"></script>
+<script src="../../services/caregiverService.js"></script>
+<script src="../../services/contractService.js"></script>
+<script src="../../services/juridicoService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  async function load(){
+    if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('juridico/painel.html'); return; }
+    if(!authService.isAdmin()){ document.getElementById('main').innerHTML='<div class="alert alert-danger" role="alert">Acesso restrito à equipe jurídica/administração.</div>'; return; }
+    try{
+      const p = await juridicoService.painel();
+      document.getElementById('sPend').textContent = p.validacaoPendentes ?? 0;
+      document.getElementById('sAnalise').textContent = p.validacaoEmAnalise ?? 0;
+      document.getElementById('sDen').textContent = p.denunciasAbertas ?? 0;
+      document.getElementById('sDenAn').textContent = p.denunciasEmAnalise ?? 0;
+      document.getElementById('sRes').textContent = p.rescisoesPendentes ?? 0;
+      document.getElementById('sDis').textContent = p.emDisputa ?? 0;
+      const den = await juridicoService.listarDenuncias();
+      document.getElementById('denBody').innerHTML = den.length ? den.map(d=>`<tr><td class="small">${formatDate(d.createdAt)}</td><td><strong>${escapeHtml(d.motivo)}</strong><div class="small text-muted">${escapeHtml(d.descricao||'')}</div></td><td class="small">${escapeHtml(d.contratoId||'—')}</td><td><span class="badge ${d.status==='aberta'?'bg-warning text-dark':'bg-info'}">${escapeHtml(d.status)}</span></td></tr>`).join('') : '<tr><td colspan="4" class="text-center small text-muted">Nenhuma denúncia. <a href="denunciar.html">Criar denúncia</a></td></tr>';
+      const res = await juridicoService.listarRescisoes();
+      document.getElementById('resBody').innerHTML = res.length ? res.map(r=>`<tr><td class="small">${formatDate(r.createdAt)}</td><td class="small">${escapeHtml(r.contratoId)}</td><td class="small">${escapeHtml(r.motivo)}</td><td><span class="badge bg-secondary">${escapeHtml(r.status)}</span></td></tr>`).join('') : '<tr><td colspan="4" class="text-center small text-muted">Nenhuma rescisão solicitada.</td></tr>';
+    }catch(err){ notificationService.showError(err.message); }
+  }
+  document.getElementById('formRescisao')?.addEventListener('submit', async e=>{
+    e.preventDefault();
+    try{
+      await juridicoService.solicitarRescisao({ contratoId: document.getElementById('rContrato').value.trim(), motivo: document.getElementById('rMotivo').value.trim() });
+      notificationService.showSuccess('Rescisão solicitada'); e.target.reset(); load();
+    }catch(err){ notificationService.showError(err.message); }
+  });
+  document.addEventListener('DOMContentLoaded', load);
+</script>
+</body>
+</html>

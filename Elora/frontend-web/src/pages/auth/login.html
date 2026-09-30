@@ -11,6 +11,7 @@
   <link href="../../css/responsive.css" rel="stylesheet">
 </head>
 <body class="bg-light">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
 <nav class="navbar navbar-elora">
   <div class="container">
     <a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a>
@@ -18,7 +19,7 @@
   </div>
 </nav>
 
-<div class="container py-5">
+<div class="container py-5" id="main">
   <div class="row justify-content-center">
     <div class="col-lg-5">
       <div class="card-elora p-4 p-md-5">
@@ -27,10 +28,10 @@
           <p class="text-muted small mb-0">Escolha seu perfil para entrar</p>
         </div>
 
-        <ul class="nav nav-pills nav-fill mb-4" id="loginTabs" role="tablist">
-          <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-client" type="button">Cliente</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-caregiver" type="button">Cuidador</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-admin" type="button">Admin</button></li>
+        <ul class="nav nav-pills nav-fill mb-4" id="loginTabs" role="tablist" aria-label="Escolha o perfil">
+          <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-client" type="button" role="tab" aria-selected="true" aria-controls="tab-client" id="tabbtn-client">Cliente</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-caregiver" type="button" role="tab" aria-selected="false" aria-controls="tab-caregiver" id="tabbtn-caregiver">Cuidador</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-admin" type="button" role="tab" aria-selected="false" aria-controls="tab-admin" id="tabbtn-admin">Admin</button></li>
         </ul>
 
         <div class="tab-content">
@@ -38,12 +39,10 @@
           <div class="tab-pane fade show active" id="tab-client">
             <form id="loginClientForm" novalidate>
               <div class="mb-3">
-                <label class="form-label">E-mail ou CPF</label>
-                <input type="text" class="form-control" name="identifier" placeholder="maria@email.com ou 123.456.789-00" required>
+                <label class="form-label">E-mail ou CPF</label><input type="text" class="form-control" name="identifier" placeholder="maria@email.com ou 123.456.789-00" required aria-label="E-mail ou CPF">
               </div>
               <div class="mb-3">
-                <label class="form-label">Senha</label>
-                <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+                <label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required aria-label="Senha">
               </div>
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="form-check"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberClient"><label class="form-check-label small" for="rememberClient">Lembrar-me</label></div>
@@ -56,8 +55,8 @@
           <!-- Cuidador -->
           <div class="tab-pane fade" id="tab-caregiver">
             <form id="loginCaregiverForm" novalidate>
-              <div class="mb-3"><label class="form-label">E-mail ou CPF</label><input type="text" class="form-control" name="identifier" placeholder="ana.ferreira@email.com" required></div>
-              <div class="mb-3"><label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required></div>
+              <div class="mb-3"><label class="form-label">E-mail ou CPF</label><input type="text" class="form-control" name="identifier" placeholder="ana.ferreira@email.com" required aria-label="E-mail ou CPF"></div>
+              <div class="mb-3"><label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required aria-label="Senha"></div>
               <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberCg"><label class="form-check-label small" for="rememberCg">Lembrar-me</label></div>
               <button type="submit" class="btn btn-elora-primary w-100 btn-lg">Entrar como Cuidador</button>
               <div class="small text-muted mt-2">Demo: ana.ferreira@email.com / Senha@123</div>
@@ -66,8 +65,8 @@
           <!-- Admin -->
           <div class="tab-pane fade" id="tab-admin">
             <form id="loginAdminForm" novalidate>
-              <div class="mb-3"><label class="form-label">Usuário ou E-mail</label><input type="text" class="form-control" name="identifier" placeholder="admin ou admin@elora.com.br" required></div>
-              <div class="mb-3"><label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required></div>
+              <div class="mb-3"><label class="form-label">Usuário ou E-mail</label><input type="text" class="form-control" name="identifier" placeholder="admin ou admin@elora.com.br" required aria-label="Usuário ou E-mail"></div>
+              <div class="mb-3"><label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required aria-label="Senha"></div>
               <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberAdmin"><label class="form-check-label small" for="rememberAdmin">Lembrar-me</label></div>
               <button type="submit" class="btn btn-dark w-100 btn-lg">Entrar como Admin</button>
               <div class="small text-muted mt-2">Demo: admin / Admin@123</div>
@@ -84,11 +83,11 @@
 </div>
 
 <!-- Reset Modal -->
-<div class="modal fade" id="resetModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
-  <div class="modal-header"><h5 class="modal-title">Recuperar senha</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetModalTitle"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="resetModalTitle">Recuperar senha</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
   <div class="modal-body">
-    <div class="mb-3"><label class="form-label">E-mail ou CPF</label><input type="text" id="resetIdentifier" class="form-control"></div>
-    <div class="mb-3"><label class="form-label">Perfil</label><select id="resetType" class="form-select"><option value="client">Cliente</option><option value="caregiver">Cuidador</option><option value="admin">Admin</option></select></div>
+    <div class="mb-3"><label for="resetIdentifier" class="form-label">E-mail ou CPF</label><input type="text" id="resetIdentifier" class="form-control"></div>
+    <div class="mb-3"><label for="resetType" class="form-label">Perfil</label><select id="resetType" class="form-select"><option value="client">Cliente</option><option value="caregiver">Cuidador</option><option value="admin">Admin</option></select></div>
     <div id="resetMsg" class="small"></div>
   </div>
   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button class="btn btn-elora-primary" id="btnReset">Enviar link</button></div>
@@ -119,7 +118,11 @@
         await fn({ identifier: fd.get('identifier')?.trim(), password: fd.get('password'), rememberMe: fd.get('rememberMe')==='on' });
         notificationService.showSuccess('Login realizado!');
         const redirect = params().get('redirect');
-        setTimeout(()=> window.location.href = redirect ? redirect : authService.getDashboardUrl(), 600);
+        // redirect vem como 'contratos/contrato.html?id=..' (relativo a src/pages/) — resolve a partir de src/pages/auth/
+        const target = redirect
+          ? (redirect.startsWith('../') || redirect.startsWith('/') || redirect.startsWith('http') ? redirect : '../' + redirect)
+          : authService.getDashboardUrl();
+        setTimeout(()=> window.location.href = target, 600);
       }catch(err){ showErr(err.message); notificationService.showError(err.message); hideLoading(btn); }
     });
   }
@@ -132,7 +135,7 @@
     const type=document.getElementById('resetType').value;
     if(!id) return;
     try{ await authService.requestPasswordReset(id, type); document.getElementById('resetMsg').innerHTML='<span class="text-success">Se o usuário existir, um e-mail será enviado.</span>'; }
-    catch(err){ document.getElementById('resetMsg').innerHTML='<span class="text-danger">'+err.message+'</span>'; }
+    catch(err){ document.getElementById('resetMsg').innerHTML='<span class="text-danger">'+escapeHtml(err.message)+'</span>'; }
   });
 
   // se já autenticado, redireciona

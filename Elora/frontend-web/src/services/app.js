@@ -206,10 +206,59 @@ async function updateNotificationBadge() {
 }
 
 /**
+ * Modal de confirmação próprio (design system Elora, sem confirm() nativo).
+ * Injeta o modal no body — funciona em qualquer página que carregue app.js.
+ * @param {Object} opts - {title, message, confirmLabel, cancelLabel, danger}
+ * @returns {Promise<boolean>} true se confirmado
+ */
+function showConfirmModal(opts = {}) {
+    const { title = "Confirmar", message = "Tem certeza?", confirmLabel = "Confirmar", cancelLabel = "Cancelar", danger = false } = opts;
+    // Fallback: Bootstrap ausente/offline
+    if (typeof window.bootstrap === "undefined" || !window.bootstrap.Modal) {
+        return Promise.resolve(window.confirm ? window.confirm(message) : true);
+    }
+    return new Promise((resolve) => {
+        document.getElementById("eloraConfirmModal")?.remove();
+        const wrap = document.createElement("div");
+        wrap.innerHTML = `
+        <div class="modal fade" id="eloraConfirmModal" tabindex="-1" aria-labelledby="eloraConfirmTitle">
+          <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="eloraConfirmTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+            <div class="modal-body"><p class="mb-0"></p></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"></button><button type="button" class="btn"></button></div>
+          </div></div>
+        </div>`;
+        const modalEl = wrap.firstElementChild;
+        modalEl.querySelector(".modal-title").textContent = title;
+        modalEl.querySelector(".modal-body p").textContent = message;
+        const [btnCancel, btnOk] = modalEl.querySelectorAll(".modal-footer .btn");
+        btnCancel.textContent = cancelLabel;
+        btnOk.textContent = confirmLabel;
+        btnOk.classList.add(danger ? "btn-danger" : "btn-elora-primary");
+        document.body.appendChild(modalEl);
+        const modal = new window.bootstrap.Modal(modalEl);
+        let done = false;
+        const finish = (v) => { if (!done) { done = true; resolve(v); } };
+        btnOk.addEventListener("click", () => { finish(true); modal.hide(); });
+        modalEl.addEventListener("hidden.bs.modal", () => { finish(false); modalEl.remove(); });
+        modal.show();
+        modalEl.querySelector(".btn-close")?.addEventListener("click", () => finish(false));
+        btnCancel.addEventListener("click", () => finish(false));
+    });
+}
+
+/**
  * Handle logout
  */
-function handleLogout() {
-    if (confirm("Tem certeza que deseja sair?")) {
+async function handleLogout() {
+    const ok = await showConfirmModal({
+        title: "Sair da conta",
+        message: "Tem certeza que deseja sair da Elora?",
+        confirmLabel: "Sair",
+        cancelLabel: "Cancelar",
+        danger: true
+    });
+    if (ok) {
         authService.logout();
         notificationService.showInfo("Você foi desconectado com sucesso");
         setTimeout(() => {
@@ -291,6 +340,17 @@ function showInfo(message, title = "Informação") {
 }
 
 /**
+ * Escape HTML (P1: anti-XSS central para innerHTML)
+ * @param {*} v - valor
+ * @returns {string} texto escapado
+ */
+function escapeHtml(v) {
+    return String(v ?? '').replace(/[&<>"'`=]/g, s => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;', '=': '&#61;'
+    }[s]));
+}
+
+/**
  * Format currency (BRL)
  * @param {number} value - Value to format
  * @returns {string} Formatted currency
@@ -324,6 +384,44 @@ function formatDate(date, options = {}) {
  */
 function formatDateTime(date) {
     return formatDate(date, { hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Rótulos PT para status de validação do cuidador (PENDING→…).
+ * Comparações lógicas continuam usando os códigos EN de CONFIG.CAREGIVER_STATUS.
+ */
+const CAREGIVER_STATUS_PT = {
+    PENDING: "Pendente",
+    UNDER_REVIEW: "Em análise",
+    APPROVED: "Aprovado",
+    REJECTED: "Rejeitado",
+    NEEDS_CORRECTION: "Correção necessária"
+};
+function caregiverStatusLabel(s) {
+    if (!s) return "-";
+    const up = String(s).toUpperCase();
+    return CAREGIVER_STATUS_PT[up] || CAREGIVER_STATUS_PT[String(s).toLowerCase()] || String(s);
+}
+/**
+ * Classe Bootstrap do badge por status de validação.
+ * REJECTED = vermelho (danger); NEEDS_CORRECTION = amarelo (ação do cuidador).
+ */
+function caregiverStatusBadge(s) {
+    const up = String(s || "").toUpperCase();
+    if (up === "APPROVED") return "badge bg-success";
+    if (up === "PENDING" || up === "NEEDS_CORRECTION") return "badge bg-warning text-dark";
+    if (up === "REJECTED") return "badge bg-danger";
+    return "badge bg-info";
+}
+/**
+ * Classe Bootstrap do badge por status de contrato (EN ou V2 PT).
+ */
+function contractStatusBadge(s) {
+    const up = String(s || "").toUpperCase();
+    if (up === "SIGNED" || up === "ATIVO" || up === "CONCLUIDO") return "badge bg-success";
+    if (up === "CANCELLED" || up === "CANCELADO" || up === "RESCINDIDO") return "badge bg-danger";
+    if (up.includes("AWAITING") || up === "AGUARD_ASSINATURA" || up === "EM_DISPUTA" || up === "NEGOCIACAO" || up === "PROPOSTA") return "badge bg-info";
+    return "badge bg-warning text-dark";
 }
 
 /**
@@ -376,7 +474,7 @@ function getDayShortName(dayNum) {
  * @returns {boolean} Valid or not
  */
 function validateCPF(cpf) {
-    const cleaned = cpf.replace(/\D/g, "");
+    const cleaned = String(cpf || "").trim().replace(/\D/g, "");
     
     if (cleaned.length !== 11) return false;
     if (/^(\d)\1{10}$/.test(cleaned)) return false; // All same digits
@@ -515,7 +613,7 @@ function initClientDashboard() {
     console.log("Inicializando dashboard do cliente");
     // Require authentication
     if (!authService.isClient()) {
-        window.location.href = authService.getLoginUrl("dashboard-cliente");
+        window.location.href = authService.getLoginUrl("dashboards/dashboard-cliente.html");
         return;
     }
 }
@@ -524,7 +622,7 @@ function initCaregiverDashboard() {
     console.log("Inicializando dashboard do cuidador");
     // Require authentication
     if (!authService.isCaregiver()) {
-        window.location.href = authService.getLoginUrl("dashboard-cuidador");
+        window.location.href = authService.getLoginUrl("dashboards/dashboard-cuidador.html");
         return;
     }
 }
@@ -533,7 +631,7 @@ function initAdminDashboard() {
     console.log("Inicializando dashboard administrativo");
     // Require authentication
     if (!authService.isAdmin()) {
-        window.location.href = authService.getLoginUrl("dashboard-admin");
+        window.location.href = authService.getLoginUrl("dashboards/dashboard-admin.html");
         return;
     }
 }
@@ -556,10 +654,15 @@ window.showSuccess = showSuccess;
 window.showError = showError;
 window.showWarning = showWarning;
 window.showInfo = showInfo;
+window.showConfirmModal = showConfirmModal;
 window.formatCurrency = formatCurrency;
+window.escapeHtml = escapeHtml;
 window.formatDate = formatDate;
 window.formatDateTime = formatDateTime;
 window.maskCPF = maskCPF;
+window.caregiverStatusLabel = caregiverStatusLabel;
+window.caregiverStatusBadge = caregiverStatusBadge;
+window.contractStatusBadge = contractStatusBadge;
 window.maskPhone = maskPhone;
 window.getDayName = getDayName;
 window.getDayShortName = getDayShortName;

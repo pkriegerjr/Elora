@@ -466,8 +466,11 @@ class ClientService {
             throw new Error("E-mail inválido");
         }
         
-        if (!CONFIG.VALIDATION.cpf.test(data.cpf)) {
-            throw new Error("CPF inválido");
+        // CPF: 11 dígitos + dígitos verificadores (validateCPF global de app.js; fallback só-dígitos)
+        if (data.cpf) {
+            const digits = CONFIG.normalizeCPF(data.cpf);
+            const ok = (typeof validateCPF === "function") ? validateCPF(digits) : /^\d{11}$/.test(digits);
+            if (!ok) throw new Error("CPF inválido");
         }
         
         if (!CONFIG.VALIDATION.phone.test(data.phone)) {

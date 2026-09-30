@@ -7,7 +7,8 @@
 
 class ApiService {
     constructor() {
-        this.baseURL = CONFIG.API.baseURL; // "/api" em produção
+        // Fase 1: http://localhost:8080/api (Back: base http://localhost:8080/api)
+        this.baseURL = CONFIG.API.baseURL;
         this.defaultHeaders = { ...CONFIG.API.headers };
         this.requestInterceptor = null;
         this.responseInterceptor = null;
@@ -83,21 +84,30 @@ class ApiService {
         if(ct && ct.includes("application/json")){
             const text=await response.text();
             data=text ? JSON.parse(text) : {};
+            // Back novo: envelope ApiResponse.java:17 {success,message,data} para /notifications,/relatorios,/clients
+            // Desembrulha automaticamente para compat com services que esperam data direto
+            if(data && typeof data.success==='boolean' && 'data' in data){
+                if(!response.ok){
+                    const err=new Error(data.message || `HTTP ${response.status}`);
+                    err.status=response.status; err.data=data;
+                    if(this.errorInterceptor) await this.errorInterceptor(err, response);
+                    throw err;
+                }
+                if(this.responseInterceptor) data.data=await this.responseInterceptor(data.data, response);
+                return data.data;
+            }
         } else if(ct && ct.includes("application/pdf")){
-            return response; // para download
+            return response;
         } else {
             data=await response.text();
         }
         if(this.responseInterceptor) data=await this.responseInterceptor(data, response);
         if(!response.ok){
-            // Spring Boot padrão: {timestamp,status,error,path,message} ou {message, errors[]}
             const err=new Error((data && (data.message || data.error)) || `HTTP ${response.status}`);
-            err.status=response.status;
-            err.data=data;
+            err.status=response.status; err.data=data;
             if(this.errorInterceptor) await this.errorInterceptor(err, response);
             throw err;
         }
-        // Spring Page: {content, totalElements, totalPages, ...} → retorna direto
         return data;
     }
 

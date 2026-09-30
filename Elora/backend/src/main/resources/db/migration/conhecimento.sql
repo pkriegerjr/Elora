@@ -1,0 +1,4 @@
+CREATE TABLE categoria_conteudo (id_categoria INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(80) UNIQUE, descricao VARCHAR(255));
+CREATE TABLE faq (id_faq INT AUTO_INCREMENT PRIMARY KEY, pergunta VARCHAR(255) NOT NULL, resposta TEXT NOT NULL, categoria_id INT, status ENUM('rascunho','publicado') DEFAULT 'rascunho', data_publicacao DATETIME, FOREIGN KEY (categoria_id) REFERENCES categoria_conteudo(id_categoria));
+CREATE TABLE tutorial (id_tutorial INT AUTO_INCREMENT PRIMARY KEY, titulo VARCHAR(150) NOT NULL, descricao VARCHAR(255), link_conteudo VARCHAR(500), categoria_id INT, status ENUM('rascunho','publicado') DEFAULT 'rascunho', FOREIGN KEY (categoria_id) REFERENCES categoria_conteudo(id_categoria));
+INSERT INTO categoria_conteudo VALUES (1,'Cadastro',''),(2,'Contratação',''),(3,'Pagamento',''),(4,'Uso Geral','');

@@ -73,12 +73,30 @@ class AuthService {
      * @param {Object} credentials - Login credentials
      * @returns {Promise<Object>} User data and token
      */
+    // Fase 1: helper perfis[] -> USER_TYPES
+    mapPerfisToType(perfis){
+        const p = (perfis||[]).map(x=>String(x).toLowerCase());
+        if(p.includes('profissional')) return CONFIG.USER_TYPES.CAREGIVER;
+        if(p.includes('cliente')) return CONFIG.USER_TYPES.CLIENT;
+        if(p.some(x=>['admin','moderador','juridico','financeiro'].includes(x))) return CONFIG.USER_TYPES.ADMIN;
+        return CONFIG.USER_TYPES.CLIENT;
+    }
+    async getMe(){
+        if(!CONFIG.API.MOCK_MODE){
+            const user = await apiService.get(CONFIG.ENDPOINTS.auth.me);
+            // user = UsuarioResponse {id,nome,email,cpf,perfis[]} — normaliza para front
+            const type = this.mapPerfisToType(user.perfis);
+            const mapped = { ...user, name: user.nome, id: user.id, email: user.email, cpf: user.cpf, perfis: user.perfis, type };
+            this.updateCurrentUser(mapped);
+            return mapped;
+        }
+        return this.getCurrentUser();
+    }
     async loginCliente(credentials) {
-        // Spring Boot: quando MOCK_MODE=false, chama API real
         if (!CONFIG.API.MOCK_MODE) {
-            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password, userType: "CLIENT" });
-            // Esperado: {accessToken, refreshToken, user}
-            const userData = { ...res.user, type: CONFIG.USER_TYPES.CLIENT };
+            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password });
+            const type = this.mapPerfisToType(res.user?.perfis);
+            const userData = { ...res.user, name: res.user.nome, type, perfis: res.user.perfis };
             this.setSession(userData, res.accessToken, credentials.rememberMe, res.refreshToken);
             return { user: userData, token: res.accessToken };
         }
@@ -116,8 +134,9 @@ class AuthService {
      */
     async loginCuidador(credentials) {
         if (!CONFIG.API.MOCK_MODE) {
-            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password, userType: "CAREGIVER" });
-            const userData = { ...res.user, type: CONFIG.USER_TYPES.CAREGIVER };
+            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password });
+            const type = this.mapPerfisToType(res.user?.perfis);
+            const userData = { ...res.user, name: res.user.nome, type, perfis: res.user.perfis };
             this.setSession(userData, res.accessToken, credentials.rememberMe, res.refreshToken);
             return { user: userData, token: res.accessToken };
         }
@@ -164,8 +183,9 @@ class AuthService {
      */
     async loginAdministrador(credentials) {
         if (!CONFIG.API.MOCK_MODE) {
-            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password, userType: "ADMIN" });
-            const userData = { ...res.user, type: CONFIG.USER_TYPES.ADMIN };
+            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password });
+            const type = this.mapPerfisToType(res.user?.perfis);
+            const userData = { ...res.user, name: res.user.nome, type, perfis: res.user.perfis };
             this.setSession(userData, res.accessToken, credentials.rememberMe, res.refreshToken);
             return { user: userData, token: res.accessToken };
         }
@@ -258,33 +278,24 @@ class AuthService {
 
     /**
      * Resolve URL correctly whether running via file://, http://localhost or subfolder
-     * @param {string} url - URL starting with /pages/... or /index.html
+     * @param {string} url - canonical URL starting with /src/pages/... or /index.html
      * @returns {string} Relative URL correct for current location
      */
     resolveUrl(url) {
         const clean = url.replace(/^\//, '');
-        // Novo layout: src/pages/<categoria>/* (auth, busca, dashboards...) + compatibilidade com /pages/
         const path = window.location.pathname;
-        const inNewPages = path.includes('/src/pages/') || path.includes('/pages/');
-        if (inNewPages) {
-            // normaliza mapa antigo /pages/ -> src/pages/
-            let target = clean;
-            if (target.startsWith('pages/')) target = target.replace('pages/', 'src/pages/');
-            // profundidade: src/pages/<cat>/file.html = 3 níveis até frontend-web
-            const depth = (path.match(/\/src\/pages\//) ? 3 : 1);
-            // quando já dentro de src/pages, resolve relativo
-            if (target.startsWith('src/pages/')) {
-                // conta quantos ../ precisa para voltar à raiz frontend-web
-                const up = depth === 3 ? '../../../' : '';
-                // se target é login (auth), retorna relativo correto
-                // simplifica: retorna caminho relativo a partir da página atual
-                const currentDir = path.substring(0, path.lastIndexOf('/')+1);
-                // Usa URL API para resolver relativo corretamente
-                try { return new URL(target, window.location.origin + currentDir).pathname.replace(/^\//,''); } catch(e){ return target; }
-            }
-            if (target === 'index.html' || target === 'src/index.html') return '../../../index.html';
-            return target;
+        const inPages = path.includes('/src/pages/') || path.includes('/pages/');
+        if (inPages) {
+            // origem: src/pages/<cat>/ (ou pages/<cat>/ em layout sem src/)
+            // index fica na raiz frontend-web/ (3 níveis acima de src/pages/<cat>/)
+            if (clean === 'index.html') return '../../../index.html';
+            // destino dentro de pages: sobe 1 nível (para src/pages/) e desce na categoria
+            if (clean.startsWith('src/pages/')) return '../' + clean.slice('src/pages/'.length);
+            if (clean.startsWith('pages/')) return '../' + clean.slice('pages/'.length);
+            return clean;
         }
+        // origem: raiz frontend-web/ (index.html) — destino precisa do prefixo src/
+        if (clean.startsWith('pages/')) return 'src/' + clean;
         return clean;
     }
 
@@ -309,7 +320,7 @@ class AuthService {
      */
     getLoginUrl(redirect = '') {
         const base = this.resolveUrl("/src/pages/auth/login.html");
-        return redirect ? `${base}?redirect=${redirect}` : base;
+        return redirect ? `${base}?redirect=${encodeURIComponent(redirect)}` : base;
     }
 
     /**
@@ -373,11 +384,34 @@ class AuthService {
      * @param {string} userType - User type
      * @returns {Promise<Object>} Created user
      */
+    // Fase 1: converte form EN -> PT (nome, senha, cpf dígitos, genero, dataNascimento, consentimentoLgpd)
+    toPtPayload(form, userType){
+        const cpfDigits = CONFIG.normalizeCPF(form.cpf || form.cpfDigits);
+        const base = {
+            nome: form.name || form.nome,
+            email: form.email,
+            cpf: cpfDigits,
+            telefone: form.phone || form.telefone,
+            senha: form.password || form.senha,
+            genero: form.genero || form.gender || 'prefiro_nao_informar',
+            dataNascimento: form.birthDate || form.dataNascimento,
+            latitude: form.latitude ?? form.address?.latitude ?? form.address?.lat ?? null,
+            longitude: form.longitude ?? form.address?.longitude ?? form.address?.lng ?? null,
+            consentimentoLgpd: true
+        };
+        if(userType===CONFIG.USER_TYPES.CLIENT){
+            base.observacoesCuidado = form.careNeeds?.description || form.observacoesCuidado || '';
+        } else {
+            base.descricaoPerfil = form.bio || form.descricaoPerfil || '';
+            base.precoHora = form.hourlyRate ?? form.precoHora ?? null;
+        }
+        return base;
+    }
     async register(userData, userType) {
         if (!CONFIG.API.MOCK_MODE) {
-            // Spring: POST /api/clients ou /api/caregivers (com multipart para cuidador)
+            const pt = this.toPtPayload(userData, userType);
             const endpoint = userType === CONFIG.USER_TYPES.CAREGIVER ? CONFIG.ENDPOINTS.caregivers : CONFIG.ENDPOINTS.clients;
-            return await apiService.post(endpoint, userData);
+            return await apiService.post(endpoint, pt);
         }
         await this.delay(1000);
         
@@ -512,9 +546,11 @@ class AuthService {
             throw new Error("E-mail inválido");
         }
         
-        // Validate CPF format (basic)
-        if (data.cpf && !CONFIG.VALIDATION.cpf.test(data.cpf)) {
-            throw new Error("CPF inválido");
+        // Validate CPF: 11 dígitos + dígitos verificadores (validateCPF global de app.js; fallback só-dígitos)
+        if (data.cpf) {
+            const digits = CONFIG.normalizeCPF(data.cpf);
+            const ok = (typeof validateCPF === "function") ? validateCPF(digits) : /^\d{11}$/.test(digits);
+            if (!ok) throw new Error("CPF inválido");
         }
         
         // Validate password strength
@@ -559,7 +595,9 @@ class AuthService {
                 return null;
         }
         
-        return users.find(u => u.cpf === data.cpf || u.email === data.email);
+        // Compara por dígitos normalizados (aceita com/sem máscara) + e-mail
+        const dataCpf = CONFIG.normalizeCPF(data.cpf);
+        return users.find(u => (u.cpf && CONFIG.normalizeCPF(u.cpf) === dataCpf && dataCpf.length === 11) || u.email === data.email);
     }
 
     /**

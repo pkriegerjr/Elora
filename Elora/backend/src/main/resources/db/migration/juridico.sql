@@ -1,0 +1,2 @@
+CREATE TABLE analise_juridica (id_analise INT AUTO_INCREMENT PRIMARY KEY, contrato_id INT, parecer TEXT, status_analise ENUM('pendente','aprovado','reprovado') DEFAULT 'pendente', data_analise DATETIME);
+CREATE TABLE processo_rescisao (id_rescisao INT AUTO_INCREMENT PRIMARY KEY, contrato_id INT NOT NULL, motivo TEXT, status_rescisao ENUM('solicitado','aprovado','negado') DEFAULT 'solicitado', FOREIGN KEY (contrato_id) REFERENCES contrato(id_contrato));

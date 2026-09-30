@@ -5,19 +5,24 @@
   <title>Painel Cuidador — Elora</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link href="../../css/style.css" rel="stylesheet"><link href="../../css/dashboard.css" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/dashboard.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
 </head>
 <body class="dashboard">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
   <nav class="sidebar d-none d-lg-block">
-    <div class="brand mb-4">EL<span>ORA</span> <small class="d-block text-muted" style="font-size:.7rem">Cuidador</small></div>
+    <div class="brand mb-4">EL<span>ORA</span> <small>Cuidador</small></div>
     <a class="nav-link active" href="../dashboards/dashboard-cuidador.html"><i class="bi bi-speedometer2"></i> Visão geral</a>
-    <a class="nav-link" href="#" id="navSchedule"><i class="bi bi-calendar-week"></i> Agenda</a>
-    <a class="nav-link" href="#"><i class="bi bi-star"></i> Avaliações</a>
-    <a class="nav-link" href="#"><i class="bi bi-wallet2"></i> Ganhos</a>
+    <a class="nav-link" href="../escalas/agenda.html" id="navSchedule"><i class="bi bi-calendar-week"></i> Agenda</a>
+    <a class="nav-link" href="../avaliacoes/avaliar.html"><i class="bi bi-star"></i> Avaliações</a>
+    <a class="nav-link" href="../financeiro/ganhos.html"><i class="bi bi-wallet2"></i> Ganhos</a>
+    <a class="nav-link" href="../perfil/perfil.html"><i class="bi bi-person"></i> Meu perfil</a>
+    <a class="nav-link" href="../notificacoes/lista.html"><i class="bi bi-bell"></i> Notificações <span data-notification-badge class="badge bg-danger d-none">0</span></a>
     <hr class="border-secondary"><a class="nav-link" href="#" data-action="logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
   </nav>
-  <div class="main">
-    <div class="topbar d-flex justify-content-between align-items-center"><h5 class="mb-0">Olá, <span data-user-name></span> <span id="statusBadge" class="badge bg-warning text-dark ms-2"></span></h5><span data-notification-badge class="badge bg-danger d-none">0</span></div>
+  <div class="main" id="main">
+    <div class="topbar d-flex justify-content-between align-items-center"><button class="btn btn-outline-secondary d-lg-none" data-bs-toggle="offcanvas" data-bs-target="#off" aria-label="Abrir menu"><i class="bi bi-list"></i></button><h5 class="mb-0">Olá, <span data-user-name></span> <span id="statusBadge" class="badge bg-warning text-dark ms-2"></span></h5><span data-notification-badge class="badge bg-danger d-none">0</span></div>
     <div class="p-4">
       <div id="statusAlert"></div>
       <div class="row g-3 mb-4">
@@ -30,14 +35,14 @@
         <div class="col-lg-8">
           <div class="card-elora p-3">
             <h5>Contratos recebidos</h5>
-            <div class="table-responsive"><table class="table"><thead><tr><th>Cliente</th><th>Período</th><th>Status</th><th></th></tr></thead><tbody id="contractsBody"><tr><td colspan="4" class="text-center small text-muted">Carregando...</td></tr></tbody></table></div>
+            <div class="table-responsive"><table class="table"><caption class="sr-only">Contratos recebidos</caption><thead><tr><th scope="col">Cliente</th><th scope="col">Período</th><th scope="col">Status</th><th></th></tr></thead><tbody id="contractsBody"><tr><td colspan="4" class="text-center small text-muted">Carregando...</td></tr></tbody></table></div>
           </div>
           <div class="card-elora p-3 mt-3">
             <h5>Disponibilidade</h5>
             <form id="formAvail" class="row g-2">
               <div class="col-12"><label class="small">Dias</label><div class="d-flex gap-2 flex-wrap"><label class="form-check"><input type="checkbox" value="1" class="form-check-input day"> Seg</label><label class="form-check"><input type="checkbox" value="2" class="form-check-input day"> Ter</label><label class="form-check"><input type="checkbox" value="3" class="form-check-input day"> Qua</label><label class="form-check"><input type="checkbox" value="4" class="form-check-input day"> Qui</label><label class="form-check"><input type="checkbox" value="5" class="form-check-input day"> Sex</label><label class="form-check"><input type="checkbox" value="6" class="form-check-input day"> Sáb</label><label class="form-check"><input type="checkbox" value="0" class="form-check-input day"> Dom</label></div></div>
-              <div class="col-md-4"><input type="time" class="form-control" id="availStart" value="07:00"></div>
-              <div class="col-md-4"><input type="time" class="form-control" id="availEnd" value="19:00"></div>
+              <div class="col-md-4"><label class="small" for="availStart">Início</label><input type="time" class="form-control" id="availStart" value="07:00"></div>
+              <div class="col-md-4"><label class="small" for="availEnd">Fim</label><input type="time" class="form-control" id="availEnd" value="19:00"></div>
               <div class="col-md-4"><button class="btn btn-elora-primary w-100">Salvar</button></div>
             </form>
           </div>
@@ -52,7 +57,9 @@
       </div>
     </div>
   </div>
-  <div class="modal fade" id="docModal"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5>Enviar documentos</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="file" id="doc1" class="form-control mb-2"><input type="file" id="doc2" class="form-control mb-2"><input type="file" id="doc3" class="form-control mb-2"><input type="file" id="doc4" class="form-control mb-2"><small class="text-muted">Mock — em produção vai para S3 via /api/caregivers/{id}/documents</small></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button id="btnUploadDocs" class="btn btn-elora-primary">Enviar</button></div></div></div></div>
+  <div class="modal fade" id="docModal"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="docModalTitle">Enviar documentos</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div><div class="modal-body"><input type="file" id="doc1" class="form-control mb-2"><input type="file" id="doc2" class="form-control mb-2"><input type="file" id="doc3" class="form-control mb-2"><input type="file" id="doc4" class="form-control mb-2"><small class="text-muted">Mock — em produção vai para S3 via /api/caregivers/{id}/documents</small></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button id="btnUploadDocs" class="btn btn-elora-primary">Enviar</button></div></div></div></div>
+  <!-- offcanvas mobile -->
+  <div class="offcanvas offcanvas-start offcanvas-sidebar" id="off" aria-labelledby="offCuidadorTitle"><div class="offcanvas-header"><h5 id="offCuidadorTitle">Elora</h5><button class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button></div><div class="offcanvas-body"><a class="nav-link" href="../dashboards/dashboard-cuidador.html">Visão geral</a><a class="nav-link" href="../perfil/perfil.html">Meu perfil</a><a class="nav-link" href="../notificacoes/lista.html">Notificações</a><a class="nav-link" href="#" data-action="logout">Sair</a></div></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../config/config.js"></script>
 <script src="../../services/apiService.js"></script>
@@ -67,23 +74,28 @@
 <script src="../../services/app.js"></script>
 <script>
   async function load(){
-    if(!authService.isCaregiver()){ window.location.href='login.html?redirect=dashboard-cuidador.html'; return; }
+    if(!authService.isCaregiver()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('dashboards/dashboard-cuidador.html'); return; }
     const user=authService.getCurrentUser();
     try{
       const profile = await caregiverService.getProfile();
-      document.getElementById('statusBadge').textContent = profile.status;
-      document.getElementById('statusBadge').className = 'badge ' + (profile.status==='APPROVED'?'bg-success': profile.status==='PENDING'?'bg-warning text-dark':'bg-info');
+      document.getElementById('statusBadge').textContent = caregiverStatusLabel(profile.status);
+      document.getElementById('statusBadge').className = caregiverStatusBadge(profile.status) + ' ms-2';
       if(profile.status!=='APPROVED'){
-        document.getElementById('statusAlert').innerHTML='<div class="alert alert-warning"><i class="bi bi-hourglass me-1"></i> Seu cadastro está <strong>'+profile.status+'</strong>. Complete documentos e aguarde aprovação do jurídico.</div>';
+        const hint = profile.status==='REJECTED'
+          ? 'Verifique o motivo com o jurídico e reenvie os documentos.'
+          : profile.status==='NEEDS_CORRECTION'
+          ? 'Envie os documentos solicitados para concluir a validação.'
+          : 'Complete documentos e aguarde aprovação do jurídico.';
+        document.getElementById('statusAlert').innerHTML='<div class="alert alert-warning"><i class="bi bi-hourglass me-1"></i> Seu cadastro está <strong>'+escapeHtml(caregiverStatusLabel(profile.status))+'</strong>. '+hint+'</div>';
       }
       const [contracts, earnings, schedule, reviews, verif] = await Promise.all([caregiverService.getContracts(), caregiverService.getEarnings(), caregiverService.getSchedule(), caregiverService.getReviews(), caregiverService.getVerificationStatus()]);
       document.getElementById('statContracts').textContent=contracts.length;
       document.getElementById('statEarnings').textContent=formatCurrency(earnings.total||0);
       document.getElementById('statRating').textContent=(profile.rating||0).toFixed(1) + ' ('+(profile.reviewCount||0)+')';
       document.getElementById('statAgenda').textContent=schedule.length;
-      document.getElementById('contractsBody').innerHTML = contracts.length? contracts.map(c=>`<tr><td>${c.client?.name||c.clientId}</td><td class="small">${formatDate(c.startDate)} - ${formatDate(c.endDate)}</td><td><span class="badge ${c.status==='SIGNED'?'bg-success':'bg-warning text-dark'}">${c.status}</span></td><td><a href="../contratos/contrato.html?id=${c.id}" class="btn btn-sm btn-elora-outline">Ver</a></td></tr>`).join('') : '<tr><td colspan="4" class="text-center small text-muted">Nenhum contrato.</td></tr>';
-      document.getElementById('docStatus').innerHTML = Object.entries(verif.documents).map(([k,v])=>`<div class="d-flex justify-content-between"><span>${k}</span><span class="badge ${v==='approved'?'bg-success': v==='pending_review'?'bg-warning text-dark':'bg-secondary'}">${v}</span></div>`).join('');
-      document.getElementById('reviewsBox').innerHTML = reviews.slice(0,3).map(r=>`<div class="border-bottom py-2"><span class="stars">${'★'.repeat(r.rating)}</span> <small>${formatDate(r.createdAt)}</small><div>${r.comment}</div></div>`).join('') || '<span class="text-muted">Sem avaliações.</span>';
+      document.getElementById('contractsBody').innerHTML = contracts.length? contracts.map(c=>`<tr><td>${escapeHtml(c.client?.name||c.clientId)}</td><td class="small">${formatDate(c.startDate)} - ${formatDate(c.endDate)}</td><td><span class="${contractStatusBadge(c.status)}">${escapeHtml(contractService.getStatusLabel(c.status))}</span></td><td><a href="../contratos/contrato.html?id=${c.id}" class="btn btn-sm btn-elora-outline">Ver</a></td></tr>`).join('') : '<tr><td colspan="4" class="text-center small text-muted">Nenhum contrato.</td></tr>';
+      document.getElementById('docStatus').innerHTML = Object.entries(verif.documents).map(([k,v])=>`<div class="d-flex justify-content-between"><span>${escapeHtml(k)}</span><span class="badge ${v==='approved'?'bg-success': v==='pending_review'?'bg-warning text-dark':'bg-secondary'}">${v}</span></div>`).join('');
+      document.getElementById('reviewsBox').innerHTML = reviews.slice(0,3).map(r=>`<div class="border-bottom py-2"><span class="stars">${'★'.repeat(r.rating)}</span> <small>${formatDate(r.createdAt)}</small><div>${escapeHtml(r.comment)}</div></div>`).join('') || '<span class="text-muted">Sem avaliações.</span>';
       // prefill avail
       (profile.availability?.days||[]).forEach(d=> document.querySelectorAll('.day').forEach(el=>{ if(parseInt(el.value)===d) el.checked=true; }));
       if(profile.availability?.schedule){ document.getElementById('availStart').value=profile.availability.schedule.start||'07:00'; document.getElementById('availEnd').value=profile.availability.schedule.end||'19:00'; }

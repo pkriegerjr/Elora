@@ -15,9 +15,9 @@
 img{max-width:100%}
 .card-elora{overflow:hidden}
 
-/* Screenshot / touch: alvos mínimos 44x44px WCAG 2.5.5 */
+/* Screenshot / touch: alvos mínimos 44x44px WCAG 2.5.8 */
 .btn, .nav-link, .form-control, .form-select{ min-height: 44px; }
-.btn-sm{ min-height: 36px; }
+.btn-sm{ min-height: 44px; min-width: 44px; }
 
 /* Foco visível WCAG 2.4.7 */
 a:focus-visible, button:focus-visible, .form-control:focus-visible, .form-select:focus-visible{

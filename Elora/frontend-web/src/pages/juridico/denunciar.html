@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Denunciar — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+<nav class="navbar navbar-elora"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="painel.html" id="linkPainelNav" class="btn btn-elora-outline btn-sm d-none">Painel jurídico</a></div></nav>
+<div class="container py-5" id="main">
+  <div class="row justify-content-center"><div class="col-lg-7">
+    <div class="card-elora p-4 p-md-5">
+      <h4>Denunciar problema</h4>
+      <p class="small text-muted">POST /juridico/analise → fila do jurídico (tabelas <code>denuncia</code>/<code>evidencia_denuncia</code>). Em mock, fica no navegador.</p>
+      <form id="formDenuncia" novalidate>
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label" for="dContrato">Contrato (opcional)</label><input id="dContrato" class="form-control" placeholder="ID do contrato"></div>
+          <div class="col-md-6"><label class="form-label" for="dDenunciado">Denunciado — ID (opcional)</label><input id="dDenunciado" class="form-control" placeholder="ID do usuário"></div>
+          <div class="col-12"><label class="form-label" for="dMotivo">Motivo *</label><select id="dMotivo" class="form-select" required><option value="">Selecione...</option><option value="conduta">Conduta inadequada</option><option value="falta">Falta sem aviso</option><option value="pagamento">Problema de pagamento</option><option value="documento">Documento falso</option><option value="seguranca">Risco à segurança</option><option value="outro">Outro</option></select></div>
+          <div class="col-12"><label class="form-label" for="dDescricao">O que aconteceu? *</label><textarea id="dDescricao" class="form-control" rows="4" required minlength="10" maxlength="2000" placeholder="Descreva com datas e fatos (mínimo 10 caracteres)"></textarea></div>
+        </div>
+        <div id="formAlert" class="alert d-none mt-3" role="status"></div>
+        <button type="submit" class="btn btn-elora-primary w-100 mt-3">Enviar denúncia</button>
+      </form>
+      <div id="okBox" class="alert alert-success d-none mt-3">Denúncia registrada! <a href="painel.html" id="okPainelLink" class="d-none">Acompanhar pelo painel jurídico</a>.</div>
+    </div>
+  </div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/juridicoService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  (function(){
+    const qs = new URLSearchParams(window.location.search);
+    if(qs.get('contractId')||qs.get('contratoId')) document.getElementById('dContrato').value = qs.get('contractId')||qs.get('contratoId');
+    if(qs.get('denunciadoId')||qs.get('caregiverId')) document.getElementById('dDenunciado').value = qs.get('denunciadoId')||qs.get('caregiverId');
+    // Links ao painel jurídico só para a equipe (jurídico/admin); denunciar segue aberto a autenticados
+    document.addEventListener('DOMContentLoaded', ()=>{
+      let staff = false;
+      try { staff = window.authService && authService.isAdmin(); } catch(e) { staff = false; }
+      if(staff){
+        document.getElementById('linkPainelNav')?.classList.remove('d-none');
+        document.getElementById('okPainelLink')?.classList.remove('d-none');
+      }
+    });
+  })();
+  document.getElementById('formDenuncia')?.addEventListener('submit', async e=>{
+    e.preventDefault();
+    if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('juridico/denunciar.html'); return; }
+    const btn = e.target.querySelector('button[type="submit"]'); showLoading(btn, 'Enviando...');
+    try{
+      await juridicoService.denunciar({ contratoId: document.getElementById('dContrato').value.trim()||null, denunciadoId: document.getElementById('dDenunciado').value.trim()||null, motivo: document.getElementById('dMotivo').value, descricao: document.getElementById('dDescricao').value });
+      document.getElementById('okBox').classList.remove('d-none');
+      notificationService.showSuccess('Denúncia registrada'); hideLoading(btn);
+    }catch(err){ const al=document.getElementById('formAlert'); al.textContent=err.message; al.className='alert alert-danger mt-3'; al.classList.remove('d-none'); hideLoading(btn); }
+  });
+</script>
+</body>
+</html>

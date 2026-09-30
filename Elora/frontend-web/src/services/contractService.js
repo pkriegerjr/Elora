@@ -663,19 +663,19 @@ BT
 (CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE CUIDADO - ELORA) Tj
 0 -30 Td
 /F1 10 Tf
-(Contratante: ${client.name || "[Nome do Cliente]") Tj
+(Contratante: ${client.name || "[Nome do Cliente]"}) Tj
 0 -20 Td
-(CPF: ${client.cpf || "[CPF do Cliente]") Tj
+(CPF: ${client.cpf || "[CPF do Cliente]"}) Tj
 0 -30 Td
-(Cuidador: ${caregiver.name || "[Nome do Cuidador]") Tj
+(Cuidador: ${caregiver.name || "[Nome do Cuidador]"}) Tj
 0 -20 Td
-(CPF: ${caregiver.cpf || "[CPF do Cuidador]") Tj
+(CPF: ${caregiver.cpf || "[CPF do Cuidador]"}) Tj
 0 -30 Td
-(Período: ${contract.startDate} a ${contract.endDate}) Tj
+(Per\u00EDodo: ${contract.startDate} a ${contract.endDate}) Tj
 0 -20 Td
-(Dias: ${contract.days?.join(", ") || "[Dias da semana]") Tj
+(Dias: ${contract.days?.join(", ") || "[Dias da semana]"}) Tj
 0 -20 Td
-(Horário: ${contract.schedule?.start || "[Início]"} - ${contract.schedule?.end || "[Fim]") Tj
+(Hor\u00E1rio: ${contract.schedule?.start || "[In\u00EDcio]"} - ${contract.schedule?.end || "[Fim]"}) Tj
 0 -20 Td
 (Valor hora: R$ ${contract.hourlyRate?.toFixed(2) || "0,00"}) Tj
 0 -20 Td
