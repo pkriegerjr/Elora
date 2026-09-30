@@ -1,40 +1,35 @@
-# Onde colocar cada arquivo no Codespace
+# Elora Backend no Codespace — Guia rápido (Neon)
 
-Seu Codespace roda em: /workspaces/Elora/Elora/backend/
-Sua pasta compartilhada local: C:\Users\gabri\OneDrive\Documentos\Default Project\Elora\backend\
+> Docker foi descontinuado. O banco é PostgreSQL (Neon). Detalhes completos em `backend/README.md`.
 
-Copie assim (arraste ou git add):
+## 1. Pré-requisitos
 
-1. pom.xml
-   LOCAL:  Elora/backend/pom.xml
-   CODESPACE: /workspaces/Elora/Elora/backend/pom.xml  <-- é aqui que o `mvn clean install` procura
+- Java 17 + Maven 3.9+ (`mvn -v`)
+- Projeto/DB no Neon (connection string **direta**, sem `-pooler`, para JDBC)
+- Schema canônico aplicado:
+  `backend/database/postgres/elora_schema_v2_pg.sql` + `_v2_3_pg` + `src/main/resources/db/migration/{conhecimento,juridico,profissional}.sql`
 
-2. EloraApplication.java
-   LOCAL:  Elora/backend/src/main/java/com/elora/EloraApplication.java
-   CODESPACE: /workspaces/Elora/Elora/backend/src/main/java/com/elora/EloraApplication.java
+## 2. Configurar
 
-3. application.properties
-   LOCAL:  Elora/backend/src/main/resources/application.properties
-   CODESPACE: /workspaces/Elora/Elora/backend/src/main/resources/application.properties
+```bash
+cd /workspaces/Elora/Elora/backend
+cp .env.example .env
+# edite .env: DB_HOST (Neon direto), DB_NAME, DB_USERNAME, DB_PASSWORD
+# JWT_SECRET (min 32 chars): openssl rand -base64 48
+```
 
-4. docker-compose.yml (opcional, para subir MySQL+Redis)
-   LOCAL:  Elora/backend/docker-compose.yml
-   CODESPACE: /workspaces/Elora/Elora/backend/docker-compose.yml
+Ou exporte no ambiente do Codespace (Secrets):
+`DB_HOST, DB_NAME, DB_USERNAME, DB_PASSWORD, JWT_SECRET`.
 
-5. .gitignore
-   LOCAL:  Elora/backend/.gitignore
-   CODESPACE: /workspaces/Elora/Elora/backend/.gitignore
+## 3. Rodar
 
-Após copiar, no terminal do Codespace:
-  cd /workspaces/Elora/Elora/backend
-  mvn clean install   # deve ficar BUILD SUCCESS
-  mvn spring-boot:run # sobe em http://localhost:8080/api
+```bash
+cd /workspaces/Elora/Elora/backend
+mvn clean install   # BUILD SUCCESS
+mvn spring-boot:run # sobe em http://localhost:8080/api
+# Docs: http://localhost:8080/api/swagger-ui.html
+```
 
-O que estava faltando para codar (análise completa):
-- pom.xml inexistente (sem dependências jakarta.persistence não resolve)
-- Classe main @SpringBootApplication inexistente
-- application.properties inexistente (sem datasource o Spring não sobe)
-- docker-compose.yml inexistente (sem banco local elora_schema_v2.sql não carrega)
+## 4. Front
 
-Nenhum módulo Java estava codado (só .gitkeep), mas com esse scaffold você já consegue criar qualquer módulo em:
-  src/main/java/com/elora/module/<nome>/entity|repository|service|controller
+`frontend-web/src/config/config.js:21` → `MOCK_MODE: false` só com o backend acima online. Caso contrário mantenha `true` (só `npx serve Elora/frontend-web`).

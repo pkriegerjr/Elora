@@ -1,85 +1,84 @@
-# Elora — Como Rodar (Codespace, Local e MOCK_MODE)
+# Elora — Como Rodar (Local e MOCK_MODE, Neon)
 
 ## 1. O que é MOCK_MODE
 
-`frontend-web/src/config/config.js:13` `CONFIG.API.MOCK_MODE`
+`frontend-web/src/config/config.js:21` `CONFIG.API.MOCK_MODE`
 
-- `true` (padrão): front roda **sem backend**. Todos os services (`authService.js`, `caregiverService.js`, `contractService.js`, `paymentService.js`, `notificationService.js`, `relatorioService.js`) usam `localStorage` (`mockData.js:551` com `cpfDigits`, `codigo ELO-...`, `periodos`) + delay simulado. Ideal para UI/WCAG.
-- `false`: front consome **API real** `http://localhost:8080/api` (`application.properties:3` `server.servlet.context-path=/api`). Troque para `false` quando `infra/docker-compose.yml` + `mvn spring-boot:run` estiverem OK. `apiService.js:80` desembala `ApiResponse` e tenta `POST /auth/refresh` em 401.
+- `true` (padrão): front roda **sem backend**. Todos os services (`authService.js`, `caregiverService.js`, `contractService.js`, `paymentService.js`, `notificationService.js`, `relatorioService.js`, `avaliacao/conhecimento/escala/juridicoService.js`) usam `localStorage` (`mockData.js` com `cpfDigits`, `codigo ELO-...`, `periodos`) + delay simulado. Ideal para UI/WCAG.
+- `false`: front consome **API real** `http://localhost:8080/api` (`application.properties:3` `server.servlet.context-path=/api`). Troque para `false` quando o backend com Neon estiver online. `apiService.js` desembala `ApiResponse` e tenta `POST /auth/refresh` em 401.
 
-Troca: edite `src/config/config.js:13` → `MOCK_MODE: false` (frontend) e recarregue. Não precisa rebuild.
+Troca: edite `src/config/config.js:21` → `MOCK_MODE: false` (frontend) e recarregue. Não precisa rebuild.
 
 ## 2. O que precisa para cada modo
 
 | Modo | Precisa |
 |---|---|
-| **MOCK_MODE=true** | Só navegador + `npx serve` ou `python -m http.server`. Sem Java, Docker ou MySQL. |
-| **MOCK_MODE=false** | Java 17, Maven 3.9+, Docker Desktop (ou XAMPP MySQL), `backend/.env` com `JWT_SECRET` (64 chars, já gerado), `infra/docker-compose.yml` (MySQL 8.0 + Redis) |
+| **MOCK_MODE=true** | Só navegador + `npx serve` ou `python -m http.server`. Sem Java, sem Docker, sem banco. |
+| **MOCK_MODE=false** | Java 17, Maven 3.9+, conta/projeto no Neon (PostgreSQL), `backend/.env` com `DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET` |
+
+> Docker foi descontinuado. Não há `docker-compose.yml`. Não use MySQL/XAMPP/Redis — o backend só fala PostgreSQL (`pom.xml` sem `mysql-connector`, `application.properties` com `org.postgresql.Driver` + `ddl-auto=validate`).
 
 ## 3. Estrutura relevante
 
 ```
 Elora/
 ├── frontend-web/index.html  # entry (fora de src, serve raiz)
-├── frontend-web/src/config/config.js  # baseURL http://localhost:8080/api
-├── frontend-web/src/services/ # apiService, authService, notificationService, relatorioService
-├── frontend-web/src/pages/auth|busca|contratos|financeiro|perfil|notificacoes|relatorios
-├── backend/pom.xml, src/main/java/com/elora/EloraApplication.java
-├── backend/src/main/resources/application.properties  # lê ${DB_*} e ${JWT_SECRET}
-├── backend/database/elora_schema_v2.sql  # DDL + seeds perfil (cliente/profissional/admin)
-├── backend/.env / .env.example  # DB_USERNAME/DB_PASSWORD/JWT_SECRET (gitignore)
-└── infra/docker-compose.yml  # MySQL:3306 + Redis:6379, volume ../backend/database/elora_schema_v2.sql
+├── frontend-web/src/config/config.js  # MOCK_MODE (:21), baseURL /api, ENDPOINTS, mappers V2
+├── frontend-web/src/services/ # apiService, authService, client/caregiver, contract, payment, maps, notification, avaliacao, conhecimento, escala, juridico, relatorio
+├── frontend-web/src/pages/auth|busca|contratos|financeiro|perfil|notificacoes|relatorios|juridico|escalas|avaliacoes|favoritos|conhecimento
+├── backend/pom.xml (Spring Boot 3.2.5, Java 17), src/main/java/com/elora/EloraApplication.java
+├── backend/src/main/resources/application.properties  # lê ${DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET}
+├── backend/database/postgres/elora_schema_v2_pg.sql  # CANÔNICO Neon (+ _v2_3_pg + db/migration/*)
+├── backend/database/elora_schema_v2*.sql  # legado MySQL, não usar para subir
+├── backend/.env / .env.example  # DB_* Neon + JWT_* (gitignore)
+└── infra/{docker,k8s,scripts}/  # reservados, vazios (sem compose)
 ```
 
 ## 4. Rodar com MOCK_MODE=true (só front)
 
-```powershell
-Set-Location -LiteralPath "C:\Users\SONY VAIO\OneDrive\Documentos\vscode\Elora-testes\Elora\frontend-web"
+```bash
+cd Elora/frontend-web
 npx serve . --listen 8000
-# ou
-python -m http.server 8000
+# ou, da raiz:
+python -m http.server --directory Elora/frontend-web 8000
 # abre http://localhost:8000/index.html
 ```
 
-Logins mock (`mockData.js:347`): `maria.santos@email.com / Senha@123` (cliente), `ana.ferreira@email.com / Senha@123` (profissional APPROVED), `admin / Admin@123`.
+Logins mock (`src/services/mockData.js`): `maria.santos@email.com / Senha@123` (cliente), `ana.ferreira@email.com / Senha@123` (profissional APPROVED), `admin / Admin@123` (admin), `juridico / Juridico@123`.
 
 Teste: `src/pages/auth/cadastro-cliente.html` → `login.html` → `src/pages/perfil/perfil.html` (mostra `perfis[]` mock) → `notificacoes/lista.html` (polling 30s) → `relatorios/relatorios.html` (6 abas mock, sem 403).
 
-## 5. Rodar com MOCK_MODE=false (stack completo)
+## 5. Rodar com MOCK_MODE=false (stack completo, Neon)
 
-### 5.1 Banco (Docker — recomendado)
+### 5.1 Banco (Neon)
 
-```powershell
-Set-Location -LiteralPath "C:\Users\SONY VAIO\OneDrive\Documentos\vscode\Elora-testes\Elora"
-docker compose -f infra/docker-compose.yml up -d
-docker ps  # elora_mysql :3306, elora_redis :6379
-docker logs elora_mysql --tail 20  # deve criar elora_db
-# sem Docker: use XAMPP Control → Start MySQL e:
-# mysql -u root -e "CREATE DATABASE elora_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-# mysql -u root elora_db < backend\database\elora_schema_v2.sql
+```bash
+# Crie o projeto no Neon, anote host/db/user/pass (use a connection string DIRETA, não a do pooler, para JDBC).
+psql "host=ep-xxx.us-east-2.aws.neon.tech dbname=neondb user=... password=... sslmode=require" \
+  -f backend/database/postgres/elora_schema_v2_pg.sql
+psql "$NEON_URL" -f backend/database/postgres/elora_schema_v2_3_pg.sql
+psql "$NEON_URL" -f backend/src/main/resources/db/migration/conhecimento.sql
+psql "$NEON_URL" -f backend/src/main/resources/db/migration/juridico.sql
+psql "$NEON_URL" -f backend/src/main/resources/db/migration/profissional.sql
 ```
-
-Se Docker falhar `virtualisation support wasn’t detected`: habilite `VT-x/AMD SVM` na BIOS + `Hipervisor Windows` em Recursos do Windows, ou use XAMPP.
 
 ### 5.2 Backend
 
-```powershell
-Set-Location -LiteralPath "C:\Users\SONY VAIO\OneDrive\Documentos\vscode\Elora-testes\Elora\backend"
-# .env já existe com JWT_SECRET 64 chars; se não:
-# Copy-Item .env.example .env; gere JWT: [Convert]::ToBase64String((1..48 | % {Get-Random -Max 256}))
-Get-Content .env  # confere DB_USERNAME=elora / DB_PASSWORD=elora123
+```bash
+cd Elora/backend
+cp .env.example .env  # preencha DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET
+# Gere JWT: openssl rand -base64 48  (mínimo 32 chars)
+cat .env  # confira DB_HOST do Neon (direto) e JWT_SECRET preenchido
 
-# sem wrapper mvnw, use Maven instalado:
-winget install Apache.Maven  # ou https://maven.apache.org
-mvn clean install  # BUILD SUCCESS
-mvn spring-boot:run  # -> http://localhost:8080/api/swagger-ui.html e /actuator/health
+mvn clean install  # BUILD SUCCESS (sem wrapper mvnw, use Maven instalado)
+mvn spring-boot:run  # -> http://localhost:8080/api/swagger-ui.html
 ```
 
-`SecurityConfig.java:45` libera `POST /api/auth/**`, `POST /api/clients`, `POST /api/caregivers` sem token; resto exige `Authorization: Bearer <accessToken>`.
+`SecurityConfig.java` libera `POST /api/auth/**`, `POST /api/clients`, `POST /api/caregivers` sem token; resto exige `Authorization: Bearer <accessToken>`.
 
 ### 5.3 Frontend (MOCK_MODE=false)
 
-Edite `frontend-web/src/config/config.js:13` `MOCK_MODE: false` (baseURL já `http://localhost:8080/api`), recarregue `http://localhost:8000/index.html`.
+Edite `frontend-web/src/config/config.js:21` `MOCK_MODE: false` (baseURL já `/api`; com `npx serve` use proxy ou `http://localhost:8080/api`), recarregue `http://localhost:8000/index.html`.
 
 Teste real:
 ```bash
@@ -87,16 +86,17 @@ POST /api/clients {nome,email,cpf:"11122233344",senha:"Senha@123",consentimentoL
 POST /api/auth/login {identifier:"email ou 11122233344",password:"Senha@123"} -> {accessToken,refreshToken,user:{perfis:["cliente"]}}
 GET  /api/auth/me  # Header Bearer
 GET  /api/notifications?unreadOnly=true  # 200
-GET  /api/relatorios/resumo  # 403 se perfil cliente, 200 se admin/financeiro (RelatorioService.java:255)
+GET  /api/relatorios/resumo  # 403 se perfil cliente, 200 se admin/financeiro (RelatorioService.java)
 ```
 
 ## 6. Troubleshooting
 
-- `failed to connect to docker_engine`: abre Docker Desktop e espera “Engine running” ou usa XAMPP.
-- `Perfil não configurado`: `elora_schema_v2.sql` não seedou `perfil` → `mysql -u root elora_db < database\elora_schema_v2.sql`.
-- `401 Não autenticado`: `JWT_SECRET` vazio ou expirado → `POST /api/auth/refresh {refreshToken}`.
-- `CORS`: `SecurityConfig.java:66` permite `http://localhost:*`; sirva front via `npx serve` (não `file://`).
+- `PSQL connection failed`: confira `DB_HOST` direto do Neon (sem `-pooler`), `sslmode=require`, senha com caracteres especiais entre aspas.
+- `ddl-auto=validate` falhou: schema Neon desatualizado → reaplique `elora_schema_v2_pg.sql` + `_v2_3_pg` + `db/migration/*`.
+- `Perfil não configurado`: seed de `perfil` não aplicado → reaplique o SQL canônico do Postgres (não o legado MySQL).
+- `401 Não autenticado`: `JWT_SECRET` vazio/curto ou expirado → gere 48 bytes e tente `POST /api/auth/refresh {refreshToken}`.
+- `CORS`: sirva o front via `npx serve` (não `file://`); backend permite `http://localhost:*`.
 
 ## 7. Voltar ao MOCK
 
-Basta `CONFIG.API.MOCK_MODE = true` e `docker compose -f infra/docker-compose.yml down` — front volta ao `localStorage`.
+Basta `CONFIG.API.MOCK_MODE = true` e recarregar — front volta ao `localStorage`, sem depender do Neon.
