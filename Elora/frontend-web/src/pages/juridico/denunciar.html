@@ -11,7 +11,7 @@
 </head>
 <body class="bg-light">
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
-<nav class="navbar navbar-elora"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="painel.html" class="btn btn-elora-outline btn-sm">Painel jurídico</a></div></nav>
+<nav class="navbar navbar-elora"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="painel.html" id="linkPainelNav" class="btn btn-elora-outline btn-sm d-none">Painel jurídico</a></div></nav>
 <div class="container py-5" id="main">
   <div class="row justify-content-center"><div class="col-lg-7">
     <div class="card-elora p-4 p-md-5">
@@ -27,7 +27,7 @@
         <div id="formAlert" class="alert d-none mt-3" role="status"></div>
         <button type="submit" class="btn btn-elora-primary w-100 mt-3">Enviar denúncia</button>
       </form>
-      <div id="okBox" class="alert alert-success d-none mt-3">Denúncia registrada! Acompanhe pelo <a href="painel.html">painel jurídico</a>.</div>
+      <div id="okBox" class="alert alert-success d-none mt-3">Denúncia registrada! <a href="painel.html" id="okPainelLink" class="d-none">Acompanhar pelo painel jurídico</a>.</div>
     </div>
   </div></div>
 </div>
@@ -44,6 +44,15 @@
     const qs = new URLSearchParams(window.location.search);
     if(qs.get('contractId')||qs.get('contratoId')) document.getElementById('dContrato').value = qs.get('contractId')||qs.get('contratoId');
     if(qs.get('denunciadoId')||qs.get('caregiverId')) document.getElementById('dDenunciado').value = qs.get('denunciadoId')||qs.get('caregiverId');
+    // Links ao painel jurídico só para a equipe (jurídico/admin); denunciar segue aberto a autenticados
+    document.addEventListener('DOMContentLoaded', ()=>{
+      let staff = false;
+      try { staff = window.authService && authService.isAdmin(); } catch(e) { staff = false; }
+      if(staff){
+        document.getElementById('linkPainelNav')?.classList.remove('d-none');
+        document.getElementById('okPainelLink')?.classList.remove('d-none');
+      }
+    });
   })();
   document.getElementById('formDenuncia')?.addEventListener('submit', async e=>{
     e.preventDefault();

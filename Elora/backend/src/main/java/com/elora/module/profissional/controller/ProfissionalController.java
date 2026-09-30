@@ -1,11 +1,9 @@
 package com.elora.module.profissional.controller;
 import com.elora.common.dto.ApiResponse; import com.elora.module.profissional.dto.*; import com.elora.module.profissional.entity.*; import com.elora.module.profissional.service.ProfissionalService;
 import com.elora.security.SecurityUtils; import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor; import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
-import java.util.*;
 import lombok.RequiredArgsConstructor; import org.springframework.security.access.prepost.PreAuthorize; import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import java.util.*;
 
 @RestController @RequestMapping("/caregivers") @RequiredArgsConstructor
 public class ProfissionalController {

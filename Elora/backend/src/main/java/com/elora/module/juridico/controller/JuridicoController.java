@@ -5,6 +5,7 @@ import com.elora.module.juridico.entity.ProcessoRescisao;
 import com.elora.module.juridico.service.JuridicoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,11 +32,13 @@ public class JuridicoController {
     }
 
     @PostMapping("/rescisoes")
+    @PreAuthorize("hasAnyRole('ADMIN','JURIDICO')")
     public ProcessoRescisao criarRescisao(@RequestBody @Valid ProcessoRescisao r) {
         return service.solicitar(r);
     }
 
     @GetMapping("/painel")
+    @PreAuthorize("hasAnyRole('ADMIN','JURIDICO')")
     public Map<String, Object> painel() {
         return service.painel();
     }

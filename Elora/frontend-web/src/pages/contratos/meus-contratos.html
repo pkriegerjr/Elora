@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meus Contratos — Elora</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+  <link href="../../css/dashboard.css" rel="stylesheet">
+  <link href="../../css/responsive.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+<nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><div class="d-flex gap-2"><a href="../dashboards/dashboard-cliente.html" class="btn btn-elora-outline btn-sm"><i class="bi bi-arrow-left me-1"></i> Meu painel</a><a href="../busca/buscar-cuidadores.html" class="btn btn-elora-primary btn-sm">Novo contrato</a></div></div></nav>
+<div class="container py-4" id="main">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div><h4 class="mb-0">Meus contratos</h4><p class="small text-muted mb-0">GET /contratos?papel=cliente • rascunho ao ativo, assinatura, pagamento e avaliação.</p></div>
+    <span class="badge bg-secondary" id="countBadge">0</span>
+  </div>
+  <div class="card-elora p-3 mb-3">
+    <div class="row g-2">
+      <div class="col-md-4"><label class="form-label small fw-semibold" for="fStatus">Status</label><select id="fStatus" class="form-select"><option value="">Todos</option><option value="rascunho">Rascunho</option><option value="proposta">Proposta</option><option value="negociacao">Em negociação</option><option value="aguard_assinatura">Aguardando assinatura</option><option value="ativo">Ativo</option><option value="concluido">Concluído</option><option value="em_disputa">Em disputa</option><option value="rescindido">Rescindido</option><option value="cancelado">Cancelado</option></select></div>
+      <div class="col-md-6"><label class="form-label small fw-semibold" for="fSearch">Buscar</label><input id="fSearch" class="form-control" placeholder="Código, título ou cuidador..."></div>
+      <div class="col-md-2 d-grid align-items-end"><button id="btnClear" class="btn btn-outline-secondary">Limpar</button></div>
+    </div>
+  </div>
+  <div id="list" class="row g-3"><div class="col-12 text-center py-5"><div class="spinner-border"></div><p class="small text-muted mt-2">Carregando contratos...</p></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../config/config.js"></script>
+<script src="../../services/apiService.js"></script>
+<script src="../../services/mockData.js"></script>
+<script src="../../services/authService.js"></script>
+<script src="../../services/notificationService.js"></script>
+<script src="../../services/clientService.js"></script>
+<script src="../../services/caregiverService.js"></script>
+<script src="../../services/contractService.js"></script>
+<script src="../../services/paymentService.js"></script>
+<script src="../../services/app.js"></script>
+<script>
+  const PAYABLE = ['ativo', 'SIGNED'];
+  const REVIEWABLE = ['concluido'];
+  const CANCELLABLE = ['rascunho', 'proposta', 'DRAFT'];
+  let all = [];
+
+  function toV2(s){ try { return CONFIG.toV2ContractStatus(s); } catch(e){ return String(s||'').toLowerCase(); } }
+
+  // Normaliza mock (EN, clientId/caregiverId) e API (PT, clienteId/profissionalId/codigo) para o mesmo view-model
+  function normalize(c){
+    return {
+      id: c.id,
+      codigo: c.codigo || c.id,
+      titulo: c.titulo || c.descricaoNecessidade || 'Contrato',
+      caregiverName: c.caregiver?.name || c.profissionalNome || c.caregiverId || '—',
+      startDate: c.startDate || c.dataInicio || null,
+      endDate: c.endDate || c.dataFim || null,
+      status: c.status,
+      total: (c.totalValue && c.totalValue.total) ?? c.valueBreakdown?.total ?? c.valorTotal ?? 0,
+      createdAt: c.createdAt || c.criadoEm || null
+    };
+  }
+
+  async function fetchContracts(){
+    if(!CONFIG.API.MOCK_MODE){
+      const page = await apiService.get(CONFIG.ENDPOINTS.contracts, { papel: 'cliente' });
+      const list = page.content || page;
+      return (Array.isArray(list) ? list : []).map(normalize);
+    }
+    return (await clientService.getContracts()).map(normalize);
+  }
+
+  function actionsFor(n){
+    const v = toV2(n.status);
+    let btns = `<a href="contrato.html?id=${encodeURIComponent(n.id)}" class="btn btn-sm btn-elora-outline">Ver</a>`;
+    if(PAYABLE.includes(n.status) || PAYABLE.includes(v)) btns += ` <a href="../financeiro/pagamento.html?contractId=${encodeURIComponent(n.id)}" class="btn btn-sm btn-elora-primary">Pagar</a>`;
+    if(REVIEWABLE.includes(n.status) || REVIEWABLE.includes(v)) btns += ` <a href="../avaliacoes/avaliar.html?contractId=${encodeURIComponent(n.id)}" class="btn btn-sm btn-elora-outline">Avaliar</a>`;
+    btns += ` <a href="../juridico/denunciar.html?contractId=${encodeURIComponent(n.id)}" class="btn btn-sm btn-outline-danger">Denunciar</a>`;
+    if(CANCELLABLE.includes(n.status) || CANCELLABLE.includes(v)) btns += ` <button class="btn btn-sm btn-outline-secondary btn-cancel" data-id="${encodeURIComponent(n.id)}">Cancelar</button>`;
+    return btns;
+  }
+
+  function render(){
+    const status = document.getElementById('fStatus').value;
+    const q = document.getElementById('fSearch').value.trim().toLowerCase();
+    const list = all.filter(n=>{
+      if(status && toV2(n.status) !== status) return false;
+      if(q && ![n.codigo, n.titulo, n.caregiverName].map(x=>String(x||'').toLowerCase()).some(x=>x.includes(q))) return false;
+      return true;
+    });
+    document.getElementById('countBadge').textContent = list.length + (list.length === 1 ? ' contrato' : ' contratos');
+    const el = document.getElementById('list');
+    if(!list.length){ el.innerHTML = '<div class="col-12"><div class="card-elora p-5 text-center"><i class="bi bi-inbox fs-1 text-muted"></i><p class="text-muted mt-2 mb-3">Nenhum contrato encontrado.</p><a href="../busca/buscar-cuidadores.html" class="btn btn-elora-primary">Buscar cuidadores</a></div></div>'; return; }
+    el.innerHTML = list.map(n=>`
+      <div class="col-md-6 col-lg-4">
+        <div class="card-elora p-3 h-100 d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+            <span class="badge bg-light text-dark border">${escapeHtml(String(n.codigo))}</span>
+            <span class="${contractStatusBadge(n.status)}">${escapeHtml(contractService.getStatusLabel(n.status))}</span>
+          </div>
+          <strong>${escapeHtml(n.titulo)}</strong>
+          <div class="small text-muted"><i class="bi bi-person me-1"></i>${escapeHtml(n.caregiverName)}</div>
+          <div class="small text-muted"><i class="bi bi-calendar3 me-1"></i>${n.startDate ? formatDate(n.startDate) : '—'} - ${n.endDate ? formatDate(n.endDate) : '—'}</div>
+          <div class="small fw-semibold mt-1">${formatCurrency(Number(n.total) || 0)}</div>
+          <div class="d-flex gap-2 flex-wrap mt-3">${actionsFor(n)}</div>
+        </div>
+      </div>`).join('');
+    el.querySelectorAll('.btn-cancel').forEach(b=> b.addEventListener('click', async()=>{
+      const reason = prompt('Motivo do cancelamento:');
+      if(reason === null) return;
+      if(!reason.trim()){ notificationService.showWarning('Informe o motivo'); return; }
+      try{
+        const id = decodeURIComponent(b.dataset.id);
+        if(!CONFIG.API.MOCK_MODE) await apiService.patch(`${CONFIG.ENDPOINTS.contracts}/${id}/status`, { status: 'cancelado' });
+        else await contractService.cancelContract(id, reason.trim());
+        notificationService.showSuccess('Contrato cancelado'); await load();
+      }catch(err){ notificationService.showError(err.message); }
+    }));
+  }
+
+  async function load(){
+    if(!authService.isClient()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('contratos/meus-contratos.html'); return; }
+    try{
+      all = await fetchContracts();
+      all.sort((a,b)=> new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      render();
+    }catch(err){
+      console.error('Erro ao carregar contratos:', err);
+      document.getElementById('list').innerHTML = '<div class="col-12"><div class="alert alert-danger">'+escapeHtml(err.message)+'</div></div>';
+    }
+  }
+
+  document.getElementById('fStatus')?.addEventListener('change', render);
+  document.getElementById('fSearch')?.addEventListener('input', render);
+  document.getElementById('btnClear')?.addEventListener('click', ()=>{ document.getElementById('fStatus').value=''; document.getElementById('fSearch').value=''; render(); });
+  document.addEventListener('DOMContentLoaded', load);
+</script>
+</body>
+</html>

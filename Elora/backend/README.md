@@ -14,7 +14,9 @@ Troca: edite `src/config/config.js:21` → `MOCK_MODE: false` (frontend) e recar
 | Modo | Precisa |
 |---|---|
 | **MOCK_MODE=true** | Só navegador + `npx serve` ou `python -m http.server`. Sem Java, sem Docker, sem banco. |
-| **MOCK_MODE=false** | Java 17, Maven 3.9+, conta/projeto no Neon (PostgreSQL), `backend/.env` com `DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET` |
+| **MOCK_MODE=false** | Java 17 ou 21, Maven 3.9+, conta/projeto no Neon (PostgreSQL), `backend/.env` com `DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET` |
+
+> JDK: use 17 ou 21 (`JAVA_HOME` → JDK 21 no Codespace). O `pom.xml` fixa Lombok 1.18.38, que também cobre JDK 25; Lombok ≤1.18.32 não gera código no JDK 25 e o build quebra com `cannot find symbol` em getters.
 
 > Docker foi descontinuado. Não há `docker-compose.yml`. Não use MySQL/XAMPP/Redis — o backend só fala PostgreSQL (`pom.xml` sem `mysql-connector`, `application.properties` com `org.postgresql.Driver` + `ddl-auto=validate`).
 

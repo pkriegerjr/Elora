@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -26,6 +27,7 @@ import java.util.List;
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -47,7 +49,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/clients", "/caregivers").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
-                        .requestMatchers("/juridico/**").permitAll() // stub in-memory; travar com JWT no módulo usuario
+                        // Denúncia (POST /analise) é canal do usuário: qualquer autenticado.
+                        .requestMatchers(HttpMethod.POST, "/juridico/analise").authenticated()
+                        // Painel e rescisões: só equipe jurídica/administração.
+                        .requestMatchers("/juridico/painel", "/juridico/rescisoes").hasAnyRole("ADMIN", "JURIDICO")
+                        .requestMatchers("/juridico/**").hasAnyRole("ADMIN", "JURIDICO")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

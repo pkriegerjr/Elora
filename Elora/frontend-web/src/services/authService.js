@@ -278,21 +278,24 @@ class AuthService {
 
     /**
      * Resolve URL correctly whether running via file://, http://localhost or subfolder
-     * @param {string} url - URL starting with /pages/... or /index.html
+     * @param {string} url - canonical URL starting with /src/pages/... or /index.html
      * @returns {string} Relative URL correct for current location
      */
     resolveUrl(url) {
-        let clean = url.replace(/^\//, '');
-        // normaliza: src/pages/... -> pages/... (relativo à pasta src/)
-        if (clean.startsWith('src/')) clean = clean.slice(4);
+        const clean = url.replace(/^\//, '');
         const path = window.location.pathname;
         const inPages = path.includes('/src/pages/') || path.includes('/pages/');
         if (inPages) {
+            // origem: src/pages/<cat>/ (ou pages/<cat>/ em layout sem src/)
             // index fica na raiz frontend-web/ (3 níveis acima de src/pages/<cat>/)
             if (clean === 'index.html') return '../../../index.html';
-            if (clean.startsWith('pages/')) return '../../' + clean;
+            // destino dentro de pages: sobe 1 nível (para src/pages/) e desce na categoria
+            if (clean.startsWith('src/pages/')) return '../' + clean.slice('src/pages/'.length);
+            if (clean.startsWith('pages/')) return '../' + clean.slice('pages/'.length);
             return clean;
         }
+        // origem: raiz frontend-web/ (index.html) — destino precisa do prefixo src/
+        if (clean.startsWith('pages/')) return 'src/' + clean;
         return clean;
     }
 

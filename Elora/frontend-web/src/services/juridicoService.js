@@ -8,7 +8,14 @@ class JuridicoService {
     load(k) { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) { return []; } }
     save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
 
+    /** Painel e filas restritos à equipe jurídica/administração (admin cobre ambos no mock; perfis juridico->ADMIN na API). */
+    exigirEquipeJuridica() {
+        const staff = !!(window.authService && authService.isAdmin && authService.isAdmin());
+        if (!staff) throw new Error('Acesso negado: restrito à equipe jurídica/administração');
+    }
+
     async painel() {
+        this.exigirEquipeJuridica();
         if (CONFIG.API.MOCK_MODE) {
             const den = this.load('elora_mock_denuncias');
             const res = this.load('elora_mock_rescisoes');
@@ -27,6 +34,7 @@ class JuridicoService {
     }
 
     async listarDenuncias() {
+        this.exigirEquipeJuridica();
         if (CONFIG.API.MOCK_MODE) return this.load('elora_mock_denuncias');
         return await apiService.get(`${CONFIG.ENDPOINTS.juridico}/analise`);
     }
@@ -50,6 +58,7 @@ class JuridicoService {
     }
 
     async solicitarRescisao({ contratoId, motivo }) {
+        this.exigirEquipeJuridica();
         if (CONFIG.API.MOCK_MODE) {
             await new Promise(r => setTimeout(r, 500));
             if (!contratoId) throw new Error('Contrato não informado');
@@ -63,6 +72,7 @@ class JuridicoService {
     }
 
     async listarRescisoes() {
+        this.exigirEquipeJuridica();
         if (CONFIG.API.MOCK_MODE) return this.load('elora_mock_rescisoes');
         return [];
     }

@@ -613,7 +613,7 @@ function initClientDashboard() {
     console.log("Inicializando dashboard do cliente");
     // Require authentication
     if (!authService.isClient()) {
-        window.location.href = authService.getLoginUrl("dashboard-cliente");
+        window.location.href = authService.getLoginUrl("dashboards/dashboard-cliente.html");
         return;
     }
 }
@@ -622,7 +622,7 @@ function initCaregiverDashboard() {
     console.log("Inicializando dashboard do cuidador");
     // Require authentication
     if (!authService.isCaregiver()) {
-        window.location.href = authService.getLoginUrl("dashboard-cuidador");
+        window.location.href = authService.getLoginUrl("dashboards/dashboard-cuidador.html");
         return;
     }
 }
@@ -631,7 +631,7 @@ function initAdminDashboard() {
     console.log("Inicializando dashboard administrativo");
     // Require authentication
     if (!authService.isAdmin()) {
-        window.location.href = authService.getLoginUrl("dashboard-admin");
+        window.location.href = authService.getLoginUrl("dashboards/dashboard-admin.html");
         return;
     }
 }

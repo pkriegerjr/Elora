@@ -58,6 +58,7 @@
 <script>
   async function load(){
     if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('juridico/painel.html'); return; }
+    if(!authService.isAdmin()){ document.getElementById('main').innerHTML='<div class="alert alert-danger" role="alert">Acesso restrito à equipe jurídica/administração.</div>'; return; }
     try{
       const p = await juridicoService.painel();
       document.getElementById('sPend').textContent = p.validacaoPendentes ?? 0;

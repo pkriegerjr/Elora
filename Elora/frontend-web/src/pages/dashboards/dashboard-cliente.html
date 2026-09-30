@@ -15,7 +15,7 @@
     <div class="brand mb-4">EL<span>ORA</span> <small>Cliente</small></div>
     <a class="nav-link active" href="../dashboards/dashboard-cliente.html"><i class="bi bi-speedometer2"></i> Visão geral</a>
     <a class="nav-link" href="../busca/buscar-cuidadores.html"><i class="bi bi-search"></i> Buscar cuidadores</a>
-    <a class="nav-link" href="#secContracts" id="navContracts"><i class="bi bi-file-earmark-text"></i> Meus contratos</a>
+    <a class="nav-link" href="../contratos/meus-contratos.html" id="navContracts"><i class="bi bi-file-earmark-text"></i> Meus contratos</a>
     <a class="nav-link" href="../favoritos/lista.html" id="navFavs"><i class="bi bi-heart"></i> Favoritos</a>
     <a class="nav-link" href="../perfil/perfil.html"><i class="bi bi-person"></i> Meu perfil</a>
     <a class="nav-link" href="../notificacoes/lista.html"><i class="bi bi-bell"></i> Notificações <span data-notification-badge class="badge bg-danger d-none">0</span></a>
@@ -39,7 +39,7 @@
       <div class="row g-4">
         <div class="col-lg-8">
           <div class="card-elora p-3" id="secContracts">
-            <div class="d-flex justify-content-between align-items-center mb-2"><h5 class="mb-0">Meus contratos</h5><a href="../busca/buscar-cuidadores.html" class="btn btn-elora-primary btn-sm">Novo contrato</a></div>
+            <div class="d-flex justify-content-between align-items-center mb-2"><h5 class="mb-0">Meus contratos</h5><div class="d-flex gap-2"><a href="../contratos/meus-contratos.html" class="btn btn-elora-outline btn-sm">Ver todos</a><a href="../busca/buscar-cuidadores.html" class="btn btn-elora-primary btn-sm">Novo contrato</a></div></div>
             <div class="table-responsive"><table class="table align-middle"><caption class="sr-only">Meus contratos</caption><thead><tr><th scope="col">Cuidador</th><th scope="col">Período</th><th scope="col">Status</th><th scope="col">Valor</th><th></th></tr></thead><tbody id="contractsBody"><tr><td colspan="5" class="text-center text-muted small">Carregando...</td></tr></tbody></table></div>
           </div>
           <div class="card-elora p-3 mt-3" id="secFavs">
@@ -58,7 +58,7 @@
     </div>
   </div>
   <!-- offcanvas mobile -->
-  <div class="offcanvas offcanvas-start offcanvas-sidebar" id="off" aria-labelledby="offClienteTitle"><div class="offcanvas-header"><h5 id="offClienteTitle">Elora</h5><button class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button></div><div class="offcanvas-body"><a class="nav-link" href="../dashboards/dashboard-cliente.html">Visão geral</a><a class="nav-link" href="../busca/buscar-cuidadores.html">Buscar</a><a class="nav-link" href="../favoritos/lista.html">Favoritos</a><a class="nav-link" href="#" data-action="logout">Sair</a></div></div>
+  <div class="offcanvas offcanvas-start offcanvas-sidebar" id="off" aria-labelledby="offClienteTitle"><div class="offcanvas-header"><h5 id="offClienteTitle">Elora</h5><button class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button></div><div class="offcanvas-body"><a class="nav-link" href="../dashboards/dashboard-cliente.html">Visão geral</a><a class="nav-link" href="../busca/buscar-cuidadores.html">Buscar</a><a class="nav-link" href="../contratos/meus-contratos.html">Meus contratos</a><a class="nav-link" href="../favoritos/lista.html">Favoritos</a><a class="nav-link" href="#" data-action="logout">Sair</a></div></div>
   <!-- modal editar -->
   <div class="modal fade" id="editProfileModal" aria-labelledby="editProfileTitle"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 id="editProfileTitle">Editar perfil</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div><div class="modal-body"><input id="editName" class="form-control mb-2" placeholder="Nome"><input id="editPhone" class="form-control mb-2" placeholder="Telefone"><textarea id="editCareNeeds" class="form-control" rows="2" placeholder="Necessidade de cuidado"></textarea></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button id="btnSaveProfile" class="btn btn-elora-primary">Salvar</button></div></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -94,7 +94,6 @@
     }catch(err){ notificationService.showError(err.message); }
   }
   document.getElementById('btnMarkAll')?.addEventListener('click', async()=>{ await notificationService.markAllAsRead(); load(); });
-  document.getElementById('navContracts')?.addEventListener('click', e=>{ e.preventDefault(); document.getElementById('secContracts')?.scrollIntoView({behavior:'smooth'}); });
   document.getElementById('btnSaveProfile')?.addEventListener('click', async()=>{
     try{ await clientService.updateProfile({ name: document.getElementById('editName').value, phone: document.getElementById('editPhone').value, careNeeds: { description: document.getElementById('editCareNeeds').value }}); notificationService.showSuccess('Perfil atualizado'); bootstrap.Modal.getInstance(document.getElementById('editProfileModal')).hide(); load(); }catch(err){ notificationService.showError(err.message); }
   });
