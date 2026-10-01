@@ -109,7 +109,7 @@ const CONFIG = {
         REJECTED_EN: "REJECTED", CANCELLED_EN: "CANCELLED"
     },
 
-    PAYMENT_METHODS: { PIX: "pix", CARD: "cartao", BOLETO: "boleto", pix: "pix", card: "cartao", boleto: "boleto", PIX: "pix", CARD: "cartao", BOLETO: "boleto", cartao: "cartao" },
+    PAYMENT_METHODS: { PIX: "pix", CARD: "cartao", BOLETO: "boleto", pix: "pix", card: "cartao", boleto: "boleto", cartao: "cartao" },
 
     // V2: disponibilidade/escala periodo ENUM('matutino','vespertino','noturno')
     DISPONIBILIDADE_PERIODO: { MATUTINO: "matutino", VESPERTINO: "vespertino", NOTURNO: "noturno", matutino: "matutino", vespertino: "vespertino", noturno: "noturno" },

@@ -10,7 +10,7 @@ public class Tutorial {
     @Column(nullable = false) private String titulo;
     @Column(columnDefinition = "TEXT") private String descricao;
     @Column(name = "link_conteudo", length = 500) private String linkConteudo;
-    @Column(length = 50) private String status = "rascunho";
+    @Column(length = 50) @Builder.Default private String status = "rascunho";
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "categoria_id") private CategoriaConteudo categoriaRef;
     @CreationTimestamp @Column(name = "criado_em", updatable = false) private LocalDateTime criadoEm;
 }

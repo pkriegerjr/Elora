@@ -8,6 +8,6 @@ public class ArtigoConhecimento {
   @Column(length=80) private String categoria; // denormalizado p/ busca rápida
   @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="categoria_id") private CategoriaConteudo categoriaRef;
   @Column(name="autor_id") private Integer autorId;
-  @Column(nullable=false) private Boolean publicado=false;
+  @Column(nullable=false) @Builder.Default private Boolean publicado=false;
   private LocalDateTime criadoEm, atualizadoEm;
 }

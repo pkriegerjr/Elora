@@ -565,6 +565,40 @@ CREATE TABLE consentimento_lgpd (
     FOREIGN KEY (usuario_id) REFERENCES usuario (id_usuario) ON DELETE CASCADE
 );
 
+-- =====================================================================
+-- 10b. CONHECIMENTO: categoria, tutorial e FAQ
+-- (incluido no v2.4 - o modulo Conhecimento ja existia no codigo Java
+--  mas estas tabelas/colunas faltavam neste script)
+-- =====================================================================
+CREATE TABLE categoria_conteudo (
+    id_categoria  INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nome_categoria VARCHAR(80) NOT NULL UNIQUE,
+    descricao     TEXT NULL,
+    criado_em     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tutorial (
+    id_tutorial     INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    titulo          VARCHAR(255) NOT NULL,
+    descricao       TEXT NULL,
+    link_conteudo   VARCHAR(500) NULL,
+    status          VARCHAR(50) NOT NULL DEFAULT 'rascunho',
+    categoria_id    INT NULL,
+    criado_em       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categoria_id) REFERENCES categoria_conteudo (id_categoria)
+);
+
+CREATE TABLE faq (
+    id_faq       INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    pergunta     TEXT NOT NULL,
+    resposta     TEXT NOT NULL,
+    categoria    VARCHAR(100) NULL,
+    status       VARCHAR(50) NOT NULL DEFAULT 'rascunho',
+    categoria_id INT NULL,
+    criado_em    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categoria_id) REFERENCES categoria_conteudo (id_categoria)
+);
+
 CREATE TABLE artigo_conhecimento (
     id_artigo   INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     titulo      VARCHAR(150) NOT NULL,
@@ -574,7 +608,9 @@ CREATE TABLE artigo_conhecimento (
     publicado   BOOLEAN NOT NULL DEFAULT FALSE,
     criado_em   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (autor_id) REFERENCES usuario (id_usuario)
+    categoria_id INT NULL,
+    FOREIGN KEY (autor_id) REFERENCES usuario (id_usuario),
+    FOREIGN KEY (categoria_id) REFERENCES categoria_conteudo (id_categoria)
 );
 
 CREATE TRIGGER trg_artigo_touch

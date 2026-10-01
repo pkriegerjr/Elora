@@ -10,7 +10,7 @@ public class Faq {
     @Column(nullable = false, columnDefinition = "TEXT") private String pergunta;
     @Column(nullable = false, columnDefinition = "TEXT") private String resposta;
     @Column(length = 100) private String categoria;
-    @Column(length = 50) private String status = "rascunho";
+    @Column(length = 50) @Builder.Default private String status = "rascunho";
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "categoria_id") private CategoriaConteudo categoriaRef;
     @CreationTimestamp @Column(name = "criado_em", updatable = false) private LocalDateTime criadoEm;
     public void cadastrarPergunta() { this.status = "rascunho"; }
