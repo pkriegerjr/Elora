@@ -1,13 +1,17 @@
 package com.elora.module.pagamento.controller;
 
 import com.elora.module.pagamento.dto.AtualizarTaxaRequest;
+import com.elora.module.pagamento.dto.CancelarPagamentoRequest;
+import com.elora.module.pagamento.dto.CobrancaResponse;
 import com.elora.module.pagamento.dto.CriarPagamentoRequest;
 import com.elora.module.pagamento.dto.CriarTaxaRequest;
 import com.elora.module.pagamento.dto.EstornarRequest;
 import com.elora.module.pagamento.dto.PagarRequest;
 import com.elora.module.pagamento.dto.PagamentoResponse;
+import com.elora.module.pagamento.dto.PagamentoStatusResponse;
 import com.elora.module.pagamento.dto.RepasseResponse;
 import com.elora.module.pagamento.dto.TaxaResponse;
+import com.elora.module.pagamento.enums.MetodoPagamento;
 import com.elora.module.pagamento.service.PagamentoService;
 import com.elora.module.pagamento.service.TaxaServicoService;
 import com.elora.security.SecurityUtils;
@@ -18,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -33,6 +38,9 @@ import java.util.List;
  * Rotas exatas antes de {@code /{id}} (mesmo padrão do /search de cuidadores).
  * Papéis (docs): cliente paga/cancela os próprios; profissional vê repasses e
  * histórico próprio; financeiro/admin gerenciam taxas, repasses e estornos.
+ *
+ * <p>Rotas de cobrança ({@code /status}, {@code /cancel}, {@code /pix/qrcode},
+ * {@code /boleto}) espelham o que o {@code paymentService.js} do front já chama.</p>
  */
 @RestController
 @RequestMapping("/payments")
@@ -111,5 +119,43 @@ public class PagamentoController {
             HttpServletRequest http) {
         return pagamentos.estornar(
                 SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr());
+    }
+
+    // Cobrança: status, cancelamento, PIX e boleto
+
+    @GetMapping("/{id}/status")
+    public PagamentoStatusResponse status(
+            Authentication authentication, @PathVariable Integer id) {
+        return pagamentos.status(SecurityUtils.currentUserId(authentication), id);
+    }
+
+    @PatchMapping("/{id}/cancel")
+    public PagamentoResponse cancelar(
+            Authentication authentication,
+            @PathVariable Integer id,
+            @RequestBody(required = false) CancelarPagamentoRequest request,
+            HttpServletRequest http) {
+        return pagamentos.cancelar(
+                SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr());
+    }
+
+    @PostMapping("/{id}/pix/qrcode")
+    public CobrancaResponse pix(
+            Authentication authentication,
+            @PathVariable Integer id,
+            HttpServletRequest http) {
+        return pagamentos.gerarCobranca(
+                SecurityUtils.currentUserId(authentication), id,
+                MetodoPagamento.pix, http.getRemoteAddr());
+    }
+
+    @PostMapping("/{id}/boleto")
+    public CobrancaResponse boleto(
+            Authentication authentication,
+            @PathVariable Integer id,
+            HttpServletRequest http) {
+        return pagamentos.gerarCobranca(
+                SecurityUtils.currentUserId(authentication), id,
+                MetodoPagamento.boleto, http.getRemoteAddr());
     }
 }

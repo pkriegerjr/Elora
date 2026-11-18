@@ -20,6 +20,19 @@ public class GatewayCobrancaResult {
     private String gatewayId;
     private String motivo;
 
+    private String qrCodeBase64;
+    private String pixCopiaECola;
+    private String linhaDigital;
+    private String boletoUrl;
+    private String checkoutUrl;
+    private LocalDateTime expiraEm;
+
+    private GatewayCobrancaResult(StatusCobranca status, String gatewayId, String motivo){
+        this.status = status;
+        this.gatewayId = gatewayId;
+        this.motivo = motivo;
+    }
+
     public static GatewayCobrancaResult aprovada(String gatewayId) {
         return new GatewayCobrancaResult(StatusCobranca.APROVADA, gatewayId, null);
     }
@@ -31,5 +44,22 @@ public class GatewayCobrancaResult {
     public static GatewayCobrancaResult indisponivel() {
         return new GatewayCobrancaResult(StatusCobranca.INDISPONIVEL, null,
                 "Gateway de pagamento indisponível, tente novamente");
+    }
+    public GatewayCobrancaResult comPix(String qrBase64, String copiaECola, LocalDateTime expi){
+        this.qrCodeBase64 = qrBase64;
+        this.pixCopiaECola = copiaECola;
+        this.expiraEm = expi;
+        return this;
+    }
+    public GatewayCobrancaResult comBoleto(String linha, String url, LocalDateTime expi){
+        this.linhaDigital = linha;
+        this.boletoUrl = url;
+        this.expiraEm = expi;
+        return this;
+    }
+
+    public GatewayCobrancaResult comCheckout (String url){
+        this.checkoutUrl = url;
+        return this;
     }
 }

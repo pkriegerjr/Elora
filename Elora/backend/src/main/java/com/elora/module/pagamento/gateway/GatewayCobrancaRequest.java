@@ -17,4 +17,19 @@ public class GatewayCobrancaRequest {
     private BigDecimal valor;
     private MetodoPagamento metodo;
     private String gatewayToken;
+
+    private String descricao;
+    private String nomeCliente;
+    private String emailCliente;
+    private String cpfcnpjCliente;
+    private LocalDate vencimento;
+    private Integer parcelas;
+    private String urlRetorno;
+
+    public GatewayCobrancaRequest(Integer pagamentoId, BigDecimal valor, MetodoPagamento metodo, String gatewayToken){
+        this.pagamentoId = pagamentoId;
+        this.valor = valor;
+        this.metodo = metodo;
+        this.gatewayToken = gatewayToken;
+    }
 }

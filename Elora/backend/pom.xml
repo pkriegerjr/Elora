@@ -21,6 +21,7 @@
         <jjwt.version>0.12.5</jjwt.version>
         <springdoc.version>2.5.0</springdoc.version>
         <resilience4j.version>2.2.0</resilience4j.version>
+        <awssdk.version>2.25.60</awssdk.version>
     </properties>
 
     <dependencies>

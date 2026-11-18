@@ -21,7 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /**
- * MVP: API stateless. Libera auth/docs; resto exige autenticação.
+ * MVP: API stateless. Libera auth/docs/webhook; resto exige autenticação.
  * O filtro JWT real entra junto com o módulo usuario (auth).
  * CSRF desabilitado porque o front usa Bearer (apiService.js), não cookie.
  */
@@ -47,6 +47,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/clients", "/caregivers").permitAll()
+                        // Webhook do gateway: chamado servidor-a-servidor, sem Bearer.
+                        // A autenticidade é validada no service pelo header asaas-access-token.
+                        .requestMatchers(HttpMethod.POST, "/payments/webhook").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         // Denúncia (POST /analise) é canal do usuário: qualquer autenticado.
