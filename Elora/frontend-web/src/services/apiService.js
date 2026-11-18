@@ -143,8 +143,10 @@ class ApiService {
             // limpa sessão e redireciona
             localStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_TOKEN);
             localStorage.removeItem(CONFIG.STORAGE_KEYS.CURRENT_USER);
+            localStorage.removeItem(CONFIG.STORAGE_KEYS.REFRESH_TOKEN);
             sessionStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_TOKEN);
             sessionStorage.removeItem(CONFIG.STORAGE_KEYS.CURRENT_USER);
+            sessionStorage.removeItem(CONFIG.STORAGE_KEYS.REFRESH_TOKEN);
             if(!window.location.pathname.includes("login.html")){
                 window.location.href= window.authService ? window.authService.getLoginUrl()+"?expired=1" : "login.html?expired=1";
             }
@@ -204,12 +206,20 @@ const apiService=new ApiService();
 
 apiService.setErrorInterceptor(async (error)=>{
     if(error.status===401){
+        // Só redireciona se havia uma sessão salva (token expirado).
+        // Em páginas públicas (sem sessão), um 401 significa apenas "não autenticado",
+        // não deve expulsar o visitante para login.html?expired=1.
+        const hadSession = localStorage.getItem(CONFIG.STORAGE_KEYS.CURRENT_USER)
+            || sessionStorage.getItem(CONFIG.STORAGE_KEYS.CURRENT_USER)
+            || apiService.getAuthToken();
         // tenta refresh já tratado em request(); se ainda 401, limpa e redireciona
-        if(!apiService.getRefreshToken()){
+        if(!apiService.getRefreshToken() && hadSession){
             localStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_TOKEN);
             localStorage.removeItem(CONFIG.STORAGE_KEYS.CURRENT_USER);
+            localStorage.removeItem(CONFIG.STORAGE_KEYS.REFRESH_TOKEN);
             sessionStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_TOKEN);
             sessionStorage.removeItem(CONFIG.STORAGE_KEYS.CURRENT_USER);
+            sessionStorage.removeItem(CONFIG.STORAGE_KEYS.REFRESH_TOKEN);
             if(!window.location.pathname.includes("login.html")){
                 window.location.href= window.authService ? window.authService.getLoginUrl()+"?expired=1" : "login.html?expired=1";
             }

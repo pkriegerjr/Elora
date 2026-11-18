@@ -28,16 +28,11 @@ class MapsService {
      * @returns {Promise<google.maps.Map>} Map instance
      */
     async loadGoogleMapsScript(){
-        // Spring Boot: busca chave segura em GET /api/config/maps-key
-        if(!CONFIG.API.MOCK_MODE && !CONFIG.GOOGLE_MAPS.apiKey.startsWith("YOUR")){
-            // já tem chave
-        } else if(!CONFIG.API.MOCK_MODE){
-            try{
-                const { apiKey } = await apiService.get(CONFIG.GOOGLE_MAPS.configEndpoint);
-                CONFIG.GOOGLE_MAPS.apiKey = apiKey;
-            } catch(e){ console.warn("Falha ao obter Maps key do Spring:", e.message); }
+        // Sem chave configurada (placeholder), usa o modo de simulação e não
+        // chama /config/maps-key — esse endpoint ainda não existe no backend.
+        if(!CONFIG.GOOGLE_MAPS.apiKey || CONFIG.GOOGLE_MAPS.apiKey.startsWith("YOUR")){
+            return;
         }
-        if(CONFIG.GOOGLE_MAPS.apiKey && CONFIG.GOOGLE_MAPS.apiKey.startsWith("YOUR")) return;
         if(document.querySelector('script[data-elora-maps]')) return;
         await new Promise((resolve,reject)=>{
             const s=document.createElement('script');

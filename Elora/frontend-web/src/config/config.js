@@ -8,9 +8,18 @@
 const CONFIG = {
     // API Configuration — Spring Boot — Fase 1: base http://localhost:8080/api (application.properties:3 /api)
     API: {
-        // Em produção (Spring servindo static/): relativo "/api" (context-path /api).
-        // P0: base relativa para funcionar em qualquer porta/host; MOCK_MODE=true roda 100% sem backend.
-        baseURL: "/api",
+        // Backend Spring: context-path /api na porta 8080.
+        // - Servido pelo próprio Spring (porta 8080): relativo "/api".
+        // - Front estático em outra porta (ex.: python -m http.server 8000): absoluto para o backend.
+        // - Aberto via file://: absoluto para localhost:8080.
+        baseURL: (function resolveApiBaseURL() {
+            if (typeof window === "undefined" || !window.location) return "/api";
+            const { protocol, hostname, port } = window.location;
+            const backendPort = "8080";
+            if (protocol === "file:") return `http://localhost:${backendPort}/api`;
+            if (port === backendPort) return "/api";
+            return `${protocol}//${hostname}:${backendPort}/api`;
+        })(),
         version: "v1",
         timeout: 30000,
         headers: {
@@ -18,7 +27,7 @@ const CONFIG = {
             "Accept": "application/json"
         },
         // Flag para alternar mock vs API real sem quebrar protótipo
-        MOCK_MODE: true, // P0: demo consistente 100% localStorage; altere para false só com backend Spring online
+        MOCK_MODE: false, // API real (Spring Boot + Neon); use true para demo 100% localStorage
         // Spring Security: JWT em Authorization: Bearer <token>
         auth: {
             headerName: "Authorization",

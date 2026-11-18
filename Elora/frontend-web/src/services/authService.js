@@ -220,10 +220,13 @@ class AuthService {
     logout() {
         this.currentUser = null;
         apiService.setAuthToken(null);
+        apiService.setRefreshToken(null);
         localStorage.removeItem(CONFIG.STORAGE_KEYS.CURRENT_USER);
         localStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_TOKEN);
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.REFRESH_TOKEN);
         sessionStorage.removeItem(CONFIG.STORAGE_KEYS.CURRENT_USER);
         sessionStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_TOKEN);
+        sessionStorage.removeItem(CONFIG.STORAGE_KEYS.REFRESH_TOKEN);
         this.notifyListeners("authChange", null);
     }
 
