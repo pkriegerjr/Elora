@@ -6,8 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
-/** Entrada da cobrança junto ao provedor (mock hoje, Stripe/MP/PagSeguro amanhã). */
+/** Entrada da cobrança junto ao provedor. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,14 +20,16 @@ public class GatewayCobrancaRequest {
     private String gatewayToken;
 
     private String descricao;
-    private String nomeCliente;
-    private String emailCliente;
-    private String cpfcnpjCliente;
+    private String clienteNome;
+    private String clienteEmail;
+    private String clienteCpfCnpj;
     private LocalDate vencimento;
     private Integer parcelas;
     private String urlRetorno;
 
-    public GatewayCobrancaRequest(Integer pagamentoId, BigDecimal valor, MetodoPagamento metodo, String gatewayToken){
+    /** Mantido para não quebrar PagamentoFlowTest e o fluxo mock. */
+    public GatewayCobrancaRequest(Integer pagamentoId, BigDecimal valor,
+                                  MetodoPagamento metodo, String gatewayToken) {
         this.pagamentoId = pagamentoId;
         this.valor = valor;
         this.metodo = metodo;

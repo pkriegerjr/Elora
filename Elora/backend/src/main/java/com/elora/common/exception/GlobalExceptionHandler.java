@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.stream.Collectors;
 
@@ -55,6 +56,13 @@ public class GlobalExceptionHandler {
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail(msg));
+    }
+
+    /** Upload acima do spring.servlet.multipart.max-file-size: 413, não 500. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<?>> uploadGrande(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.fail("Arquivo maior que o limite permitido no upload"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

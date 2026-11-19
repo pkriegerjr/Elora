@@ -474,7 +474,17 @@ public class PagamentoService {
         return r;
     }
 
-    private PagamentoResponse mapear(Pagamento p) {
+        private PagamentoResponse mapear(Pagamento p) {
         return new PagamentoResponse(
                 p.getId(), p.getContratoId(), p.getPagadorId(), p.getTaxaId(),
+                p.getValorBruto(), p.getValorTaxa(), p.getValorLiquido(),
+                p.getMetodo(), p.getStatus(), p.getGatewayId(), p.getIdempotencyKey(),
+                p.getCriadoEm(), p.getAtualizadoEm());
     }
+
+    private RepasseResponse mapear(Repasse r) {
+        return new RepasseResponse(
+                r.getId(), r.getPagamentoId(), r.getProfissionalId(),
+                r.getValor(), r.getStatus(), r.getProcessadoEm());
+    }
+}

@@ -1,15 +1,22 @@
 package com.elora.module.profissional.service;
-import com.elora.common.exception.*; import com.elora.module.profissional.dto.*;
-import com.elora.module.profissional.entity.*; import com.elora.module.profissional.enums.Periodo; import com.elora.module.profissional.mapper.ProfissionalMapper;
+import com.elora.common.exception.*; import com.elora.integration.storage.*;
+import com.elora.module.profissional.dto.*;
+import com.elora.module.profissional.entity.*; import com.elora.module.profissional.enums.DocumentoStatus; import com.elora.module.profissional.enums.Periodo; import com.elora.module.profissional.mapper.ProfissionalMapper;
 import com.elora.module.usuario.entity.Usuario;
 import com.elora.module.profissional.repository.*; import com.elora.module.usuario.entity.ProfissionalDetalhes;
 import com.elora.module.usuario.enums.StatusVerificacao; import com.elora.module.usuario.repository.*;
-import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service;
+import com.elora.module.usuario.service.UsuarioService;
+import lombok.RequiredArgsConstructor; import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.*; 
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException; import java.util.*;
 
 @Service @RequiredArgsConstructor
 public class ProfissionalService {
+  /** Formatos aceitos no upload de documento. */
+  private static final Set<String> EXTENSOES_DOCUMENTO = Set.of("pdf", "jpg", "jpeg", "png");
+
   private final UsuarioRepository usuarios;
   private final ProfissionalDetalhesRepository detalhesRepo;
   private final DocumentoProfissionalRepository docsRepo;
@@ -18,6 +25,12 @@ public class ProfissionalService {
   private final UsuarioEspecialidadeRepository ueRepo;
   private final UsuarioPerfilRepository usuarioPerfis;
   private final ProfissionalMapper mapper;
+  private final StorageService storage;
+  private final UsuarioService usuariosService;
+
+  /** Limite da aplicação (menor que o do multipart): erro 422 com mensagem clara. */
+  @Value("${app.integracoes.storage.max-bytes:5242880}")
+  private long maxBytes = 5_242_880;
 
   private Usuario getProfissional(Integer id){ // valida que é profissional
     var u = usuarios.findById(id).filter(x->x.getDeletedAt()==null)
@@ -38,7 +51,9 @@ public class ProfissionalService {
   private ProfissionalResponse.DocumentoDTO toDocDTO(DocumentoProfissional d){
     var dto=new ProfissionalResponse.DocumentoDTO();
     dto.setId(d.getId()); dto.setTipo(d.getTipo()); dto.setArquivoUrl(d.getArquivoUrl());
-    dto.setStatus(d.getStatus().name()); return dto;
+    dto.setStatus(d.getStatus().name());
+    dto.setUrlDownload("/caregivers/"+d.getUsuarioId()+"/documentos/"+d.getId()+"/arquivo");
+    return dto;
   }
 
   @Transactional
@@ -70,14 +85,74 @@ public class ProfissionalService {
       .map(d-> getById(d.getUsuarioId())).toList();
   }
 
-public DocumentoProfissional uploadDocumento(Integer profId, String tipo, String url){
-  getProfissional(profId);
-  if(tipo==null||tipo.isBlank()||url==null||url.isBlank()) throw new BusinessException("tipo e arquivoUrl obrigatórios");
-  var doc=new DocumentoProfissional(); doc.setUsuarioId(profId);
-  doc.setTipo(tipo); doc.setArquivoUrl(url);
-  doc.setStatus(com.elora.module.profissional.enums.DocumentoStatus.pendente);
-  return docsRepo.save(doc);
-}
+  /** Legado (JSON com URL pronta). Mantido para compatibilidade, agora com checagem de dono. */
+  @Transactional
+  public DocumentoProfissional uploadDocumento(Integer profId, Integer authId, String tipo, String url){
+    getProfissional(profId);
+    exigirDonoOuStaff(profId, authId, "anexar documento a este profissional");
+    if(tipo==null||tipo.isBlank()||url==null||url.isBlank()) throw new BusinessException("tipo e arquivoUrl obrigatórios");
+    var doc=new DocumentoProfissional(); doc.setUsuarioId(profId);
+    doc.setTipo(tipo); doc.setArquivoUrl(url);
+    doc.setStatus(DocumentoStatus.pendente);
+    return docsRepo.save(doc);
+  }
+
+  /** Upload real: valida permissão, limite, formato; grava no storage e só então no banco. */
+  @Transactional
+  public ProfissionalResponse.DocumentoDTO anexarDocumento(Integer profId, Integer authId, String tipo, MultipartFile arquivo){
+    getProfissional(profId);
+    exigirDonoOuStaff(profId, authId, "anexar documento a este profissional");
+    if(tipo==null||tipo.isBlank()) throw new BusinessException("tipo é obrigatório (ex.: RG, CPF, certificado_curso)");
+    if(arquivo==null||arquivo.isEmpty()) throw new BusinessException("arquivo é obrigatório");
+    if(arquivo.getSize()>maxBytes)
+      throw new BusinessException("Arquivo maior que o limite de "+(maxBytes/1024/1024)+" MB");
+    String nome = arquivo.getOriginalFilename()==null ? "documento" : arquivo.getOriginalFilename();
+    String ext = extensao(nome);
+    if(!EXTENSOES_DOCUMENTO.contains(ext))
+      throw new BusinessException("Formato inválido: envie PDF, JPG ou PNG");
+    String contentType = switch(ext){
+      case "pdf" -> "application/pdf";
+      case "png" -> "image/png";
+      default -> "image/jpeg";
+    };
+
+    ArquivoArmazenado salvo;
+    try(var in = arquivo.getInputStream()){
+      salvo = storage.salvar(in, arquivo.getSize(), nome, contentType);
+    }catch(IOException e){
+      throw new BusinessException("Falha ao ler o arquivo enviado");
+    }
+    try{
+      var doc=new DocumentoProfissional();
+      doc.setUsuarioId(profId); doc.setTipo(tipo.trim());
+      doc.setArquivoUrl(salvo.chave()); doc.setStatus(DocumentoStatus.pendente);
+      return toDocDTO(docsRepo.save(doc));
+    }catch(RuntimeException e){
+      storage.remover(salvo.chave()); // não deixa arquivo órfão se o banco recusar
+      throw e;
+    }
+  }
+
+  /** Download: só o dono do documento ou staff. */
+  @Transactional(readOnly=true)
+  public ArquivoLido baixarDocumento(Integer profId, Integer docId, Integer authId){
+    getProfissional(profId);
+    exigirDonoOuStaff(profId, authId, "baixar este documento");
+    var doc = docsRepo.findById(docId).filter(d->profId.equals(d.getUsuarioId()))
+      .orElseThrow(()->new ResourceNotFoundException("Documento não encontrado"));
+    return storage.ler(doc.getArquivoUrl());
+  }
+
+  private void exigirDonoOuStaff(Integer profId, Integer authId, String acao){
+    if(!profId.equals(authId) && !usuariosService.ehStaff(authId))
+      throw new ForbiddenException("Sem permissão para "+acao);
+  }
+
+  private static String extensao(String nome){
+    if(nome==null) return "";
+    int i=nome.lastIndexOf('.');
+    return i<0 || i==nome.length()-1 ? "" : nome.substring(i+1).toLowerCase(Locale.ROOT);
+  }
 
   @Transactional
   public ProfissionalResponse validar(Integer profId, Integer validadorId, ValidacaoRequest req){

@@ -1,13 +1,16 @@
 package com.elora.module.pagamento.gateway;
 
+import com.elora.module.pagamento.enums.MetodoPagamento;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 /**
  * Provedor simulado (sem rede, sem aleatoriedade — determinístico p/ testes).
- * Tokens de teste: {@code "tok_recusado"} recusa; {@code "tok_erro"} simula
- * queda do provedor (dispara o fallback); demais aprovam.
- * Produção: substituir por client HTTPS do provedor real.
+ * Tokens: {@code tok_recusado} recusa; {@code tok_erro} simula queda (fallback);
+ * demais aprovam.
  */
 @Service
 @ConditionalOnProperty(name = "app.integracoes.pagamento.provider",
@@ -40,15 +43,20 @@ public class MockGatewayPagamentoService implements GatewayPagamentoService {
         return r;
     }
 
-    @Override public GatewayCobrancaResult consultar(String gatewayId) {
+    @Override
+    public GatewayCobrancaResult consultar(String gatewayId) {
         return GatewayCobrancaResult.aprovada(gatewayId);
     }
 
-    @Override public GatewayCobrancaResult estornar(String gatewayId) {
+    @Override
+    public GatewayCobrancaResult estornar(String gatewayId) {
         return GatewayCobrancaResult.aprovada(gatewayId);
     }
 
-    @Override public boolean cancelar(String gatewayId) { return true; }
+    @Override
+    public boolean cancelar(String gatewayId) {
+        return true;
+    }
 
     public GatewayCobrancaResult indisponivel(GatewayCobrancaRequest req, Throwable t) {
         return GatewayCobrancaResult.indisponivel();

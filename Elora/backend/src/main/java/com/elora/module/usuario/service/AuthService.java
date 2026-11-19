@@ -3,6 +3,7 @@ package com.elora.module.usuario.service;
 import com.elora.common.exception.BusinessException;
 import com.elora.common.exception.UnauthorizedException;
 import com.elora.common.util.DocumentUtils;
+import com.elora.integration.email.EmailSender;
 import com.elora.module.usuario.dto.AuthResponse;
 import com.elora.module.usuario.dto.LoginRequest;
 import com.elora.module.usuario.dto.UsuarioResponse;
@@ -15,6 +16,8 @@ import com.elora.module.usuario.repository.SessaoRepository;
 import com.elora.module.usuario.repository.UsuarioRepository;
 import com.elora.security.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
     private static final String CREDENCIAIS_INVALIDAS = "CPF/E-mail ou senha incorretos";
     private static final String SESSAO_EXPIRADA = "Sessão expirada. Entre novamente.";
 
@@ -45,9 +50,14 @@ public class AuthService {
     private final UsuarioService usuarioService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwt;
+    private final EmailSender emailSender;
 
     @Value("${app.jwt.refresh-expiration:2592000000}")
     private long refreshExpirationMs;
+
+    /** Base do front; o link de redefinição aponta para cá. */
+    @Value("${app.webapp.base-url:http://localhost:8000}")
+    private String webappBaseUrl = "http://localhost:8000";
 
     private final SecureRandom random = new SecureRandom();
 
@@ -107,9 +117,10 @@ public class AuthService {
     /**
      * REQ-ELO-002 sobre {@code redefinicao_senha} (v2.2). Sempre retorna o
      * token opaco quando o usuário existe; quando não existe, não faz nada
-     * (resposta genérica no controller — não revela cadastros). Envio do
-     * token por e-mail/SMS é integração futura (mesmo padrão do disparo
-     * de notificações); em dev o token volta no log.
+     * (resposta genérica no controller — não revela cadastros).
+     *
+     * O e-mail com o link é disparado via EmailSender. Falha de SMTP NÃO
+     * derruba a requisição: o token já está salvo e o usuário pode pedir outro.
      *
      * @return token opaco (uso único, expira em 1h) ou null se não há usuário
      */
@@ -128,7 +139,31 @@ public class AuthService {
         reset.setTokenHash(sha256Hex(raw));
         reset.setExpiraEm(LocalDateTime.now().plusHours(1));
         redefinicoes.save(reset);
+
+        enviarEmailDeRedefinicao(usuario.get(), raw);
         return raw;
+    }
+
+    private void enviarEmailDeRedefinicao(Usuario usuario, String token) {
+        String link = webappBaseUrl + "/reset-password?token=" + token;
+        String corpo = """
+                Olá, %s!
+
+                Recebemos um pedido para redefinir a senha da sua conta Elora.
+
+                Acesse o link abaixo para criar uma nova senha:
+                %s
+
+                O link é de uso único e expira em 1 hora.
+
+                Se você não pediu esta alteração, ignore este e-mail — sua senha continua a mesma.
+                """.formatted(usuario.getNome(), link);
+        try {
+            emailSender.enviar(usuario.getEmail(), "Redefinição de senha — Elora", corpo);
+        } catch (Exception e) {
+            log.warn("Falha ao enviar e-mail de redefinicao para usuario {}: {}",
+                    usuario.getId(), e.toString());
+        }
     }
 
     /**

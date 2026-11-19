@@ -17,12 +17,30 @@
 
     <properties>
         <java.version>17</java.version>
-        <lombok.version>1.18.38</lombok.version>
+        <lombok.version>1.18.42</lombok.version>
         <jjwt.version>0.12.5</jjwt.version>
         <springdoc.version>2.5.0</springdoc.version>
         <resilience4j.version>2.2.0</resilience4j.version>
+        <!-- Fonte única da versão do AWS SDK v2 (BOM + url-connection-client) -->
         <awssdk.version>2.25.60</awssdk.version>
     </properties>
+
+    <!--
+      O Spring Boot 3.2.5 NÃO gerencia o AWS SDK v2.
+      O BOM abaixo centraliza a versão de s3/url-connection-client e de
+      qualquer módulo AWS futuro (sts, presigner, ...), que entra sem <version>.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Web + Validation -->
@@ -89,6 +107,29 @@
             <version>${resilience4j.version}</version>
         </dependency>
 
+        <!-- E-mail transacional (SMTP). jakarta.mail vem transitivo. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <!-- Storage de documentos S3-compatível (AWS, MinIO, R2, Spaces) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+        </dependency>
+
+        <!-- Health/info: GET /api/actuator/health (já liberado no SecurityConfig) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- OpenAPI/Swagger (documentação dos módulos usuario/notificacao/relatorio) -->
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -119,8 +160,22 @@
         </dependency>
     </dependencies>
 
-    <build>
+        <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <proc>full</proc>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

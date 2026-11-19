@@ -3,6 +3,7 @@ package com.elora.module.notificacao.service;
 import com.elora.common.exception.BusinessException;
 import com.elora.common.exception.ForbiddenException;
 import com.elora.common.exception.ResourceNotFoundException;
+import com.elora.integration.email.EmailSender;
 import com.elora.module.notificacao.dto.CriarNotificacaoRequest;
 import com.elora.module.notificacao.dto.NotificacaoResponse;
 import com.elora.module.notificacao.dto.PreferenciaResponse;
@@ -15,6 +16,8 @@ import com.elora.module.notificacao.repository.PreferenciaNotificacaoRepository;
 import com.elora.module.usuario.entity.Usuario;
 import com.elora.module.usuario.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,15 +26,22 @@ import java.util.List;
 
 /**
  * Notificações sobre o schema v2. Leitura/escrita sempre no escopo do dono,
- * exceto envio (staff). Disparo push/e-mail real = integração futura.
+ * exceto envio (staff).
+ *
+ * A linha na tabela continua sendo a fonte da verdade (o front faz polling).
+ * Quando {@code canal = email}, também dispara e-mail via EmailSender —
+ * respeitando a preferência {@code preferencia_notificacao.email} do usuário.
  */
 @Service
 @RequiredArgsConstructor
 public class NotificacaoService {
 
+    private static final Logger log = LoggerFactory.getLogger(NotificacaoService.class);
+
     private final NotificacaoRepository notificacoes;
     private final PreferenciaNotificacaoRepository preferencias;
     private final UsuarioService usuarioService;
+    private final EmailSender emailSender;
 
     @Transactional(readOnly = true)
     public List<NotificacaoResponse> listar(Integer viewerId, boolean unreadOnly, String tipo, int limit) {
@@ -98,7 +108,10 @@ public class NotificacaoService {
         notificacao.setReferenciaTipo(req.getReferenciaTipo());
         notificacao.setReferenciaId(req.getReferenciaId());
         notificacao.setLida(false);
-        return toResponse(notificacoes.save(notificacao));
+
+        Notificacao salva = notificacoes.save(notificacao);
+        dispararEmail(destinatario, salva);
+        return toResponse(salva);
     }
 
     @Transactional
@@ -114,6 +127,32 @@ public class NotificacaoService {
             item.setReferenciaId(base.getReferenciaId());
             return enviar(staffId, item);
         }).toList();
+    }
+
+    /**
+     * Só dispara quando o canal é email, há endereço e o usuário não desligou
+     * a preferência. Falha de SMTP vira log — a notificação in-app já está salva.
+     */
+    private void dispararEmail(Usuario destinatario, Notificacao n) {
+        if (n.getCanal() != Canal.email) {
+            return;
+        }
+        String email = destinatario.getEmail();
+        if (email == null || email.isBlank()) {
+            return;
+        }
+        boolean desligado = preferencias.findById(destinatario.getId())
+                .map(p -> Boolean.FALSE.equals(p.getEmail()))
+                .orElse(false);
+        if (desligado) {
+            return;
+        }
+        try {
+            emailSender.enviar(email, n.getTitulo(), n.getCorpo());
+        } catch (Exception e) {
+            log.warn("Falha ao enviar e-mail da notificacao {} para usuario {}: {}",
+                    n.getId(), destinatario.getId(), e.toString());
+        }
     }
 
     @Transactional

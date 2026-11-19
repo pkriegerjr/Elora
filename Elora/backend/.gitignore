@@ -11,3 +11,5 @@ mvnw.cmd
 HELP.md
 .env
 application-local.properties
+
+uploads/

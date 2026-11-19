@@ -10,7 +10,10 @@ import java.util.Optional;
 
 public interface PagamentoRepository extends JpaRepository<Pagamento, Integer> {
 
-    /** RNF-011: replay com a mesma chave retorna o pagamento original. */
+    /** RNF-011: replay com a mesma chave retorna o pagamento original (usado em criar()). */
+    Optional<Pagamento> findByIdempotencyKey(String idempotencyKey);
+
+    /** Webhook: localizar o pagamento pelo id devolvido pelo gateway (usado em processarWebhook()). */
     Optional<Pagamento> findByGatewayId(String gatewayId);
 
     List<Pagamento> findByPagadorId(Integer pagadorId);

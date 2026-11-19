@@ -1,6 +1,19 @@
-// CobrancaResponse.java
-@Data @NoArgsConstructor @AllArgsConstructor
+package com.elora.module.pagamento.dto;
+
+import com.elora.module.pagamento.enums.MetodoPagamento;
+import com.elora.module.pagamento.enums.StatusPagamento;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+/** Payload de PIX/boleto/cartão consumido pelo paymentService.js do front. */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class CobrancaResponse {
+
     private Integer pagamentoId;
     private StatusPagamento status;
     private MetodoPagamento metodo;

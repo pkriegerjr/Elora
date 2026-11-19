@@ -5,5 +5,9 @@ import lombok.Data; import java.math.BigDecimal; import java.util.List;
   String genero; BigDecimal precoHora; String descricaoPerfil; String statusVerificacao;
   Boolean documentoVerificado; BigDecimal notaMedia; List<String> especialidades;
   List<DocumentoDTO> documentos;
-  @Data public static class DocumentoDTO { Integer id; String tipo; String arquivoUrl; String status; }
+  @Data public static class DocumentoDTO {
+    Integer id; String tipo; String arquivoUrl; String status;
+    /** Rota relativa (prefixe com a base da API) para baixar o arquivo real. */
+    String urlDownload;
+  }
 }
