@@ -17,7 +17,20 @@ class ContractService {
      * @returns {Promise<Object>} Created contract
      */
     async createContract(contractData) {
-        // In production: return await apiService.post("/contracts", contractData);
+        if (!CONFIG.API.MOCK_MODE) {
+            const payload = {
+                clienteId: contractData.clientId || contractData.clienteId,
+                profissionalId: contractData.caregiverId || contractData.profissionalId,
+                titulo: contractData.titulo,
+                descricaoNecessidade: contractData.descricaoNecessidade,
+                valorHora: contractData.valorHora || contractData.hourlyRate,
+                enderecoAtendimento: contractData.enderecoAtendimento,
+                dataInicio: contractData.dataInicio || contractData.startDate,
+                dataFim: contractData.dataFim || contractData.endDate,
+                periodo: (contractData.periodos || contractData.periodo || []).join(','),
+            };
+            return await apiService.post(CONFIG.ENDPOINTS.contracts, payload);
+        }
         
         await this.delay(800);
         
@@ -72,7 +85,9 @@ class ContractService {
      * @returns {Promise<Object>} Contract data
      */
     async getContract(contractId) {
-        // In production: return await apiService.get(`/contracts/${contractId}`);
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.get(`${CONFIG.ENDPOINTS.contracts}/${contractId}`);
+        }
         
         await this.delay(300);
         
@@ -92,7 +107,12 @@ class ContractService {
      * @returns {Promise<Array>} Array of contracts
      */
     async getUserContracts(filters = {}) {
-        // In production: return await apiService.get("/contracts", filters);
+        if (!CONFIG.API.MOCK_MODE) {
+            const params = {};
+            if (filters.status) params.status = filters.status;
+            if (filters.papel) params.papel = filters.papel;
+            return await apiService.get(CONFIG.ENDPOINTS.contracts, params);
+        }
         
         await this.delay(400);
         
@@ -127,9 +147,11 @@ class ContractService {
      * @returns {Promise<Object>} Updated contract
      */
     async signContract(contractId, signatureData) {
-        // In production: 
-        // return await apiService.post(`/contracts/${contractId}/sign`, signatureData);
-        // This would integrate with a digital signature provider (DocuSign, Clicksign, etc.)
+        if (!CONFIG.API.MOCK_MODE) {
+            // Backend não tem endpoint de assinatura dedicado; usa PATCH /contratos/{id}/status
+            // para mudar para 'ativo' (V2 PT) quando ambas as partes assinaram.
+            return await apiService.patch(`${CONFIG.ENDPOINTS.contracts}/${contractId}/status`, { status: "ativo" });
+        }
         
         await this.delay(1000);
         
@@ -224,7 +246,9 @@ class ContractService {
      * @returns {Promise<Object>} Updated contract
      */
     async cancelContract(contractId, reason) {
-        // In production: return await apiService.patch(`/contracts/${contractId}/cancel`, { reason });
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.delete(`${CONFIG.ENDPOINTS.contracts}/${contractId}`);
+        }
         
         await this.delay(500);
         

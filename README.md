@@ -8,8 +8,8 @@ Documento de Arquitetura v3.0 — Baseado no modelo 4+1 [KRU95]. Foco em acessib
 
 | Camada | Tecnologia (atual) | Observação |
 | :--- | :--- | :--- |
-| **Apresentação Web** | HTML5 + CSS3 + Vanilla JS + Bootstrap 5.3 | Sem build; `MOCK_MODE=true` roda 100% no `localStorage` |
-| **Apresentação Mobile** | Roadmap — `mobile-app/` é esqueleto vazio (só `.gitkeep`) | Sem `package.json`, sem telas |
+| **Apresentação Web** | HTML5 + CSS3 + Vanilla JS + Bootstrap 5.3 | Sem build; `MOCK_MODE=false` consome APIs Spring Boot por padrão; use `true` para 100% `localStorage` |
+| **Apresentação Mobile** | Descartado — `mobile-app/` não faz mais parte do escopo ativo do projeto | Sem `package.json`, sem telas |
 | **Backend API** | Spring Boot 3.2.5 (Java 17) + JWT + RBAC parcial | `backend/pom.xml`; MFA ausente (só tabela `mfa_segredo`); RBAC: `@PreAuthorize` em cuidadores + checagem em relatórios |
 | **Banco Principal** | PostgreSQL (Neon) — canônico `backend/database/postgres/elora_schema_v2_pg.sql` | `application.properties` só Postgres; `ddl-auto=validate`; arquivos `elora_schema_v2*.sql` MySQL mantidos como legado |
 | **Cache / Sessão** | Roadmap — sem Redis no `pom.xml` | `infra/docker-compose.yml` com Redis foi removido |
@@ -25,7 +25,9 @@ Documento de Arquitetura v3.0 — Baseado no modelo 4+1 [KRU95]. Foco em acessib
 View (HTML/Bootstrap + services JS) -> API (/api, context-path /api) -> Serviços (Regras de Negócio) -> Persistência (PostgreSQL Neon) -> Integrações Externas (mock/roadmap)
 ```
 
-11 módulos backend (`src/main/java/com/elora/module/`): `usuario`, `profissional`, `busca`, `contrato`, `escala`, `pagamento`, `avaliacao`, `notificacao`, `relatorio`, `conhecimento`, `juridico`.
+12 módulos backend (`src/main/java/com/elora/module/`): `usuario`, `profissional`, `busca`, `contrato`, `escala`, `pagamento`, `avaliacao`, `notificacao`, `relatorio`, `conhecimento`, `juridico`, `config`.
+>
+> O módulo `config` contém `controller/` e `dto/` para endpoints de configuração pública (ex.: `GET /config/maps-key` para a chave do Google Maps).
 Endpoints (`/api` + `RequestMapping`): `/auth, /clients, /caregivers (Profissional + Cuidador — colisão conhecida), /busca, /contratos, /escalas, /payments, /notifications, /relatorios, /avaliacoes, /conhecimento, /juridico`.
 Docs: `GET /api/swagger-ui.html`.
 
@@ -66,31 +68,33 @@ Elora/
 │       │   ├── avaliacaoService.js, conhecimentoService.js, escalaService.js
 │       │   └── juridicoService.js, relatorioService.js
 │       └── utils/format.js, validation.js  # stubs; lógica canônica em app.js
-├── mobile-app/src/...             # roadmap: só .gitkeep (assets, components, hooks, screens/*, services, utils)
 ├── backend/
-│   ├── database/elora_schema_v2.sql            # legado MySQL (30 tabelas, InnoDB)
-│   ├── database/elora_schema_v2_2.sql          # ALTERs (ultimo_login, status_verificacao, redefinicao_senha)
-│   ├── database/elora_schema_v2_3.sql          # UNIQUE avaliacao
+│   ├── database/elora_schema_v2.sql            # legado MySQL (30 tabelas, InnoDB) — não usar
+│   ├── database/elora_schema_v2_2.sql          # ALTERs MySQL (ultimo_login, status_verificacao, redefinicao_senha) — legado
+│   ├── database/elora_schema_v2_3.sql          # UNIQUE avaliacao MySQL — legado
 │   ├── database/postgres/elora_schema_v2_pg.sql      # CANÔNICO Neon (usar este)
-│   ├── database/postgres/elora_schema_v2_3_pg.sql
-│   ├── src/main/resources/db/migration/{conhecimento, juridico, profissional}.sql
+│   ├── database/postgres/elora_schema_v2_3_pg.sql    # UNIQUE avaliacao (Neon)
+│   ├── database/postgres/elora_schema_v2_4_pg.sql    # Obrigatório: módulo Conhecimento (categoria_conteudo, tutorial, faq, categoria_id)
 │   ├── src/main/resources/application.properties  # lê ${DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET}
 │   ├── .env.example            # modelo Neon (sem .env commitado, gitignore)
-│   └── src/main/java/com/elora/ (Spring Boot)
+│   └── src/main/java/com/elora/ (Spring Boot — 12 módulos)
+├── mobile-app/                  # descartado — não faz mais parte do escopo ativo do projeto
 ├── infra/{docker,k8s,scripts}/   # reservados, só .gitkeep (sem compose, sem manifests)
-├── docs/                          # roadmap, vazio
-└── .github/                       # roadmap, sem workflows
+├── docs/                          # vazio (só .gitkeep)
+└── .github/                       # vazio (só .gitkeep)
 ```
 
-> `MOCK_MODE=true` em `src/config/config.js:21` permite rodar 100% no `localStorage` sem backend.
+> `MOCK_MODE=false` (padrão em `src/config/config.js:30`) consome a API Spring Boot em `http://localhost:8080/api`. Defina `true` para rodar 100% no `localStorage` sem backend.
 
 ## Banco de Dados — Schema v2 (Atual, Neon)
 
-> Canônico: `backend/database/postgres/elora_schema_v2_pg.sql` (+ `_v2_3_pg` + `resources/db/migration/*`). Arquivos `database/elora_schema_v2*.sql` são legado MySQL.
+> Canônico: `backend/database/postgres/elora_schema_v2_pg.sql` + `elora_schema_v2_3_pg.sql` + `elora_schema_v2_4_pg.sql`. Arquivos `database/elora_schema_v2*.sql` (raiz) são legado MySQL — não usar para subir.
+>
+> O `elora_schema_v2_4_pg.sql` é obrigatório: adiciona tabelas do módulo Conhecimento (`categoria_conteudo`, `tutorial`, `faq` e coluna `categoria_id` em `artigo_conhecimento`) que faltavam no schema v2. Sem ele, o backend não sobe com `ddl-auto=validate`.
 
 * **Usuario único** `usuario` (herança p.15) — `cpf CHAR(11)` só dígitos (`CONFIG.normalizeCPF`), `genero ENUM(M,F,outro,prefiro_nao_informar)`, `geo_ponto` + índice espacial para busca por proximidade, `consentimento_lgpd`, `deleted_at` soft-delete.
 * **RBAC dinâmico** `perfil`, `permissao`, `usuario_perfil`, `perfil_permissao` + extensões `moderador_regiao`, `juridico_detalhes`, `contratante_detalhes`, `profissional_detalhes(preco_hora, nota_media, status_verificacao)`.
-* **Domínio** `especialidade` N:N, `documento_profissional`, `disponibilidade(periodo matutino/vespertino/noturno)`, `favorito`, `contrato(codigo ELO-2026-..., status rascunho/proposta/negociacao/aguard_assinatura/ativo/concluido/rescindido/cancelado/em_disputa)`, `proposta`, `mensagem_contrato`, `assinatura_contrato`, `escala_trabalho`, `taxa_servico`, `pagamento(valor_bruto/valor_taxa/valor_liquido, metodo pix/cartao/boleto, idempotency_key UNIQUE)`, `repasse`, `denuncia/evidencia_denuncia/disputa`, `avaliacao(1 por contrato, trigger valida cliente->profissional, nota_media via trigger)`, `notificacao/preferencia_notificacao`, `sessao/mfa_segredo (tabela sem código MFA)`, `trilha_auditoria(LGPD)`, `consentimento_lgpd`, `artigo_conhecimento + categoria_conteudo/faq/tutorial (migration)`, `analise_juridica/processo_rescisao (migration)`, `redefinicao_senha`, `vw_profissional_busca`.
+* **Domínio** `especialidade` N:N, `documento_profissional`, `disponibilidade(periodo matutino/vespertino/noturno)`, `favorito`, `contrato(codigo ELO-2026-..., status rascunho/proposta/negociacao/aguard_assinatura/ativo/concluido/rescindido/cancelado/em_disputa)`, `proposta`, `mensagem_contrato`, `assinatura_contrato`, `escala_trabalho`, `taxa_servico`, `pagamento(valor_bruto/valor_taxa/valor_liquido, metodo pix/cartao/boleto, idempotency_key UNIQUE)`, `repasse`, `denuncia/evidencia_denuncia/disputa`, `avaliacao(1 por contrato, trigger valida cliente->profissional, nota_media via trigger)`, `notificacao/preferencia_notificacao`, `sessao/mfa_segredo (tabela sem código MFA)`, `trilha_auditoria(LGPD)`, `consentimento_lgpd`, `artigo_conhecimento + categoria_conteudo/faq/tutorial (v2.4)`, `analise_juridica/processo_rescisao (migration)`, `redefinicao_senha`, `vw_profissional_busca`.
 
 Compat front: `config.js` `CONTRACT_STATUS`/`PAYMENT_STATUS` com aliases inglês (mock) + PT V2 + mappers `toV2ContractStatus()`, `toV2PaymentStatus()`, `scheduleToPeriodos()`, `normalizeCPF()`.
 
@@ -105,13 +109,11 @@ cd elora
 
 # 2. Banco (Neon — único suportado)
 # 2a. Crie o projeto/DB no Neon e anote host/db/user/pass (use a connection string DIRETA, não a do pooler, para JDBC)
-# 2b. Aplique o schema canônico + incrementos:
+# 2b. Aplique o schema canônico + incrementos (ordem obrigatória):
 psql "host=ep-xxx.us-east-2.aws.neon.tech dbname=neondb user=... password=... sslmode=require" \
   -f Elora/backend/database/postgres/elora_schema_v2_pg.sql
 psql "$NEON_URL" -f Elora/backend/database/postgres/elora_schema_v2_3_pg.sql
-psql "$NEON_URL" -f Elora/backend/src/main/resources/db/migration/conhecimento.sql
-psql "$NEON_URL" -f Elora/backend/src/main/resources/db/migration/juridico.sql
-psql "$NEON_URL" -f Elora/backend/src/main/resources/db/migration/profissional.sql
+psql "$NEON_URL" -f Elora/backend/database/postgres/elora_schema_v2_4_pg.sql
 
 # 3. Backend (opcional — se MOCK_MODE=false)
 cd Elora/backend
@@ -119,15 +121,15 @@ cp .env.example .env   # preencha DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SE
 mvn clean install
 mvn spring-boot:run  # -> http://localhost:8080/api/swagger-ui.html (context-path /api)
 
-# 4. Frontend Web — 100% estático, MOCK_MODE=true (default src/config/config.js:21)
-# Para MOCK_MODE=false, edite MOCK_MODE para false e recarregue com backend online.
+# 4. Frontend Web — 100% estático, MOCK_MODE=false (default src/config/config.js:30)
+# Para MOCK_MODE=true, edite MOCK_MODE para true e recarregue (roda 100% no localStorage, sem backend).
 npx serve Elora/frontend-web
 # ou
 python -m http.server --directory Elora/frontend-web 8000
 # -> http://localhost:8000  (index) e http://localhost:8000/src/pages/...
 
 # 5. Mobile / Docs / Infra
-# Roadmap: mobile-app, docs, infra/{docker,k8s,scripts} estão vazios (só .gitkeep). Sem npm install / workflows.
+# mobile-app descartado (não faz mais parte do escopo ativo). docs/, infra/{docker,k8s,scripts}/ e .github/ estão vazios (só .gitkeep). Sem npm install / workflows.
 ```
 
 Variáveis em `Elora/backend/.env` (não commitar, ver `.env.example`):
@@ -151,7 +153,7 @@ JWT_REFRESH_EXPIRATION=2592000000
 | **Cadastro e Acesso** | Cadastro/login senha + Google (mock), JWT Bearer + refresh (`apiService.js`), RBAC parcial, recuperação senha, `cpfDigits CHAR(11)` | ✅ Telas `src/pages/auth/*` + `authService.js` |
 | **Cadastro de Profissionais** | Cadastro cuidador, envio documentos `documento_profissional`, validação moderador/jurídico `PENDING→UNDER_REVIEW→APPROVED` | ✅ `cadastro-cuidador.html` + `caregiverService.js` |
 | **Busca de Profissionais** | Filtros especialidade/gênero/avaliação/periodo + geolocalização `geo_ponto` + favoritos, `#map` mock ou Google Maps | ✅ `src/pages/busca/*` + `mapsService.js` |
-| **Contratos e Assinatura** | Proposta/negociação (`proposta`), `contrato.codigo`, assinatura digital `assinatura_contrato` hash, `getStatusLabel()` V2 | ✅ `src/pages/contratos/*` + `contractService.js` |
+| **Contratos e Assinatura** | Proposta/negociação (`proposta`), `contrato.codigo`, assinatura digital `assinatura_contrato` hash, `getStatusLabel()` V2 | ✅ `src/pages/contratos/*` (contratacao, contrato, meus-contratos) + `contractService.js` |
 | **Financeiro** | PIX/cartão/boleto, `valor_bruto/taxa/liquido`, `idempotency_key`, `taxa_servico`, `repasse` (gateway mock) | ✅ `src/pages/financeiro/*` + `paymentService.js` |
 | **Escalas de Trabalho** | `disponibilidade` e `escala_trabalho` por `periodo matutino/vespertino/noturno`, `scheduleToPeriodos()` | 🚧 Services ok, telas em `dashboards`/`escalas/agenda.html` |
 | **Jurídico e Denúncias** | `denuncia/evidencia/disputa`, `trilha_auditoria` | 🚧 Schema + API prontos, painel em `juridico/painel.html` + `dashboard-admin.html` |

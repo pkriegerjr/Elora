@@ -1,5 +1,6 @@
 package com.elora.module.pagamento.controller;
 
+import com.elora.common.dto.ApiResponse;
 import com.elora.module.pagamento.dto.AtualizarTaxaRequest;
 import com.elora.module.pagamento.dto.CancelarPagamentoRequest;
 import com.elora.module.pagamento.dto.CobrancaResponse;
@@ -18,7 +19,6 @@ import com.elora.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,12 +35,8 @@ import java.util.List;
 
 /**
  * Base {@code /payments} (compatível com {@code CONFIG.ENDPOINTS.payments} do front).
- * Rotas exatas antes de {@code /{id}} (mesmo padrão do /search de cuidadores).
- * Papéis (docs): cliente paga/cancela os próprios; profissional vê repasses e
- * histórico próprio; financeiro/admin gerenciam taxas, repasses e estornos.
- *
- * <p>Rotas de cobrança ({@code /status}, {@code /cancel}, {@code /pix/qrcode},
- * {@code /boleto}) espelham o que o {@code paymentService.js} do front já chama.</p>
+ * Todas as respostas envolvidas em {@link ApiResponse} para o front (apiService.js)
+ * fazer desembrulho automático.
  */
 @RestController
 @RequestMapping("/payments")
@@ -51,111 +47,111 @@ public class PagamentoController {
     private final TaxaServicoService taxas;
 
     @PostMapping
-    public ResponseEntity<PagamentoResponse> criar(
+    public ResponseEntity<ApiResponse<PagamentoResponse>> criar(
             Authentication authentication,
             @Valid @RequestBody CriarPagamentoRequest request,
             HttpServletRequest http) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(pagamentos.criar(
-                SecurityUtils.currentUserId(authentication), request, http.getRemoteAddr()));
+        return ResponseEntity.ok(ApiResponse.ok("Pagamento criado com sucesso",
+                pagamentos.criar(SecurityUtils.currentUserId(authentication), request, http.getRemoteAddr())));
     }
 
     @GetMapping
-    public List<PagamentoResponse> listar(
+    public ResponseEntity<ApiResponse<List<PagamentoResponse>>> listar(
             Authentication authentication,
             @RequestParam(required = false) String status) {
-        return pagamentos.listar(SecurityUtils.currentUserId(authentication), status);
+        return ResponseEntity.ok(ApiResponse.ok(pagamentos.listar(SecurityUtils.currentUserId(authentication), status)));
     }
 
     @GetMapping("/repasses")
-    public List<RepasseResponse> repasses(Authentication authentication) {
-        return pagamentos.listarRepasses(SecurityUtils.currentUserId(authentication));
+    public ResponseEntity<ApiResponse<List<RepasseResponse>>> repasses(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(pagamentos.listarRepasses(SecurityUtils.currentUserId(authentication))));
     }
 
     @GetMapping("/taxas")
-    public List<TaxaResponse> taxas(Authentication authentication) {
-        return taxas.listar(SecurityUtils.currentUserId(authentication));
+    public ResponseEntity<ApiResponse<List<TaxaResponse>>> taxas(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(taxas.listar(SecurityUtils.currentUserId(authentication))));
     }
 
     @PostMapping("/taxas")
-    public ResponseEntity<TaxaResponse> criarTaxa(
+    public ResponseEntity<ApiResponse<TaxaResponse>> criarTaxa(
             Authentication authentication,
             @Valid @RequestBody CriarTaxaRequest request,
             HttpServletRequest http) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(taxas.criar(
-                SecurityUtils.currentUserId(authentication), request, http.getRemoteAddr()));
+        return ResponseEntity.ok(ApiResponse.ok("Taxa criada com sucesso",
+                taxas.criar(SecurityUtils.currentUserId(authentication), request, http.getRemoteAddr())));
     }
 
     @PutMapping("/taxas/{id}")
-    public TaxaResponse atualizarTaxa(
+    public ResponseEntity<ApiResponse<TaxaResponse>> atualizarTaxa(
             Authentication authentication,
             @PathVariable Integer id,
             @RequestBody AtualizarTaxaRequest request,
             HttpServletRequest http) {
-        return taxas.atualizar(
-                SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.ok("Taxa atualizada com sucesso",
+                taxas.atualizar(SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr())));
     }
 
     @GetMapping("/{id}")
-    public PagamentoResponse buscarPorId(
+    public ResponseEntity<ApiResponse<PagamentoResponse>> buscarPorId(
             Authentication authentication, @PathVariable Integer id) {
-        return pagamentos.buscarPorId(SecurityUtils.currentUserId(authentication), id);
+        return ResponseEntity.ok(ApiResponse.ok(pagamentos.buscarPorId(SecurityUtils.currentUserId(authentication), id)));
     }
 
     @PostMapping("/{id}/pagar")
-    public PagamentoResponse pagar(
+    public ResponseEntity<ApiResponse<PagamentoResponse>> pagar(
             Authentication authentication,
             @PathVariable Integer id,
             @RequestBody(required = false) PagarRequest request,
             HttpServletRequest http) {
-        return pagamentos.pagar(
-                SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.ok("Pagamento processado",
+                pagamentos.pagar(SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr())));
     }
 
     @PostMapping("/{id}/estornar")
-    public PagamentoResponse estornar(
+    public ResponseEntity<ApiResponse<PagamentoResponse>> estornar(
             Authentication authentication,
             @PathVariable Integer id,
             @RequestBody(required = false) EstornarRequest request,
             HttpServletRequest http) {
-        return pagamentos.estornar(
-                SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.ok("Pagamento estornado",
+                pagamentos.estornar(SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr())));
     }
 
     // Cobrança: status, cancelamento, PIX e boleto
 
     @GetMapping("/{id}/status")
-    public PagamentoStatusResponse status(
+    public ResponseEntity<ApiResponse<PagamentoStatusResponse>> status(
             Authentication authentication, @PathVariable Integer id) {
-        return pagamentos.status(SecurityUtils.currentUserId(authentication), id);
+        return ResponseEntity.ok(ApiResponse.ok(pagamentos.status(SecurityUtils.currentUserId(authentication), id)));
     }
 
     @PatchMapping("/{id}/cancel")
-    public PagamentoResponse cancelar(
+    public ResponseEntity<ApiResponse<PagamentoResponse>> cancelar(
             Authentication authentication,
             @PathVariable Integer id,
             @RequestBody(required = false) CancelarPagamentoRequest request,
             HttpServletRequest http) {
-        return pagamentos.cancelar(
-                SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.ok("Pagamento cancelado",
+                pagamentos.cancelar(SecurityUtils.currentUserId(authentication), id, request, http.getRemoteAddr())));
     }
 
     @PostMapping("/{id}/pix/qrcode")
-    public CobrancaResponse pix(
+    public ResponseEntity<ApiResponse<CobrancaResponse>> pix(
             Authentication authentication,
             @PathVariable Integer id,
             HttpServletRequest http) {
-        return pagamentos.gerarCobranca(
-                SecurityUtils.currentUserId(authentication), id,
-                MetodoPagamento.pix, http.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.ok("QR Code PIX gerado",
+                pagamentos.gerarCobranca(SecurityUtils.currentUserId(authentication), id,
+                        MetodoPagamento.pix, http.getRemoteAddr())));
     }
 
     @PostMapping("/{id}/boleto")
-    public CobrancaResponse boleto(
+    public ResponseEntity<ApiResponse<CobrancaResponse>> boleto(
             Authentication authentication,
             @PathVariable Integer id,
             HttpServletRequest http) {
-        return pagamentos.gerarCobranca(
-                SecurityUtils.currentUserId(authentication), id,
-                MetodoPagamento.boleto, http.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.ok("Boleto gerado",
+                pagamentos.gerarCobranca(SecurityUtils.currentUserId(authentication), id,
+                        MetodoPagamento.boleto, http.getRemoteAddr())));
     }
 }

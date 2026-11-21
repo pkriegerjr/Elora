@@ -1,5 +1,6 @@
 package com.elora.module.relatorio.controller;
 
+import com.elora.common.dto.ApiResponse;
 import com.elora.module.relatorio.dto.RelatorioAvaliacoesResponse;
 import com.elora.module.relatorio.dto.RelatorioContratosResponse;
 import com.elora.module.relatorio.dto.RelatorioDenunciasResponse;
@@ -10,6 +11,7 @@ import com.elora.module.relatorio.service.RelatorioService;
 import com.elora.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +23,8 @@ import java.time.LocalDate;
 /**
  * Relatórios gerenciais (somente leitura). Permissão por relatório no service:
  * financeiro exige admin/financeiro; demais exigem equipe (staff).
+ * Todas as respostas envolvidas em {@link ApiResponse} para o front (apiService.js)
+ * fazer desembrulho automático.
  */
 @RestController
 @RequestMapping("/relatorios")
@@ -30,41 +34,41 @@ public class RelatorioController {
     private final RelatorioService relatorioService;
 
     @GetMapping("/resumo")
-    public ResumoOperacionalResponse resumo(Authentication authentication) {
-        return relatorioService.resumo(SecurityUtils.currentUserId(authentication));
+    public ResponseEntity<ApiResponse<ResumoOperacionalResponse>> resumo(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.resumo(SecurityUtils.currentUserId(authentication))));
     }
 
     @GetMapping("/financeiro")
-    public RelatorioFinanceiroResponse financeiro(
+    public ResponseEntity<ApiResponse<RelatorioFinanceiroResponse>> financeiro(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
             Authentication authentication) {
-        return relatorioService.financeiro(SecurityUtils.currentUserId(authentication), inicio, fim);
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.financeiro(SecurityUtils.currentUserId(authentication), inicio, fim)));
     }
 
     @GetMapping("/usuarios")
-    public RelatorioUsuariosResponse usuarios(
+    public ResponseEntity<ApiResponse<RelatorioUsuariosResponse>> usuarios(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
             Authentication authentication) {
-        return relatorioService.usuarios(SecurityUtils.currentUserId(authentication), inicio, fim);
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.usuarios(SecurityUtils.currentUserId(authentication), inicio, fim)));
     }
 
     @GetMapping("/contratos")
-    public RelatorioContratosResponse contratos(
+    public ResponseEntity<ApiResponse<RelatorioContratosResponse>> contratos(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
             Authentication authentication) {
-        return relatorioService.contratos(SecurityUtils.currentUserId(authentication), inicio, fim);
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.contratos(SecurityUtils.currentUserId(authentication), inicio, fim)));
     }
 
     @GetMapping("/avaliacoes")
-    public RelatorioAvaliacoesResponse avaliacoes(Authentication authentication) {
-        return relatorioService.avaliacoes(SecurityUtils.currentUserId(authentication));
+    public ResponseEntity<ApiResponse<RelatorioAvaliacoesResponse>> avaliacoes(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.avaliacoes(SecurityUtils.currentUserId(authentication))));
     }
 
     @GetMapping("/denuncias")
-    public RelatorioDenunciasResponse denuncias(Authentication authentication) {
-        return relatorioService.denuncias(SecurityUtils.currentUserId(authentication));
+    public ResponseEntity<ApiResponse<RelatorioDenunciasResponse>> denuncias(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.denuncias(SecurityUtils.currentUserId(authentication))));
     }
 }

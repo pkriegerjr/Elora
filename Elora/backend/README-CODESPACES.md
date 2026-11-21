@@ -7,7 +7,7 @@
 - Java 17 + Maven 3.9+ (`mvn -v`)
 - Projeto/DB no Neon (connection string **direta**, sem `-pooler`, para JDBC)
 - Schema canônico aplicado:
-  `backend/database/postgres/elora_schema_v2_pg.sql` + `_v2_3_pg` + `src/main/resources/db/migration/{conhecimento,juridico,profissional}.sql`
+  `backend/database/postgres/elora_schema_v2_pg.sql` + `_v2_3_pg` + `elora_schema_v2_4_pg.sql`
 
 ## 2. Configurar
 
@@ -32,4 +32,4 @@ mvn spring-boot:run # sobe em http://localhost:8080/api
 
 ## 4. Front
 
-`frontend-web/src/config/config.js:21` → `MOCK_MODE: false` só com o backend acima online. Caso contrário mantenha `true` (só `npx serve Elora/frontend-web`).
+`frontend-web/src/config/config.js:30` → `MOCK_MODE: false` (padrão) com o backend acima online. Para rodar sem backend, defina `MOCK_MODE: true` e use `npx serve Elora/frontend-web`.

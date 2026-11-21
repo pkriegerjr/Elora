@@ -4,17 +4,17 @@
 
 `frontend-web/src/config/config.js:21` `CONFIG.API.MOCK_MODE`
 
-- `true` (padrão): front roda **sem backend**. Todos os services (`authService.js`, `caregiverService.js`, `contractService.js`, `paymentService.js`, `notificationService.js`, `relatorioService.js`, `avaliacao/conhecimento/escala/juridicoService.js`) usam `localStorage` (`mockData.js` com `cpfDigits`, `codigo ELO-...`, `periodos`) + delay simulado. Ideal para UI/WCAG.
-- `false`: front consome **API real** `http://localhost:8080/api` (`application.properties:3` `server.servlet.context-path=/api`). Troque para `false` quando o backend com Neon estiver online. `apiService.js` desembala `ApiResponse` e tenta `POST /auth/refresh` em 401.
+- `false` (padrão): front consome **API real** `http://localhost:8080/api` (`application.properties:3` `server.servlet.context-path=/api`). `apiService.js` desembala `ApiResponse` e tenta `POST /auth/refresh` em 401.
+- `true`: front roda **sem backend**. Todos os services usam `localStorage` (`mockData.js` com `cpfDigits`, `codigo ELO-...`, `periodos`) + delay simulado. Ideal para UI/WCAG e demonstrações offline.
 
-Troca: edite `src/config/config.js:21` → `MOCK_MODE: false` (frontend) e recarregue. Não precisa rebuild.
+Troca: edite `src/config/config.js:30` → `MOCK_MODE: true` (frontend) e recarregue. Não precisa rebuild.
 
 ## 2. O que precisa para cada modo
 
 | Modo | Precisa |
 |---|---|
+| **MOCK_MODE=false** (padrão) | Java 17 ou 21, Maven 3.9+, conta/projeto no Neon (PostgreSQL), `backend/.env` com `DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET` |
 | **MOCK_MODE=true** | Só navegador + `npx serve` ou `python -m http.server`. Sem Java, sem Docker, sem banco. |
-| **MOCK_MODE=false** | Java 17 ou 21, Maven 3.9+, conta/projeto no Neon (PostgreSQL), `backend/.env` com `DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET` |
 
 > JDK: use 17 ou 21 (`JAVA_HOME` → JDK 21 no Codespace). O `pom.xml` fixa Lombok 1.18.38, que também cobre JDK 25; Lombok ≤1.18.32 não gera código no JDK 25 e o build quebra com `cannot find symbol` em getters.
 
@@ -30,7 +30,9 @@ Elora/
 ├── frontend-web/src/pages/auth|busca|contratos|financeiro|perfil|notificacoes|relatorios|juridico|escalas|avaliacoes|favoritos|conhecimento
 ├── backend/pom.xml (Spring Boot 3.2.5, Java 17), src/main/java/com/elora/EloraApplication.java
 ├── backend/src/main/resources/application.properties  # lê ${DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SECRET}
-├── backend/database/postgres/elora_schema_v2_pg.sql  # CANÔNICO Neon (+ _v2_3_pg + db/migration/*)
+├── backend/database/postgres/elora_schema_v2_pg.sql  # CANÔNICO Neon
+├── backend/database/postgres/elora_schema_v2_3_pg.sql  # UNIQUE avaliacao (Neon)
+├── backend/database/postgres/elora_schema_v2_4_pg.sql  # Obrigatório: módulo Conhecimento (categoria_conteudo, tutorial, faq, categoria_id)
 ├── backend/database/elora_schema_v2*.sql  # legado MySQL, não usar para subir
 ├── backend/.env / .env.example  # DB_* Neon + JWT_* (gitignore)
 └── infra/{docker,k8s,scripts}/  # reservados, vazios (sem compose)
@@ -59,9 +61,7 @@ Teste: `src/pages/auth/cadastro-cliente.html` → `login.html` → `src/pages/pe
 psql "host=ep-xxx.us-east-2.aws.neon.tech dbname=neondb user=... password=... sslmode=require" \
   -f backend/database/postgres/elora_schema_v2_pg.sql
 psql "$NEON_URL" -f backend/database/postgres/elora_schema_v2_3_pg.sql
-psql "$NEON_URL" -f backend/src/main/resources/db/migration/conhecimento.sql
-psql "$NEON_URL" -f backend/src/main/resources/db/migration/juridico.sql
-psql "$NEON_URL" -f backend/src/main/resources/db/migration/profissional.sql
+psql "$NEON_URL" -f backend/database/postgres/elora_schema_v2_4_pg.sql
 ```
 
 ### 5.2 Backend
@@ -94,7 +94,7 @@ GET  /api/relatorios/resumo  # 403 se perfil cliente, 200 se admin/financeiro (R
 ## 6. Troubleshooting
 
 - `PSQL connection failed`: confira `DB_HOST` direto do Neon (sem `-pooler`), `sslmode=require`, senha com caracteres especiais entre aspas.
-- `ddl-auto=validate` falhou: schema Neon desatualizado → reaplique `elora_schema_v2_pg.sql` + `_v2_3_pg` + `db/migration/*`.
+- `ddl-auto=validate` falhou: schema Neon desatualizado → reaplique `elora_schema_v2_pg.sql` + `_v2_3_pg` + `elora_schema_v2_4_pg.sql`.
 - `Perfil não configurado`: seed de `perfil` não aplicado → reaplique o SQL canônico do Postgres (não o legado MySQL).
 - `401 Não autenticado`: `JWT_SECRET` vazio/curto ou expirado → gere 48 bytes e tente `POST /api/auth/refresh {refreshToken}`.
 - `CORS`: sirva o front via `npx serve` (não `file://`); backend permite `http://localhost:*`.

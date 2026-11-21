@@ -70,7 +70,9 @@ class ClientService {
      * @returns {Promise<Object>} Client data
      */
     async getClient(clientId) {
-        // In production: return await apiService.get(`/clients/${clientId}`);
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.get(`${CONFIG.ENDPOINTS.clients}/${clientId}`);
+        }
         
         await this.delay(300);
         
@@ -161,7 +163,9 @@ class ClientService {
      * @returns {Promise<Object>} Updated client
      */
     async addFavorite(caregiverId) {
-        // In production: return await apiService.post(`/clients/${clientId}/favorites`, { caregiverId });
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.post(CONFIG.ENDPOINTS.busca + "/favoritos", { profissionalId: caregiverId });
+        }
         
         await this.delay(300);
         
@@ -200,7 +204,9 @@ class ClientService {
      * @returns {Promise<Object>} Updated client
      */
     async removeFavorite(caregiverId) {
-        // In production: return await apiService.delete(`/clients/${clientId}/favorites/${caregiverId}`);
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.delete(`${CONFIG.ENDPOINTS.busca}/favoritos/${caregiverId}`);
+        }
         
         await this.delay(300);
         
@@ -234,7 +240,9 @@ class ClientService {
      * @returns {Promise<Array>} Array of caregiver objects
      */
     async getFavorites() {
-        // In production: return await apiService.get(`/clients/${clientId}/favorites`);
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.get(CONFIG.ENDPOINTS.busca + "/favoritos");
+        }
         
         await this.delay(300);
         
@@ -266,7 +274,11 @@ class ClientService {
      * @returns {Promise<Array>} Array of contracts
      */
     async getContracts(status = null) {
-        // In production: return await apiService.get(`/clients/${clientId}/contracts`, { status });
+        if (!CONFIG.API.MOCK_MODE) {
+            const params = {};
+            if (status) params.status = status;
+            return await apiService.get(CONFIG.ENDPOINTS.contracts, params);
+        }
         
         await this.delay(400);
         
@@ -295,7 +307,9 @@ class ClientService {
      * @returns {Promise<Array>} Array of payments
      */
     async getPayments() {
-        // In production: return await apiService.get(`/clients/${clientId}/payments`);
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.get(CONFIG.ENDPOINTS.payments);
+        }
         
         await this.delay(400);
         
@@ -314,7 +328,11 @@ class ClientService {
      * @returns {Promise<Array>} Array of notifications
      */
     async getNotifications(unreadOnly = false) {
-        // In production: return await apiService.get(`/clients/${clientId}/notifications`, { unreadOnly });
+        if (!CONFIG.API.MOCK_MODE) {
+            const params = {};
+            if (unreadOnly) params.unreadOnly = true;
+            return await apiService.get(CONFIG.ENDPOINTS.notifications, params);
+        }
         
         await this.delay(300);
         

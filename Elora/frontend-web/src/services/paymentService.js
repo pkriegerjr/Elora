@@ -21,8 +21,16 @@ class PaymentService {
      * @returns {Promise<Object>} Created payment
      */
     async createPayment(paymentData) {
-        // In production: return await apiService.post("/payments", paymentData);
-        // This would integrate with payment gateway APIs
+        if (!CONFIG.API.MOCK_MODE) {
+            const payload = {
+                contratoId: paymentData.contratoId || paymentData.contractId,
+                pagadorId: paymentData.pagadorId || paymentData.clientId,
+                valorBruto: paymentData.valorBruto || paymentData.amount,
+                metodo: paymentData.metodo || paymentData.method || 'pix',
+                idempotencyKey: paymentData.idempotencyKey || paymentData.idempotency_key,
+            };
+            return await apiService.post(CONFIG.ENDPOINTS.payments, payload);
+        }
         
         await this.delay(800);
         
@@ -95,7 +103,9 @@ class PaymentService {
      * @returns {Promise<Object>} Payment data
      */
     async getPayment(paymentId) {
-        // In production: return await apiService.get(`/payments/${paymentId}`);
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.get(`${CONFIG.ENDPOINTS.payments}/${paymentId}`);
+        }
         
         await this.delay(300);
         
@@ -115,7 +125,11 @@ class PaymentService {
      * @returns {Promise<Array>} Array of payments
      */
     async getUserPayments(filters = {}) {
-        // In production: return await apiService.get("/payments", filters);
+        if (!CONFIG.API.MOCK_MODE) {
+            const params = {};
+            if (filters.status) params.status = filters.status;
+            return await apiService.get(CONFIG.ENDPOINTS.payments, params);
+        }
         
         await this.delay(400);
         
@@ -176,11 +190,9 @@ class PaymentService {
      * @returns {Promise<Object>} Updated payment
      */
     async processPayment(paymentId, paymentDetails) {
-        // In production: 
-        // 1. Validate payment details
-        // 2. Call payment gateway API (Mercado Pago, Stripe, etc.)
-        // 3. Handle webhook/callback for status updates
-        // 4. Never handle sensitive card data in frontend!
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.post(`${CONFIG.ENDPOINTS.payments}/${paymentId}/pagar`, paymentDetails);
+        }
         
         await this.delay(2000); // Simulate gateway processing
         
@@ -246,7 +258,9 @@ class PaymentService {
      * @returns {Promise<Object>} Updated payment
      */
     async cancelPayment(paymentId, reason) {
-        // In production: return await apiService.patch(`/payments/${paymentId}/cancel`, { reason });
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.patch(`${CONFIG.ENDPOINTS.payments}/${paymentId}/cancel`, { reason });
+        }
         
         await this.delay(500);
         
@@ -302,8 +316,9 @@ class PaymentService {
      * @returns {Promise<Object>} PIX data with QR code
      */
     async generatePixQrCode(paymentId) {
-        // In production: integrate with PIX API (Banco Central / payment gateway)
-        // return await apiService.post(`/payments/${paymentId}/pix/qrcode`);
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.post(`${CONFIG.ENDPOINTS.payments}/${paymentId}/pix/qrcode`);
+        }
         
         await this.delay(500);
         
@@ -326,8 +341,9 @@ class PaymentService {
      * @returns {Promise<Object>} Boleto data
      */
     async generateBoleto(paymentId) {
-        // In production: integrate with boleto API (payment gateway)
-        // return await apiService.post(`/payments/${paymentId}/boleto`);
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.post(`${CONFIG.ENDPOINTS.payments}/${paymentId}/boleto`);
+        }
         
         await this.delay(500);
         
