@@ -12,24 +12,79 @@ class ContractService {
     }
 
     /**
+     * DTO Spring (ContratoResponse) -> formato usado pelas telas.
+     * O status permanece em PT (V2); `statusV2` fica explícito e o
+     * CONFIG.fromV2ContractStatus é usado quando a tela precisa do V1.
+     */
+    mapContractFromApi(c) {
+        if (!c) return c;
+        const clienteId = c.clienteId ?? c.clientId;
+        const profissionalId = c.profissionalId ?? c.caregiverId;
+        const valorHora = Number(c.valorHora ?? c.hourlyRate ?? 0);
+        const valorTotal = Number(c.valorTotal ?? c.totalValue?.total ?? 0);
+        const subtotal = valorTotal ? Math.round((valorTotal / 1.1) * 100) / 100 : 0;
+        return {
+            ...c,
+            clientId: clienteId,
+            clienteId,
+            caregiverId: profissionalId,
+            profissionalId,
+            client: c.clienteNome ? { id: clienteId, name: c.clienteNome } : (c.client || null),
+            caregiver: c.profissionalNome ? { id: profissionalId, name: c.profissionalNome } : (c.caregiver || null),
+            startDate: c.dataInicio ?? c.startDate,
+            endDate: c.dataFim ?? c.endDate,
+            hourlyRate: valorHora,
+            valorHora,
+            totalValue: valorTotal ? { total: valorTotal } : c.totalValue,
+            valueBreakdown: c.valueBreakdown || (valorTotal
+                ? { subtotal, platformFee: Math.round((valorTotal - subtotal) * 100) / 100, total: valorTotal }
+                : null),
+            statusV2: c.statusV2 || c.status,
+            createdAt: c.criadoEm ?? c.createdAt
+        };
+    }
+
+    /**
      * Create a new contract
      * @param {Object} contractData - Contract data
      * @returns {Promise<Object>} Created contract
      */
     async createContract(contractData) {
         if (!CONFIG.API.MOCK_MODE) {
+            const valorHora = Number(contractData.valorHora ?? contractData.hourlyRate ?? 0);
+            let valorTotal = contractData.valorTotal ?? contractData.totalValue?.total ?? null;
+            if (valorTotal == null && contractData.startDate && contractData.endDate
+                && contractData.days?.length && contractData.schedule?.start && contractData.schedule?.end) {
+                valorTotal = this.calculateContractValue({ ...contractData, hourlyRate: valorHora }).total;
+            }
+
+            const atividades = (contractData.activities || []).join(', ');
             const payload = {
                 clienteId: contractData.clientId || contractData.clienteId,
                 profissionalId: contractData.caregiverId || contractData.profissionalId,
-                titulo: contractData.titulo,
-                descricaoNecessidade: contractData.descricaoNecessidade,
-                valorHora: contractData.valorHora || contractData.hourlyRate,
-                enderecoAtendimento: contractData.enderecoAtendimento,
+                titulo: contractData.titulo || `Cuidado - ${contractData.activities?.[0] || 'assistência'}`,
+                descricaoNecessidade: contractData.descricaoNecessidade
+                    || contractData.observations || atividades || null,
+                valorHora,
+                valorTotal,
+                enderecoAtendimento: contractData.enderecoAtendimento || null,
                 dataInicio: contractData.dataInicio || contractData.startDate,
-                dataFim: contractData.dataFim || contractData.endDate,
-                periodo: (contractData.periodos || contractData.periodo || []).join(','),
+                dataFim: contractData.dataFim || contractData.endDate
             };
-            return await apiService.post(CONFIG.ENDPOINTS.contracts, payload);
+
+            let criado = await apiService.post(CONFIG.ENDPOINTS.contracts, payload);
+            // O POST cria sempre em rascunho; o funil do back é
+            // rascunho -> proposta -> aguard_assinatura -> ativo.
+            try {
+                criado = await apiService.patch(
+                    `${CONFIG.ENDPOINTS.contracts}/${criado.id}/status`, { status: 'proposta' });
+                criado = await apiService.patch(
+                    `${CONFIG.ENDPOINTS.contracts}/${criado.id}/status`, { status: 'aguard_assinatura' });
+            } catch (e) {
+                // Sem permissão/transição: segue como rascunho e o usuário avança depois.
+                console.warn('Contrato criado, mas o funil não pôde ser avançado:', e.message);
+            }
+            return this.mapContractFromApi(criado);
         }
         
         await this.delay(800);
@@ -86,7 +141,8 @@ class ContractService {
      */
     async getContract(contractId) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.get(`${CONFIG.ENDPOINTS.contracts}/${contractId}`);
+            return this.mapContractFromApi(
+                await apiService.get(`${CONFIG.ENDPOINTS.contracts}/${contractId}`));
         }
         
         await this.delay(300);
@@ -109,9 +165,14 @@ class ContractService {
     async getUserContracts(filters = {}) {
         if (!CONFIG.API.MOCK_MODE) {
             const params = {};
-            if (filters.status) params.status = filters.status;
             if (filters.papel) params.papel = filters.papel;
-            return await apiService.get(CONFIG.ENDPOINTS.contracts, params);
+            const list = await apiService.get(CONFIG.ENDPOINTS.contracts, params);
+            let mapped = (list || []).map(c => this.mapContractFromApi(c));
+            if (filters.status) {
+                const alvo = CONFIG.toV2ContractStatus(filters.status);
+                mapped = mapped.filter(c => String(c.status).toLowerCase() === alvo);
+            }
+            return mapped;
         }
         
         await this.delay(400);
@@ -148,9 +209,20 @@ class ContractService {
      */
     async signContract(contractId, signatureData) {
         if (!CONFIG.API.MOCK_MODE) {
-            // Backend não tem endpoint de assinatura dedicado; usa PATCH /contratos/{id}/status
-            // para mudar para 'ativo' (V2 PT) quando ambas as partes assinaram.
-            return await apiService.patch(`${CONFIG.ENDPOINTS.contracts}/${contractId}/status`, { status: "ativo" });
+            // Backend não tem endpoint de assinatura dedicado; usa PATCH
+            // /contratos/{id}/status. Antes garante o funil até aguard_assinatura.
+            const atual = await this.getContract(contractId);
+            const raw = String(atual.statusV2 || atual.status || '').toLowerCase();
+            if (['ativo', 'concluido'].includes(raw)) return atual;
+            if (raw === 'rascunho') {
+                await apiService.patch(`${CONFIG.ENDPOINTS.contracts}/${contractId}/status`, { status: 'proposta' });
+            }
+            if (['rascunho', 'proposta', 'negociacao'].includes(raw)) {
+                await apiService.patch(`${CONFIG.ENDPOINTS.contracts}/${contractId}/status`, { status: 'aguard_assinatura' });
+            }
+            const res = await apiService.patch(
+                `${CONFIG.ENDPOINTS.contracts}/${contractId}/status`, { status: 'ativo' });
+            return this.mapContractFromApi(res);
         }
         
         await this.delay(1000);
@@ -222,20 +294,25 @@ class ContractService {
      * @returns {Promise<Object>} Contract status
      */
     async getContractStatus(contractId) {
-        // In production: return await apiService.get(`/contracts/${contractId}/status`);
-        
-        await this.delay(200);
-        
         const contract = await this.getContract(contractId);
-        
+        const raw = contract.statusV2 || contract.status;
+        const v1 = ['DRAFT', 'AWAITING_CLIENT_SIGNATURE', 'AWAITING_CAREGIVER_SIGNATURE', 'SIGNED', 'CANCELLED'];
+        const statusV1 = v1.includes(String(raw).toUpperCase())
+            ? String(raw).toUpperCase()
+            : CONFIG.fromV2ContractStatus(raw);
+        const assinado = ['ativo', 'concluido', 'em_disputa', 'rescindido', 'signed']
+            .includes(String(raw).toLowerCase());
+
         return {
-            status: contract.status,
-            statusLabel: this.getStatusLabel(contract.status),
+            // contrato.html usa os códigos V1 no stepper; devolvemos os dois.
+            status: statusV1,
+            statusV2: raw,
+            statusLabel: this.getStatusLabel(raw),
             canSign: this.canUserSign(contract),
             nextStep: this.getNextStep(contract),
-            signedAt: contract.signedAt,
-            clientSigned: !!contract.clientSignature,
-            caregiverSigned: !!contract.caregiverSignature
+            signedAt: contract.signedAt || (assinado ? contract.atualizadoEm || contract.updatedAt : null),
+            clientSigned: !!contract.clientSignature || assinado,
+            caregiverSigned: !!contract.caregiverSignature || assinado
         };
     }
 
@@ -247,7 +324,17 @@ class ContractService {
      */
     async cancelContract(contractId, reason) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.delete(`${CONFIG.ENDPOINTS.contracts}/${contractId}`);
+            // Backend cancela via transição de status (rascunho/proposta/
+            // negociacao/aguard_assinatura -> cancelado). Contrato ativo
+            // precisa passar pelo jurídico (rescisão).
+            try {
+                const res = await apiService.patch(
+                    `${CONFIG.ENDPOINTS.contracts}/${contractId}/status`, { status: 'cancelado' });
+                return this.mapContractFromApi(res);
+            } catch (e) {
+                throw new Error(e.message
+                    || 'Não foi possível cancelar o contrato. Contratos ativos devem ser rescindidos pelo jurídico.');
+            }
         }
         
         await this.delay(500);
@@ -495,17 +582,20 @@ class ContractService {
     canUserSign(contract) {
         const currentUser = authService.getCurrentUser();
         if (!currentUser) return false;
-        
+
+        const raw = String(contract.statusV2 || contract.status || '').toLowerCase();
+        const aguardando = raw === 'aguard_assinatura';
+
         if (currentUser.type === CONFIG.USER_TYPES.CLIENT) {
-            return contract.status === CONFIG.CONTRACT_STATUS.AWAITING_CLIENT_SIGNATURE &&
-                   contract.clientId === currentUser.id;
+            return (contract.status === CONFIG.CONTRACT_STATUS.AWAITING_CLIENT_SIGNATURE || aguardando) &&
+                   String(contract.clientId) === String(currentUser.id);
         }
-        
+
         if (currentUser.type === CONFIG.USER_TYPES.CAREGIVER) {
-            return contract.status === CONFIG.CONTRACT_STATUS.AWAITING_CAREGIVER_SIGNATURE &&
-                   contract.caregiverId === currentUser.id;
+            return (contract.status === CONFIG.CONTRACT_STATUS.AWAITING_CAREGIVER_SIGNATURE || aguardando) &&
+                   String(contract.caregiverId) === String(currentUser.id);
         }
-        
+
         return false;
     }
 
@@ -518,21 +608,34 @@ class ContractService {
         const currentUser = authService.getCurrentUser();
         if (!currentUser) return "";
         
-        switch (contract.status) {
+        const status = contract.statusV2 || contract.status;
+        switch (status) {
             case CONFIG.CONTRACT_STATUS.DRAFT:
+            case 'rascunho':
                 return "Enviar para assinatura do cliente";
             case CONFIG.CONTRACT_STATUS.AWAITING_CLIENT_SIGNATURE:
-                return currentUser.type === CONFIG.USER_TYPES.CLIENT 
-                    ? "Assinar contrato" 
+            case 'proposta':
+                return currentUser.type === CONFIG.USER_TYPES.CLIENT
+                    ? "Assinar contrato"
                     : "Aguardando assinatura do cliente";
             case CONFIG.CONTRACT_STATUS.AWAITING_CAREGIVER_SIGNATURE:
-                return currentUser.type === CONFIG.USER_TYPES.CAREGIVER 
-                    ? "Assinar contrato" 
+            case 'negociacao':
+            case 'aguard_assinatura':
+                return currentUser.type === CONFIG.USER_TYPES.CAREGIVER
+                    ? "Assinar contrato"
                     : "Aguardando assinatura do cuidador";
             case CONFIG.CONTRACT_STATUS.SIGNED:
+            case 'ativo':
                 return "Contrato assinado. Próximo passo: pagamento";
             case CONFIG.CONTRACT_STATUS.CANCELLED:
+            case 'cancelado':
                 return "Contrato cancelado";
+            case 'concluido':
+                return "Contrato concluído";
+            case 'em_disputa':
+                return "Contrato em disputa";
+            case 'rescindido':
+                return "Contrato rescindido";
             default:
                 return "";
         }

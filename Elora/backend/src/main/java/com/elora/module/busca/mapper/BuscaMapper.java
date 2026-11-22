@@ -31,7 +31,8 @@ public final class BuscaMapper {
                 detalhes == null ? null : detalhes.getDescricaoPerfil(),
                 preco,
                 nota,
-                especialidades
+                especialidades,
+                detalhes != null && Boolean.TRUE.equals(detalhes.getDocumentoVerificado())
         );
     }
 

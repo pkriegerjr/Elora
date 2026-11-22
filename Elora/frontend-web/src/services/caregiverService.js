@@ -12,14 +12,141 @@ class CaregiverService {
         this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
     }
 
+    // ------------------------------------------------------------------
+    // API real (MOCK_MODE=false): DTO Spring -> formato usado pelas telas
+    // ------------------------------------------------------------------
+
+    mapStatusFromApi(status) {
+        const map = {
+            pendente: CONFIG.CAREGIVER_STATUS.PENDING,
+            em_analise: CONFIG.CAREGIVER_STATUS.UNDER_REVIEW,
+            aprovado: CONFIG.CAREGIVER_STATUS.APPROVED,
+            rejeitado: CONFIG.CAREGIVER_STATUS.REJECTED,
+            correcao: CONFIG.CAREGIVER_STATUS.NEEDS_CORRECTION
+        };
+        return map[String(status || '').toLowerCase()]
+            || String(status || '').toUpperCase()
+            || CONFIG.CAREGIVER_STATUS.PENDING;
+    }
+
+    mapStatusToApi(status) {
+        const map = {
+            [CONFIG.CAREGIVER_STATUS.PENDING]: 'pendente',
+            [CONFIG.CAREGIVER_STATUS.UNDER_REVIEW]: 'em_analise',
+            [CONFIG.CAREGIVER_STATUS.APPROVED]: 'aprovado',
+            [CONFIG.CAREGIVER_STATUS.REJECTED]: 'reprovado',
+            [CONFIG.CAREGIVER_STATUS.NEEDS_CORRECTION]: 'correcao'
+        };
+        return map[String(status || '').toUpperCase()] || String(status || '').toLowerCase();
+    }
+
+    mapDocumentsFromApi(documentos) {
+        const out = {};
+        (documentos || []).forEach((d, i) => {
+            const key = d.tipo || ('doc' + (i + 1));
+            out[key] = {
+                id: d.id,
+                name: d.arquivoUrl ? String(d.arquivoUrl).split('/').pop() : key,
+                type: 'application/pdf',
+                size: 0,
+                uploadedAt: d.criadoEm || null,
+                url: d.urlDownload || d.arquivoUrl || null,
+                status: d.status === 'aprovado' ? 'approved'
+                    : d.status === 'rejeitado' ? 'rejected' : 'pending_review'
+            };
+        });
+        return out;
+    }
+
+    mapCaregiverFromApi(p) {
+        if (!p) return p;
+        const docs = p.documentos || p.documents;
+        const status = p.statusVerificacao || p.situacaoCadastro || p.status;
+        return {
+            ...p,
+            name: p.nome ?? p.name,
+            phone: p.telefone ?? p.phone,
+            photo: p.fotoUrl ?? p.photo,
+            gender: p.genero ?? p.gender,
+            birthDate: p.dataNascimento ?? p.birthDate,
+            bio: p.descricaoPerfil ?? p.bio ?? '',
+            hourlyRate: Number(p.precoHora ?? p.hourlyRate ?? 0),
+            rating: Number(p.notaMedia ?? p.rating ?? 0),
+            reviewCount: Number(p.reviewCount ?? 0),
+            specialties: p.especialidades ?? p.specialties ?? [],
+            verified: p.documentoVerificado === true || p.verified === true,
+            status: this.mapStatusFromApi(status),
+            documents: Array.isArray(docs) ? this.mapDocumentsFromApi(docs) : (docs || {}),
+            experience: p.experience ?? 0,
+            createdAt: p.criadoEm ?? p.createdAt ?? null,
+            updatedAt: p.atualizadoEm ?? p.updatedAt ?? null
+        };
+    }
+
+    mapContractFromApi(c) {
+        const clienteId = c.clienteId ?? c.clientId;
+        const profissionalId = c.profissionalId ?? c.caregiverId;
+        return {
+            ...c,
+            clientId: clienteId,
+            caregiverId: profissionalId,
+            client: c.clienteNome ? { id: clienteId, name: c.clienteNome } : (c.client || null),
+            caregiver: c.profissionalNome ? { id: profissionalId, name: c.profissionalNome } : (c.caregiver || null),
+            startDate: c.dataInicio ?? c.startDate,
+            endDate: c.dataFim ?? c.endDate,
+            hourlyRate: Number(c.valorHora ?? c.hourlyRate ?? 0),
+            totalValue: Number(c.valorTotal ?? c.totalValue ?? 0),
+            createdAt: c.criadoEm ?? c.createdAt
+        };
+    }
+
+    mapReviewFromApi(r) {
+        return {
+            ...r,
+            contractId: r.contratoId ?? r.contractId,
+            caregiverId: r.cuidadorId ?? r.caregiverId,
+            rating: r.nota ?? r.rating,
+            comment: r.comentario ?? r.comment ?? '',
+            createdAt: r.criadoEm ?? r.createdAt
+        };
+    }
+
+    mapNotificationFromApi(n) {
+        return {
+            ...n,
+            userId: n.destinatarioId ?? n.userId,
+            title: n.titulo ?? n.title,
+            message: n.corpo ?? n.message,
+            read: n.lida ?? n.read ?? false,
+            readAt: n.lidaEm ?? n.readAt,
+            createdAt: n.enviadoEm ?? n.createdAt
+        };
+    }
+
     /**
      * Create a new caregiver
      * @param {Object} caregiverData - Caregiver registration data
      * @returns {Promise<Object>} Created caregiver
      */
     async createCaregiver(caregiverData) {
-        // In production: return await apiService.post("/caregivers", caregiverData);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const payload = {
+                nome: caregiverData.name || caregiverData.nome,
+                email: caregiverData.email,
+                cpf: CONFIG.normalizeCPF(caregiverData.cpf),
+                telefone: caregiverData.phone || caregiverData.telefone,
+                senha: caregiverData.password || caregiverData.senha,
+                genero: caregiverData.genero || caregiverData.gender || 'prefiro_nao_informar',
+                dataNascimento: caregiverData.birthDate || caregiverData.dataNascimento,
+                latitude: caregiverData.latitude ?? caregiverData.address?.latitude ?? null,
+                longitude: caregiverData.longitude ?? caregiverData.address?.longitude ?? null,
+                descricaoPerfil: caregiverData.bio || caregiverData.descricaoPerfil || '',
+                precoHora: caregiverData.hourlyRate ?? caregiverData.precoHora ?? null,
+                consentimentoLgpd: caregiverData.consentimentoLgpd !== false
+            };
+            return this.mapCaregiverFromApi(await apiService.post(CONFIG.ENDPOINTS.caregivers, payload));
+        }
+
         await this.delay(800);
         
         this.validateCaregiverData(caregiverData);
@@ -71,8 +198,13 @@ class CaregiverService {
      * @returns {Promise<Object>} Caregiver data
      */
     async getCaregiver(caregiverId) {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}`);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            // Perfil público: GET /caregivers/{id} é restrito ao dono/staff,
+            // então o cartão público vem do BuscaController.
+            return this.mapCaregiverFromApi(
+                await apiService.get(`${CONFIG.ENDPOINTS.caregiversSearch}/${caregiverId}`));
+        }
+
         await this.delay(300);
         
         const caregivers = this.getMockCaregivers();
@@ -91,6 +223,11 @@ class CaregiverService {
      * @returns {Promise<Object>} Caregiver profile
      */
     async getProfile() {
+        if (!CONFIG.API.MOCK_MODE) {
+            return this.mapCaregiverFromApi(
+                await apiService.get(`${CONFIG.ENDPOINTS.caregivers}/me`));
+        }
+
         const currentUser = authService.getCurrentUser();
         if (!currentUser || currentUser.type !== CONFIG.USER_TYPES.CAREGIVER) {
             throw new Error("Usuário não autenticado ou não é um cuidador");
@@ -105,8 +242,15 @@ class CaregiverService {
      * @returns {Promise<Object>} Full caregiver profile
      */
     async getFullProfile(caregiverId) {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}/full`);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            // Cadastro (CPF/e-mail/situação) + cartão público (bio/especialidades).
+            const [usuario, publico] = await Promise.all([
+                apiService.get(`${CONFIG.ENDPOINTS.caregivers}/${caregiverId}`),
+                apiService.get(`${CONFIG.ENDPOINTS.caregiversSearch}/${caregiverId}`).catch(() => null)
+            ]);
+            return this.mapCaregiverFromApi({ ...(publico || {}), ...usuario });
+        }
+
         await this.delay(300);
         
         const caregivers = this.getMockCaregivers();
@@ -126,8 +270,27 @@ class CaregiverService {
      * @returns {Promise<Object>} Updated caregiver
      */
     async updateProfile(updates) {
-        // In production: return await apiService.patch(`/caregivers/${caregiverId}`, updates);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const payload = {};
+            const nome = updates.name ?? updates.nome;
+            const telefone = updates.phone ?? updates.telefone;
+            if (nome != null) payload.nome = nome;
+            if (telefone != null) payload.telefone = telefone;
+            if (updates.bio != null || updates.descricaoPerfil != null) {
+                payload.descricaoPerfil = updates.bio ?? updates.descricaoPerfil;
+            }
+            if (updates.hourlyRate != null || updates.precoHora != null) {
+                payload.precoHora = updates.hourlyRate ?? updates.precoHora;
+            }
+            if (updates.specialties != null || updates.especialidades != null) {
+                payload.especialidades = updates.specialties ?? updates.especialidades;
+            }
+            const res = await apiService.patch(`${CONFIG.ENDPOINTS.caregivers}/me`, payload);
+            const mapped = this.mapCaregiverFromApi(res);
+            authService.updateCurrentUser(mapped);
+            return mapped;
+        }
+
         await this.delay(500);
         
         const currentUser = authService.getCurrentUser();
@@ -165,6 +328,29 @@ class CaregiverService {
      * @returns {Promise<Object>} Updated caregiver
      */
     async updateAvailability(availability) {
+        if (!CONFIG.API.MOCK_MODE) {
+            // A API guarda disponibilidade por DATA + período. A tela informa dias
+            // da semana + faixa de horário; materializamos as próximas 8 semanas.
+            const days = availability.days || [];
+            const start = availability.schedule?.start;
+            const end = availability.schedule?.end;
+            let periodos = (start && end) ? CONFIG.scheduleToPeriodos(start, end) : [];
+            if (!periodos.length) periodos = ['matutino', 'vespertino', 'noturno'];
+
+            const body = [];
+            if (days.length) {
+                const hoje = new Date();
+                for (let i = 0; i < 56; i++) {
+                    const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
+                    if (!days.includes(d.getDay())) continue;
+                    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    periodos.forEach(p => body.push({ data: iso, periodo: p }));
+                }
+            }
+            await apiService.put(`${CONFIG.ENDPOINTS.caregivers}/me/disponibilidade`, body);
+            return { ...availability, periodos };
+        }
+
         return this.updateProfile({ availability });
     }
 
@@ -174,11 +360,25 @@ class CaregiverService {
      * @returns {Promise<Object>} Updated caregiver with documents
      */
     async uploadDocuments(documents) {
-        // In production: 
-        // const formData = new FormData();
-        // Object.entries(documents).forEach(([key, file]) => formData.append(key, file));
-        // return await apiService.upload(`/caregivers/${caregiverId}/documents`, formData);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const currentUser = authService.getCurrentUser();
+            if (!currentUser || !currentUser.id) throw new Error("Usuário não autenticado");
+
+            const entradas = Object.entries(documents || {}).filter(([, file]) => file);
+            if (!entradas.length) throw new Error("Selecione ao menos um arquivo");
+
+            let ultimo = null;
+            for (const [tipo, file] of entradas) {
+                const formData = new FormData();
+                formData.append('tipo', tipo);
+                formData.append('arquivo', file);
+                ultimo = await apiService.upload(
+                    `${CONFIG.ENDPOINTS.caregivers}/${currentUser.id}/documentos/arquivo`, formData);
+            }
+            // Recarrega o perfil para refletir status/documentos atualizados.
+            try { return await this.getProfile(); } catch (_) { return ultimo; }
+        }
+
         await this.delay(1000);
         
         const currentUser = authService.getCurrentUser();
@@ -236,8 +436,24 @@ class CaregiverService {
      * @returns {Promise<Object>} Verification status
      */
     async getVerificationStatus() {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}/verification`);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const p = await this.getProfile();
+            const documents = {};
+            Object.entries(p.documents || {}).forEach(([k, v]) => {
+                documents[k] = (v && v.status) ? v.status : 'not_uploaded';
+            });
+            const valores = Object.values(documents);
+            return {
+                status: p.status,
+                verified: p.verified,
+                verificationDate: p.verificationDate || null,
+                documents,
+                canRequestReview: valores.length > 0
+                    && valores.every(v => v === 'pending_review' || v === 'approved'),
+                missingDocuments: Object.keys(documents).filter(k => documents[k] === 'not_uploaded')
+            };
+        }
+
         await this.delay(300);
         
         const currentUser = authService.getCurrentUser();
@@ -276,8 +492,14 @@ class CaregiverService {
      * @returns {Promise<Array>} Array of contracts
      */
     async getContracts(status = null) {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}/contracts`, { status });
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const list = await apiService.get(CONFIG.ENDPOINTS.contracts);
+            const mapped = (list || []).map(c => this.mapContractFromApi(c));
+            if (!status) return mapped;
+            const alvo = CONFIG.toV2ContractStatus(status);
+            return mapped.filter(c => String(c.status).toLowerCase() === alvo);
+        }
+
         await this.delay(400);
         
         const currentUser = authService.getCurrentUser();
@@ -306,8 +528,18 @@ class CaregiverService {
      * @returns {Promise<Object>} Earnings summary
      */
     async getEarnings(period = {}) {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}/earnings`, period);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const repasses = await apiService.get(`${CONFIG.ENDPOINTS.payments}/repasses`).catch(() => []);
+            const payments = window.paymentService
+                ? await paymentService.getUserPayments().catch(() => [])
+                : [];
+            const total = (repasses || []).filter(r => r.status === 'processado')
+                .reduce((s, r) => s + Number(r.valor || 0), 0);
+            const pending = (repasses || []).filter(r => r.status === 'pendente')
+                .reduce((s, r) => s + Number(r.valor || 0), 0);
+            return { total, pending, available: total, payments, period };
+        }
+
         await this.delay(400);
         
         const currentUser = authService.getCurrentUser();
@@ -359,8 +591,26 @@ class CaregiverService {
      * @returns {Promise<Array>} Scheduled appointments
      */
     async getSchedule(period = {}) {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}/schedule`, period);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const contratos = await this.getContracts();
+            const ativos = contratos.filter(c => ['ativo', 'aguard_assinatura'].includes(String(c.status).toLowerCase()));
+            const linhas = [];
+            for (const c of ativos) {
+                try {
+                    const escalas = await apiService.get('/escalas', { contratoId: c.id });
+                    (escalas || []).forEach(e => linhas.push({
+                        id: e.id,
+                        contractId: c.id,
+                        clientName: c.client?.name || '',
+                        data: e.data,
+                        periodo: e.periodo,
+                        status: e.status
+                    }));
+                } catch (_) { /* contrato ainda sem escala gerada */ }
+            }
+            return linhas;
+        }
+
         await this.delay(400);
         
         const currentUser = authService.getCurrentUser();
@@ -392,8 +642,14 @@ class CaregiverService {
      * @returns {Promise<Array>} Array of reviews
      */
     async getReviews() {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}/reviews`);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const user = authService.getCurrentUser();
+            if (!user || !user.id) return [];
+            const list = await apiService.get(`${CONFIG.ENDPOINTS.avaliacoes}/cuidador/${user.id}`);
+            return (list || []).map(r => this.mapReviewFromApi(r))
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        }
+
         await this.delay(400);
         
         const currentUser = authService.getCurrentUser();
@@ -412,8 +668,12 @@ class CaregiverService {
      * @returns {Promise<Array>} Notifications
      */
     async getNotifications(unreadOnly = false) {
-        // In production: return await apiService.get(`/caregivers/${caregiverId}/notifications`, { unreadOnly });
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const params = unreadOnly ? { unreadOnly: true } : {};
+            const list = await apiService.get(CONFIG.ENDPOINTS.notifications, params);
+            return (list || []).map(n => this.mapNotificationFromApi(n));
+        }
+
         await this.delay(300);
         
         const currentUser = authService.getCurrentUser();
@@ -439,8 +699,34 @@ class CaregiverService {
      * @returns {Promise<Array>} Matching caregivers
      */
     async searchCaregivers(filters = {}) {
-        // In production: return await apiService.get("/caregivers/search", filters);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const params = {};
+            const nome = filters.name || filters.search || filters.nome;
+            if (nome) params.nome = nome;
+            if (filters.maxPrice != null) params.precoMax = filters.maxPrice;
+            if (filters.minRating != null) params.notaMinima = filters.minRating;
+            if (filters.periodo) params.periodo = filters.periodo;
+            if (filters.orderBy) params.ordenarPor = filters.orderBy;
+            if (filters.limit) params.limit = filters.limit;
+
+            let lista = await apiService.get(CONFIG.ENDPOINTS.caregiversSearch, params);
+            lista = (lista || []).map(c => this.mapCaregiverFromApi(c));
+
+            if (filters.specialty) {
+                const alvo = String(filters.specialty).toLowerCase();
+                lista = lista.filter(c => (c.specialties || [])
+                    .some(s => String(s).toLowerCase() === alvo));
+            }
+            if (filters.verifiedOnly) lista = lista.filter(c => c.verified);
+            if (filters.distance && filters.userLocation) {
+                lista = lista.map(c => ({
+                    ...c,
+                    distance: this.calculateDistance(filters.userLocation, c.address)
+                })).filter(c => c.distance <= filters.distance);
+            }
+            return lista;
+        }
+
         await this.delay(500);
         
         let caregivers = this.getMockCaregivers()
@@ -490,8 +776,40 @@ class CaregiverService {
      * @returns {Promise<Object>} Paginated caregivers
      */
     async getAllCaregivers(params = {}) {
-        // In production: return await apiService.get("/admin/caregivers", params);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            if (!authService.isAdmin()) throw new Error("Acesso negado: apenas administradores");
+
+            const page = Number(params.page || 1);
+            const limit = Number(params.limit || 10);
+            const query = { page: Math.max(0, page - 1), size: limit };
+            if (params.status) query.status = this.mapStatusToApi(params.status);
+            // Busca textual é feita no cliente; traz uma página maior para filtrar.
+            if (params.search) { query.page = 0; query.size = 100; }
+
+            let lista = await apiService.get(CONFIG.ENDPOINTS.caregivers, query);
+            lista = (lista || []).map(c => this.mapCaregiverFromApi(c));
+
+            if (params.search) {
+                const termo = String(params.search).toLowerCase();
+                lista = lista.filter(c =>
+                    String(c.name || '').toLowerCase().includes(termo)
+                    || String(c.email || '').toLowerCase().includes(termo)
+                    || String(c.cpf || '').includes(String(params.search)));
+                const total = lista.length;
+                const inicio = (page - 1) * limit;
+                return {
+                    data: lista.slice(inicio, inicio + limit),
+                    pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }
+                };
+            }
+
+            const total = lista.length;
+            return {
+                data: lista,
+                pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }
+            };
+        }
+
         await this.delay(500);
         
         if (!authService.isAdmin()) {
@@ -547,8 +865,20 @@ class CaregiverService {
      * @returns {Promise<Object>} Updated caregiver
      */
     async updateCaregiverStatus(caregiverId, status, reason = "") {
-        // In production: return await apiService.patch(`/admin/caregivers/${caregiverId}/status`, { status, reason });
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            if (!authService.isAdmin()) throw new Error("Acesso negado: apenas administradores");
+            const resultado = {
+                [CONFIG.CAREGIVER_STATUS.APPROVED]: 'aprovado',
+                [CONFIG.CAREGIVER_STATUS.REJECTED]: 'reprovado',
+                [CONFIG.CAREGIVER_STATUS.NEEDS_CORRECTION]: 'correcao'
+            }[String(status || '').toUpperCase()];
+            if (!resultado) throw new Error('Status sem equivalente na API: ' + status);
+            const res = await apiService.patch(
+                `${CONFIG.ENDPOINTS.caregivers}/${caregiverId}/validacao`,
+                { resultado, observacao: reason || null });
+            return this.mapCaregiverFromApi(res);
+        }
+
         await this.delay(500);
         
         if (!authService.isAdmin()) {

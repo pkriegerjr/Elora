@@ -30,13 +30,31 @@ class JuridicoService {
                 emDisputa: res.filter(r => r.status === 'em_disputa').length
             };
         }
-        return await apiService.get(`${CONFIG.ENDPOINTS.juridico}/painel`);
+        const p = await apiService.get(`${CONFIG.ENDPOINTS.juridico}/painel`);
+        // O stub do back devolve contadores próprios; normaliza para o painel.
+        return {
+            validacaoPendentes: p.validacaoPendentes ?? 0,
+            validacaoEmAnalise: p.validacaoEmAnalise ?? 0,
+            denunciasAbertas: p.denunciasAbertas ?? p.analisesPendentes ?? 0,
+            denunciasEmAnalise: p.denunciasEmAnalise ?? 0,
+            rescisoesPendentes: p.rescisoesPendentes ?? p.rescisoesTotal ?? 0,
+            emDisputa: p.emDisputa ?? 0
+        };
     }
 
     async listarDenuncias() {
         this.exigirEquipeJuridica();
         if (CONFIG.API.MOCK_MODE) return this.load('elora_mock_denuncias');
-        return await apiService.get(`${CONFIG.ENDPOINTS.juridico}/analise`);
+        const list = await apiService.get(`${CONFIG.ENDPOINTS.juridico}/analises`);
+        return (list || []).map(d => ({
+            ...d,
+            id: d.idAnalise ?? d.id,
+            status: d.status ?? d.statusAnalise ?? 'pendente',
+            motivo: d.motivo || d.parecer || '—',
+            descricao: d.descricao || '',
+            contratoId: d.contratoId ?? null,
+            createdAt: d.criadoEm ?? d.createdAt
+        }));
     }
 
     async denunciar({ contratoId, denunciadoId, motivo, descricao }) {
@@ -74,7 +92,15 @@ class JuridicoService {
     async listarRescisoes() {
         this.exigirEquipeJuridica();
         if (CONFIG.API.MOCK_MODE) return this.load('elora_mock_rescisoes');
-        return [];
+        const list = await apiService.get(`${CONFIG.ENDPOINTS.juridico}/rescisoes`);
+        return (list || []).map(r => ({
+            ...r,
+            id: r.idAnalise ?? r.id,
+            status: r.status ?? r.statusAnalise ?? 'solicitada',
+            motivo: r.motivo || r.parecer || '—',
+            contratoId: r.contratoId ?? null,
+            createdAt: r.criadoEm ?? r.createdAt
+        }));
     }
 }
 const juridicoService = new JuridicoService();

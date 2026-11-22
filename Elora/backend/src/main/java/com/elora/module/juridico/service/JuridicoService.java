@@ -5,6 +5,8 @@ import com.elora.module.juridico.entity.ProcessoRescisao;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,6 +37,20 @@ public class JuridicoService {
         }
         rescisoes.put(r.getIdAnalise(), r);
         return r;
+    }
+
+    /** Fila de denúncias/análises (mais recentes primeiro). */
+    public List<AnaliseJuridica> listarAnalises() {
+        return analises.values().stream()
+                .sorted(Comparator.comparing(AnaliseJuridica::getCriadoEm).reversed())
+                .toList();
+    }
+
+    /** Fila de rescisões (mais recentes primeiro). */
+    public List<ProcessoRescisao> listarRescisoes() {
+        return rescisoes.values().stream()
+                .sorted(Comparator.comparing(ProcessoRescisao::getCriadoEm).reversed())
+                .toList();
     }
 
     public Map<String, Object> painel() {

@@ -181,7 +181,8 @@ const CONFIG = {
         caregiversSearch: "/busca/profissionais",
         // P0: alinhado ao ContratoController (@RequestMapping /contratos)
         contracts: "/contratos",
-        // TODO(P1): sem PaymentController no backend — segue mock até definir POST /pagamentos
+        // PagamentoController (/payments): POST, GET, GET /{id}, POST /{id}/pagar,
+        // GET /{id}/status, PATCH /{id}/cancel, POST /{id}/pix/qrcode, POST /{id}/boleto, /repasses
         payments: "/payments",
         notifications: "/notifications", // GET ?unreadOnly&tipo&limit, GET /unread-count, PATCH /read-all, PATCH /{id}, GET/PATCH /preferences, DELETE /{id}, POST /
         relatorios: "/relatorios", // GET /resumo|financeiro|usuarios|contratos|avaliacoes|denuncias (?inicio&fim)
@@ -189,6 +190,7 @@ const CONFIG = {
         avaliacoes: "/avaliacoes",
         conhecimento: "/conhecimento",
         juridico: "/juridico",
+        mapsKey: "/config/maps-key", // MapsKeyController: GET -> {apiKey, configured}
         admin: "/admin/caregivers"
     }
 };

@@ -23,4 +23,6 @@ public class ProfissionalResponse {
     private BigDecimal precoHora;
     private BigDecimal notaMedia;
     private List<String> especialidades;
+    /** Documentos validados pela equipe (selo "verificado" no cartão). */
+    private Boolean documentoVerificado;
 }

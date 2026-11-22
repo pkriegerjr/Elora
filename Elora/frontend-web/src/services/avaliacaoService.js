@@ -66,7 +66,14 @@ class AvaliacaoService {
             rev.forEach(r => { if (!map.has(String(r.contractId || r.id))) map.set(String(r.contractId || r.id), r); });
             return [...map.values()];
         }
-        return await apiService.get(`${CONFIG.ENDPOINTS.avaliacoes}/cuidador/${cuidadorId}`);
+        const res = await apiService.get(`${CONFIG.ENDPOINTS.avaliacoes}/cuidador/${cuidadorId}`);
+        const lista = Array.isArray(res) ? res : (res?.avaliacoes || []);
+        return lista.map(a => ({
+            ...a,
+            rating: a.nota ?? a.rating,
+            comment: a.comentario ?? a.comment ?? '',
+            createdAt: a.criadoEm ?? a.createdAt
+        }));
     }
 
     async mediaPorCuidador(cuidadorId) {
@@ -76,7 +83,11 @@ class AvaliacaoService {
             const media = list.reduce((s, r) => s + (Number(r.rating) || 0), 0) / list.length;
             return { media: Number(media.toFixed(1)), total: list.length };
         }
-        return await apiService.get(`${CONFIG.ENDPOINTS.avaliacoes}/cuidador/${cuidadorId}/media`);
+        const res = await apiService.get(`${CONFIG.ENDPOINTS.avaliacoes}/cuidador/${cuidadorId}/media`);
+        return {
+            media: Number(res?.media ?? 0),
+            total: Number(res?.totalAvaliacoes ?? res?.total ?? 0)
+        };
     }
 
     async jaAvaliada(contratoId) {

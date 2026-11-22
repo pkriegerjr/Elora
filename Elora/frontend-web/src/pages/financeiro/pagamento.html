@@ -44,7 +44,9 @@
     try{
       if(contractId) contract = await contractService.getContract(contractId);
       let existingPayments = await paymentService.getUserPayments();
-      payment = paymentIdParam ? existingPayments.find(p=>p.id===paymentIdParam) : existingPayments.find(p=>p.contractId===contractId);
+      payment = paymentIdParam
+        ? existingPayments.find(p=>String(p.id)===String(paymentIdParam))
+        : existingPayments.find(p=>String(p.contractId)===String(contractId));
       if(!payment && contract){
         // cria pagamento pendente
         const total = contract.valueBreakdown?.total || contract.totalValue?.total || 0;
@@ -57,15 +59,18 @@
   function render(){
     const root=document.getElementById('root');
     const statusLabel = payment.statusLabel || payment.status;
+    const st = String(payment.statusV2 || payment.status || '').toLowerCase();
+    const isPending = ['pendente','pending','processando','processing'].includes(st);
+    const isApproved = ['aprovado','approved'].includes(st);
     root.innerHTML=`
       <h3 class="section-title">Pagamento</h3>
-      <p class="small text-muted">Contrato ${escapeHtml(payment.contractId)} • Status: <span class="badge ${payment.status==='APPROVED'?'bg-success': payment.status==='PENDING'?'bg-warning text-dark':'bg-secondary'}">${statusLabel}</span></p>
+      <p class="small text-muted">Contrato ${escapeHtml(payment.contractId)} • Status: <span class="badge ${isApproved?'bg-success': isPending?'bg-warning text-dark':'bg-secondary'}">${statusLabel}</span></p>
       <div class="bg-light p-3 rounded mb-3">
         <div class="d-flex justify-content-between"><span>Valor</span><strong>${formatCurrency(payment.amount)}</strong></div>
         <div class="d-flex justify-content-between small text-muted"><span>Método</span><span>${payment.method||payment.methodLabel||''}</span></div>
         ${payment.transactionId? '<div class="small text-muted">Transação: '+escapeHtml(payment.transactionId)+'</div>':''}
       </div>
-      ${payment.status==='PENDING'? `
+      ${isPending? `
         <ul class="nav nav-pills mb-3" id="payTabs" role="tablist" aria-label="Método de pagamento">
           <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pix" role="tab" aria-selected="true" aria-controls="pix">PIX</button></li>
           <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#card" role="tab" aria-selected="false" aria-controls="card">Cartão</button></li>
@@ -89,9 +94,9 @@
           </div>
         </div>
         <button id="btnCancelPay" class="btn btn-outline-danger w-100 mt-3 btn-sm">Cancelar pagamento</button>
-      ` : payment.status==='APPROVED'? '<div class="alert alert-success"><i class="bi bi-check-circle me-1"></i> Pagamento aprovado! Comprovante disponível no painel.</div><a href="../contratos/contrato.html?id='+payment.contractId+'" class="btn btn-elora-outline w-100">Ver contrato</a>' : '<div class="alert alert-secondary">Status: '+statusLabel+'</div>'}
+      ` : isApproved? '<div class="alert alert-success"><i class="bi bi-check-circle me-1"></i> Pagamento aprovado! Comprovante disponível no painel.</div><a href="../contratos/contrato.html?id='+payment.contractId+'" class="btn btn-elora-outline w-100">Ver contrato</a>' : '<div class="alert alert-secondary">Status: '+statusLabel+'</div>'}
     `;
-    if(payment.status==='PENDING'){
+    if(isPending){
       paymentService.generatePixQrCode(payment.id).then(d=> document.getElementById('pixCode').textContent=d.copiaEcola.slice(0,80)+'...').catch(()=>{});
       paymentService.generateBoleto(payment.id).then(d=> document.getElementById('boletoCode').textContent='Linha digitável: '+d.linhaDigitavel).catch(()=>{});
       document.getElementById('btnPayPix')?.addEventListener('click', async()=> doPay({method:'PIX'}));

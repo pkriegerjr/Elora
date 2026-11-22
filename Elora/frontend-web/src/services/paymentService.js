@@ -16,20 +16,65 @@ class PaymentService {
     }
 
     /**
+     * DTO Spring (PagamentoResponse) -> formato usado pelas telas.
+     * O status continua em PT (V2); `statusV2` deixa isso explícito.
+     */
+    mapPaymentFromApi(p) {
+        if (!p) return p;
+        const valorBruto = Number(p.valorBruto ?? p.amount ?? 0);
+        const statusV2 = p.status;
+        const status = String(statusV2 || p.status || 'pendente').toLowerCase();
+        return {
+            ...p,
+            contractId: p.contratoId ?? p.contractId,
+            contratoId: p.contratoId ?? p.contractId,
+            clientId: p.pagadorId ?? p.clientId,
+            pagadorId: p.pagadorId ?? p.clientId,
+            amount: valorBruto,
+            valorBruto,
+            valorTaxa: Number(p.valorTaxa ?? 0),
+            valorLiquido: Number(p.valorLiquido ?? 0),
+            method: p.metodo ?? p.method,
+            metodo: p.metodo ?? p.method,
+            status,
+            statusV2: status,
+            transactionId: p.gatewayId ?? p.transactionId,
+            createdAt: p.criadoEm ?? p.createdAt,
+            updatedAt: p.atualizadoEm ?? p.updatedAt,
+            approvedAt: status === 'aprovado' ? (p.atualizadoEm ?? p.approvedAt) : p.approvedAt,
+            statusLabel: this.getStatusLabel(status),
+            methodLabel: this.getMethodLabel(p.metodo ?? p.method)
+        };
+    }
+
+    /** 'PIX'/'CARD'/'BOLETO' (front) -> enum MetodoPagamento (pix/cartao/boleto). */
+    normalizeMethod(method) {
+        const m = String(method || 'pix').toLowerCase();
+        if (m === 'pix') return 'pix';
+        if (m === 'card' || m === 'cartao' || m === 'cartão' || m === 'credit_card') return 'cartao';
+        return 'boleto';
+    }
+
+    /**
      * Create a new payment
      * @param {Object} paymentData - Payment data
      * @returns {Promise<Object>} Created payment
      */
     async createPayment(paymentData) {
         if (!CONFIG.API.MOCK_MODE) {
+            const valorBruto = Number(paymentData.valorBruto ?? paymentData.amount ?? 0);
+            if (!(valorBruto > 0)) {
+                throw new Error("Valor do pagamento deve ser maior que zero");
+            }
+            // O pagador é sempre o usuário autenticado (o back ignora pagadorId).
             const payload = {
                 contratoId: paymentData.contratoId || paymentData.contractId,
-                pagadorId: paymentData.pagadorId || paymentData.clientId,
-                valorBruto: paymentData.valorBruto || paymentData.amount,
-                metodo: paymentData.metodo || paymentData.method || 'pix',
-                idempotencyKey: paymentData.idempotencyKey || paymentData.idempotency_key,
+                valorBruto,
+                metodo: this.normalizeMethod(paymentData.metodo || paymentData.method),
+                idempotencyKey: paymentData.idempotencyKey || paymentData.idempotency_key
             };
-            return await apiService.post(CONFIG.ENDPOINTS.payments, payload);
+            return this.mapPaymentFromApi(
+                await apiService.post(CONFIG.ENDPOINTS.payments, payload));
         }
         
         await this.delay(800);
@@ -104,7 +149,8 @@ class PaymentService {
      */
     async getPayment(paymentId) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.get(`${CONFIG.ENDPOINTS.payments}/${paymentId}`);
+            return this.mapPaymentFromApi(
+                await apiService.get(`${CONFIG.ENDPOINTS.payments}/${paymentId}`));
         }
         
         await this.delay(300);
@@ -127,8 +173,14 @@ class PaymentService {
     async getUserPayments(filters = {}) {
         if (!CONFIG.API.MOCK_MODE) {
             const params = {};
-            if (filters.status) params.status = filters.status;
-            return await apiService.get(CONFIG.ENDPOINTS.payments, params);
+            if (filters.status) params.status = CONFIG.toV2PaymentStatus(filters.status);
+            const list = await apiService.get(CONFIG.ENDPOINTS.payments, params);
+            let mapped = (list || []).map(p => this.mapPaymentFromApi(p));
+            if (filters.status) {
+                const alvo = CONFIG.toV2PaymentStatus(filters.status);
+                mapped = mapped.filter(p => String(p.status).toLowerCase() === alvo);
+            }
+            return mapped;
         }
         
         await this.delay(400);
@@ -167,12 +219,24 @@ class PaymentService {
      * @returns {Promise<Object>} Payment status
      */
     async getPaymentStatus(paymentId) {
-        // In production: return await apiService.get(`/payments/${paymentId}/status`);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const s = await apiService.get(`${CONFIG.ENDPOINTS.payments}/${paymentId}/status`);
+            const status = String(s.status || '').toLowerCase();
+            return {
+                status,
+                statusV2: status,
+                statusLabel: s.statusLabel || this.getStatusLabel(status),
+                canPay: !!s.canPay,
+                canCancel: !!s.canCancel,
+                createdAt: s.criadoEm ?? s.createdAt,
+                updatedAt: s.atualizadoEm ?? s.updatedAt
+            };
+        }
+
         await this.delay(200);
-        
+
         const payment = await this.getPayment(paymentId);
-        
+
         return {
             status: payment.status,
             statusLabel: this.getStatusLabel(payment.status),
@@ -191,7 +255,12 @@ class PaymentService {
      */
     async processPayment(paymentId, paymentDetails) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.post(`${CONFIG.ENDPOINTS.payments}/${paymentId}/pagar`, paymentDetails);
+            // Gateway mock do back: "tok_recusado" recusa; qualquer outro aprova.
+            const gatewayToken = paymentDetails?.token
+                || paymentDetails?.gatewayToken
+                || 'tok_mock';
+            return this.mapPaymentFromApi(await apiService.post(
+                `${CONFIG.ENDPOINTS.payments}/${paymentId}/pagar`, { gatewayToken }));
         }
         
         await this.delay(2000); // Simulate gateway processing
@@ -259,7 +328,8 @@ class PaymentService {
      */
     async cancelPayment(paymentId, reason) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.patch(`${CONFIG.ENDPOINTS.payments}/${paymentId}/cancel`, { reason });
+            return this.mapPaymentFromApi(await apiService.patch(
+                `${CONFIG.ENDPOINTS.payments}/${paymentId}/cancel`, { motivo: reason }));
         }
         
         await this.delay(500);
@@ -317,7 +387,15 @@ class PaymentService {
      */
     async generatePixQrCode(paymentId) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.post(`${CONFIG.ENDPOINTS.payments}/${paymentId}/pix/qrcode`);
+            const c = await apiService.post(`${CONFIG.ENDPOINTS.payments}/${paymentId}/pix/qrcode`);
+            return {
+                ...c,
+                // O backend grafa "copiaEcola"; mantemos o alias com acento.
+                copiaEcola: c.copiaEcola ?? c.copiaECola,
+                copiaECola: c.copiaEcola ?? c.copiaECola,
+                qrCode: c.qrCode || c.qrCodeBase64 || null,
+                expiresAt: c.expiresAt || null
+            };
         }
         
         await this.delay(500);
@@ -342,7 +420,14 @@ class PaymentService {
      */
     async generateBoleto(paymentId) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.post(`${CONFIG.ENDPOINTS.payments}/${paymentId}/boleto`);
+            const c = await apiService.post(`${CONFIG.ENDPOINTS.payments}/${paymentId}/boleto`);
+            return {
+                ...c,
+                barcode: c.linhaDigitavel || c.barcode || '',
+                linhaDigitavel: c.linhaDigitavel || '',
+                pdfUrl: c.pdfUrl || null,
+                expiresAt: c.expiresAt || null
+            };
         }
         
         await this.delay(500);
@@ -370,7 +455,15 @@ class PaymentService {
         // IMPORTANT: In production, NEVER handle raw card data in frontend!
         // Use payment gateway's client-side SDK to tokenize card data
         // Send only token to your backend
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            if (!cardData?.token) {
+                throw new Error("Dados do cartão inválidos. Use a tokenização do gateway.");
+            }
+            return this.mapPaymentFromApi(await apiService.post(
+                `${CONFIG.ENDPOINTS.payments}/${paymentId}/pagar`,
+                { gatewayToken: cardData.token }));
+        }
+
         await this.delay(2000);
         
         const payment = await this.getPayment(paymentId);

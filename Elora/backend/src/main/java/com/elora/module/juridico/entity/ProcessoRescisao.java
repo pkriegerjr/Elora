@@ -14,6 +14,8 @@ import lombok.NoArgsConstructor;
 public class ProcessoRescisao {
     private Integer idAnalise;
     private Integer contratoId;
+    private String motivo;
     private String parecer;
-    private String statusAnalise = "solicitado";
+    private String statusAnalise = "solicitada";
+    private java.time.LocalDateTime criadoEm = java.time.LocalDateTime.now();
 }

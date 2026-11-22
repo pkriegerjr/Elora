@@ -12,13 +12,32 @@ class ClientService {
         this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
     }
 
+    /** DTO Spring (UsuarioResponse) -> formato usado pelas telas. */
+    mapClientFromApi(p) {
+        if (!p) return p;
+        return {
+            ...p,
+            name: p.nome ?? p.name,
+            phone: p.telefone ?? p.phone,
+            photo: p.fotoUrl ?? p.photo,
+            gender: p.genero ?? p.gender,
+            birthDate: p.dataNascimento ?? p.birthDate,
+            careNeeds: p.observacoesCuidado != null
+                ? { ...(p.careNeeds || {}), description: p.observacoesCuidado }
+                : p.careNeeds,
+            createdAt: p.criadoEm ?? p.createdAt
+        };
+    }
+
     /**
      * Create a new client
      * @param {Object} clientData - Client registration data
      * @returns {Promise<Object>} Created client
      */
     async createClient(clientData) {
-        if (!CONFIG.API.MOCK_MODE) return await apiService.post(CONFIG.ENDPOINTS.clients, clientData);
+        if (!CONFIG.API.MOCK_MODE) {
+            return this.mapClientFromApi(await apiService.post(CONFIG.ENDPOINTS.clients, clientData));
+        }
         
         await this.delay(800);
         
@@ -71,7 +90,7 @@ class ClientService {
      */
     async getClient(clientId) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.get(`${CONFIG.ENDPOINTS.clients}/${clientId}`);
+            return this.mapClientFromApi(await apiService.get(`${CONFIG.ENDPOINTS.clients}/${clientId}`));
         }
         
         await this.delay(300);
@@ -106,8 +125,23 @@ class ClientService {
      * @returns {Promise<Object>} Updated client
      */
     async updateProfile(updates) {
-        // In production: return await apiService.patch(`/clients/${clientId}`, updates);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const payload = {};
+            const nome = updates.name ?? updates.nome;
+            const telefone = updates.phone ?? updates.telefone;
+            if (nome != null) payload.nome = nome;
+            if (telefone != null) payload.telefone = telefone;
+            if (updates.careNeeds?.description != null) {
+                payload.observacoesCuidado = updates.careNeeds.description;
+            }
+            if (updates.address?.latitude != null) payload.latitude = updates.address.latitude;
+            if (updates.address?.longitude != null) payload.longitude = updates.address.longitude;
+            const res = await apiService.patch(`${CONFIG.ENDPOINTS.clients}/me`, payload);
+            const mapped = this.mapClientFromApi(res);
+            authService.updateCurrentUser(mapped);
+            return mapped;
+        }
+
         await this.delay(500);
         
         const currentUser = authService.getCurrentUser();
@@ -275,9 +309,12 @@ class ClientService {
      */
     async getContracts(status = null) {
         if (!CONFIG.API.MOCK_MODE) {
-            const params = {};
-            if (status) params.status = status;
-            return await apiService.get(CONFIG.ENDPOINTS.contracts, params);
+            const list = await apiService.get(CONFIG.ENDPOINTS.contracts);
+            const svc = window.caregiverService;
+            const mapped = (list || []).map(c => svc ? svc.mapContractFromApi(c) : c);
+            if (!status) return mapped;
+            const alvo = CONFIG.toV2ContractStatus(status);
+            return mapped.filter(c => String(c.status).toLowerCase() === alvo);
         }
         
         await this.delay(400);
@@ -308,7 +345,9 @@ class ClientService {
      */
     async getPayments() {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.get(CONFIG.ENDPOINTS.payments);
+            const list = await apiService.get(CONFIG.ENDPOINTS.payments);
+            const svc = window.paymentService;
+            return (list || []).map(p => svc ? svc.mapPaymentFromApi(p) : p);
         }
         
         await this.delay(400);
@@ -331,7 +370,16 @@ class ClientService {
         if (!CONFIG.API.MOCK_MODE) {
             const params = {};
             if (unreadOnly) params.unreadOnly = true;
-            return await apiService.get(CONFIG.ENDPOINTS.notifications, params);
+            const list = await apiService.get(CONFIG.ENDPOINTS.notifications, params);
+            return (list || []).map(n => ({
+                ...n,
+                userId: n.destinatarioId ?? n.userId,
+                title: n.titulo ?? n.title,
+                message: n.corpo ?? n.message,
+                read: n.lida ?? n.read ?? false,
+                readAt: n.lidaEm ?? n.readAt,
+                createdAt: n.enviadoEm ?? n.createdAt
+            }));
         }
         
         await this.delay(300);
@@ -359,8 +407,20 @@ class ClientService {
      * @returns {Promise<Object>} Updated notification
      */
     async markNotificationRead(notificationId) {
-        // In production: return await apiService.patch(`/notifications/${notificationId}`, { read: true });
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            const res = await apiService.patch(
+                `${CONFIG.ENDPOINTS.notifications}/${notificationId}`, { lida: true });
+            return {
+                ...res,
+                userId: res.destinatarioId ?? res.userId,
+                title: res.titulo ?? res.title,
+                message: res.corpo ?? res.message,
+                read: res.lida ?? true,
+                readAt: res.lidaEm ?? res.readAt,
+                createdAt: res.enviadoEm ?? res.createdAt
+            };
+        }
+
         await this.delay(200);
         
         const notifications = this.getMockNotifications();
@@ -382,8 +442,18 @@ class ClientService {
      * @returns {Promise<Array>} Matching caregivers
      */
     async searchCaregivers(filters = {}) {
-        // In production: return await apiService.get("/caregivers/search", filters);
-        
+        if (!CONFIG.API.MOCK_MODE) {
+            // Busca pública vive em /busca/profissionais (BuscaController).
+            if (window.caregiverService) return caregiverService.searchCaregivers(filters);
+
+            const params = {};
+            if (filters.name || filters.search) params.nome = filters.name || filters.search;
+            if (filters.maxPrice != null) params.precoMax = filters.maxPrice;
+            if (filters.minRating != null) params.notaMinima = filters.minRating;
+            const lista = await apiService.get(CONFIG.ENDPOINTS.caregiversSearch, params);
+            return lista || [];
+        }
+
         await this.delay(500);
         
         let caregivers = this.getMockCaregivers()

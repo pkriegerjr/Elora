@@ -28,16 +28,32 @@ class MapsService {
      * @returns {Promise<google.maps.Map>} Map instance
      */
     async loadGoogleMapsScript(){
-        // Sem chave configurada (placeholder), usa o modo de simulação e não
-        // chama /config/maps-key — esse endpoint ainda não existe no backend.
-        if(!CONFIG.GOOGLE_MAPS.apiKey || CONFIG.GOOGLE_MAPS.apiKey.startsWith("YOUR")){
+        if(document.querySelector('script[data-elora-maps]')) return;
+
+        // A chave vem do backend (GET /config/maps-key -> {apiKey, configured}).
+        // Sem chave configurada, mantém o mapa simulado.
+        if (this.apiKeyPromise === undefined) {
+            this.apiKeyPromise = (async () => {
+                try {
+                    const cfg = await apiService.get(CONFIG.ENDPOINTS.mapsKey);
+                    if (cfg && cfg.configured && cfg.apiKey) return cfg.apiKey;
+                } catch (e) {
+                    // Sem sessão/backend: cai para a chave estática (se houver).
+                    console.warn("Não foi possível obter a chave do Google Maps:", e.message);
+                }
+                return CONFIG.GOOGLE_MAPS.apiKey || '';
+            })();
+        }
+        const apiKey = await this.apiKeyPromise;
+
+        if(!apiKey || String(apiKey).startsWith("YOUR")){
             return;
         }
-        if(document.querySelector('script[data-elora-maps]')) return;
+
         await new Promise((resolve,reject)=>{
             const s=document.createElement('script');
             s.dataset.eloraMaps="true";
-            s.src=`https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS.apiKey}&libraries=${CONFIG.GOOGLE_MAPS.libraries.join(',')}`;
+            s.src=`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=${CONFIG.GOOGLE_MAPS.libraries.join(',')}`;
             s.async=true; s.defer=true;
             s.onload=resolve; s.onerror=reject;
             document.head.appendChild(s);

@@ -2,6 +2,7 @@ package com.elora.module.usuario.controller;
 
 import com.elora.common.dto.ApiResponse;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
+import com.elora.module.usuario.dto.ClienteUpdateRequest;
 import com.elora.module.usuario.dto.UsuarioResponse;
 import com.elora.module.usuario.service.UsuarioService;
 import com.elora.security.SecurityUtils;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,5 +33,12 @@ public class ClienteController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UsuarioResponse>> get(@PathVariable Integer id, Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.ok(usuarioService.findForViewer(SecurityUtils.currentUserId(authentication), id)));
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<ApiResponse<UsuarioResponse>> atualizarMe(
+            @Valid @RequestBody ClienteUpdateRequest request, Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok("Perfil atualizado com sucesso",
+                usuarioService.atualizarCliente(SecurityUtils.currentUserId(authentication), request)));
     }
 }

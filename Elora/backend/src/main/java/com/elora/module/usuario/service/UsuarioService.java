@@ -5,6 +5,7 @@ import com.elora.common.exception.ForbiddenException;
 import com.elora.common.exception.ResourceNotFoundException;
 import com.elora.common.util.DocumentUtils;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
+import com.elora.module.usuario.dto.ClienteUpdateRequest;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
 import com.elora.module.usuario.dto.UsuarioResponse;
 import com.elora.module.usuario.entity.ContratanteDetalhes;
@@ -89,6 +90,43 @@ public class UsuarioService {
         detalhes.setNotaMedia(new BigDecimal("0.00"));
         profissionalDetalhes.save(detalhes);
 
+        return toResponse(usuario);
+    }
+
+    /** Atualiza o próprio perfil de contratante (campos nulos = não mexer). */
+    @Transactional
+    public UsuarioResponse atualizarCliente(Integer viewerId, ClienteUpdateRequest req) {
+        Usuario usuario = getVisivel(viewerId);
+        if (!perfisDe(viewerId).contains("cliente")) {
+            throw new ForbiddenException("Este usuário não possui perfil de cliente");
+        }
+        if (req.getNome() != null) {
+            if (req.getNome().isBlank()) {
+                throw new BusinessException("Nome não pode ser vazio");
+            }
+            usuario.setNome(req.getNome().trim());
+        }
+        if (req.getTelefone() != null) {
+            usuario.setTelefone(req.getTelefone().isBlank() ? null : req.getTelefone().trim());
+        }
+        if (req.getLatitude() != null) {
+            usuario.setLatitude(BigDecimal.valueOf(req.getLatitude()));
+        }
+        if (req.getLongitude() != null) {
+            usuario.setLongitude(BigDecimal.valueOf(req.getLongitude()));
+        }
+        usuarios.save(usuario);
+
+        if (req.getObservacoesCuidado() != null) {
+            ContratanteDetalhes detalhes = contratanteDetalhes.findById(viewerId)
+                    .orElseGet(() -> {
+                        ContratanteDetalhes novo = new ContratanteDetalhes();
+                        novo.setUsuario(usuario);
+                        return novo;
+                    });
+            detalhes.setObservacoesCuidado(req.getObservacoesCuidado());
+            contratanteDetalhes.save(detalhes);
+        }
         return toResponse(usuario);
     }
 

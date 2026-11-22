@@ -41,6 +41,18 @@ public class JuridicoController {
         return ResponseEntity.ok(ApiResponse.ok("Rescisão solicitada", service.solicitar(r)));
     }
 
+    @GetMapping("/analises")
+    @PreAuthorize("hasAnyRole('ADMIN','JURIDICO')")
+    public ResponseEntity<ApiResponse<java.util.List<AnaliseJuridica>>> listarAnalises() {
+        return ResponseEntity.ok(ApiResponse.ok(service.listarAnalises()));
+    }
+
+    @GetMapping("/rescisoes")
+    @PreAuthorize("hasAnyRole('ADMIN','JURIDICO')")
+    public ResponseEntity<ApiResponse<java.util.List<ProcessoRescisao>>> listarRescisoes() {
+        return ResponseEntity.ok(ApiResponse.ok(service.listarRescisoes()));
+    }
+
     @GetMapping("/painel")
     @PreAuthorize("hasAnyRole('ADMIN','JURIDICO')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> painel() {

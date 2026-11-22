@@ -21,6 +21,11 @@ import lombok.NoArgsConstructor;
 public class AnaliseJuridica {
     private Integer idAnalise;
     private Integer contratoId;
+    private Integer denunciadoId;
+    private Integer denuncianteId;
+    private String motivo;
+    private String descricao;
     private String parecer;
     private String statusAnalise = "pendente";
+    private java.time.LocalDateTime criadoEm = java.time.LocalDateTime.now();
 }
