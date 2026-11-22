@@ -145,7 +145,8 @@ public class AuthService {
     }
 
     private void enviarEmailDeRedefinicao(Usuario usuario, String token) {
-        String link = webappBaseUrl + "/reset-password?token=" + token;
+        // Página estática real do front (frontend-web/src/pages/auth/reset-password.html).
+        String link = webappBaseUrl + "/src/pages/auth/reset-password.html?token=" + token;
         String corpo = """
                 Olá, %s!
 

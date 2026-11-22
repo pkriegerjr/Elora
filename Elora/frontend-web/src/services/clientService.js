@@ -198,7 +198,10 @@ class ClientService {
      */
     async addFavorite(caregiverId) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.post(CONFIG.ENDPOINTS.busca + "/favoritos", { profissionalId: caregiverId });
+            // BuscaController: POST /busca/favoritos { profissionalId: Integer }
+            return await apiService.post(`${CONFIG.ENDPOINTS.busca}/favoritos`, {
+                profissionalId: Number(caregiverId)
+            });
         }
         
         await this.delay(300);
@@ -275,7 +278,10 @@ class ClientService {
      */
     async getFavorites() {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.get(CONFIG.ENDPOINTS.busca + "/favoritos");
+            // BuscaController: GET /busca/favoritos -> List<ProfissionalResponse>
+            const lista = await apiService.get(`${CONFIG.ENDPOINTS.busca}/favoritos`);
+            const svc = window.caregiverService;
+            return (lista || []).map(c => svc ? svc.mapCaregiverFromApi(c) : c);
         }
         
         await this.delay(300);

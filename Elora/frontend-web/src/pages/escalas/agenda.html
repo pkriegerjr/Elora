@@ -23,7 +23,7 @@
     <div class="col-lg-8">
       <div class="card-elora p-3">
         <h5>Grade semanal</h5>
-        <p class="small text-muted mb-2"><span class="badge bg-success">Disponível</span> <span class="badge bg-secondary">Fora da disponibilidade</span> <span class="badge bg-warning text-dark">Com contrato</span></p>
+        <p class="small text-muted mb-2"><span class="badge bg-success">Disponível</span> <span class="badge bg-secondary">Fora da disponibilidade</span> <span class="badge bg-warning text-dark">Com contrato</span> <span class="badge bg-primary">Executado</span> <span class="badge bg-danger">Falta</span></p>
         <div class="table-responsive"><table class="table table-bordered align-middle text-center"><caption class="sr-only">Agenda semanal por período</caption><thead><tr><th scope="col">Dia</th><th scope="col">Matutino</th><th scope="col">Vespertino</th><th scope="col">Noturno</th></tr></thead><tbody id="gradeBody"><tr><td colspan="4" class="text-muted small">Carregando...</td></tr></tbody></table></div>
         <div id="conflitos" class="mt-2"></div>
       </div>
@@ -42,7 +42,7 @@
           <div class="col-12"><label class="small" for="dispKm">Distância máxima (km)</label><input type="number" class="form-control" id="dispKm" min="1" max="100" value="15"></div>
           <div class="col-12 d-grid"><button class="btn btn-elora-primary" type="submit">Salvar disponibilidade</button></div>
         </form>
-        <p class="small text-muted mt-2 mb-0">PUT /caregivers/me/disponibilidade (mock local até backend online).</p>
+        <p class="small text-muted mt-2 mb-0">PUT /caregivers/me/disponibilidade — grava as datas das próximas 4 semanas nos períodos do horário escolhido.</p>
       </div>
     </div>
   </div>
@@ -74,9 +74,24 @@
       document.getElementById('gradeBody').innerHTML = [1,2,3,4,5,6,0].map(dia=>{
         const tds = escalaService.periodos().map(p=>{
           const c = g[dia][p];
-          const cls = c.contratos.length ? 'bg-warning' : (c.disponivel ? 'bg-success text-white' : 'bg-light text-muted');
-          const txt = c.contratos.length ? escapeHtml(c.contratos.map(x=>x.cliente||x.id).join(', ')) : (c.disponivel ? 'Livre' : '—');
-          return `<td class="${cls} small">${txt}</td>`;
+          const esc = c.escalas || [];
+          let cls, txt;
+          if (esc.length) {
+            const st = esc.map(e=>String(e.status||'').toLowerCase());
+            if (st.includes('faltou')) { cls='bg-danger text-white'; }
+            else if (st.includes('cancelada')) { cls='bg-secondary text-white'; }
+            else if (st.includes('executada')) { cls='bg-primary text-white'; }
+            else { cls='bg-warning text-dark'; }
+            txt = esc.map(e=>escalaService.statusLabel(e.status)).join(', ');
+          } else if (c.contratos.length) {
+            cls='bg-warning text-dark';
+            txt = c.contratos.map(x=>x.cliente||x.id).join(', ');
+          } else if (c.disponivel) {
+            cls='bg-success text-white'; txt='Livre';
+          } else {
+            cls='bg-light text-muted'; txt='—';
+          }
+          return `<td class="${cls} small">${escapeHtml(txt)}</td>`;
         }).join('');
         return `<tr><th scope="row">${DIAS[dia]}</th>${tds}</tr>`;
       }).join('');

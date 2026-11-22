@@ -41,7 +41,22 @@ class ConhecimentoService {
         }
         return await apiService.post(`${CONFIG.ENDPOINTS.conhecimento}/artigos`, { titulo, resumo, corpo, categoria });
     }
-    faq() {
+    async faq() {
+        if (CONFIG.API.MOCK_MODE) return this.faqBase();
+        try {
+            // GET /conhecimento/faq -> List<FaqResponseDTO>{pergunta, resposta, categoria}
+            const lista = await apiService.get(`${CONFIG.ENDPOINTS.conhecimento}/faq`);
+            const mapped = (lista || [])
+                .map(f => ({ q: f.pergunta, a: f.resposta, categoria: f.categoria || null }))
+                .filter(f => f.q && f.a);
+            return mapped.length ? mapped : this.faqBase();
+        } catch (e) {
+            // FAQ é público; sem sessão o backend responde 401. Mantém o fallback local.
+            console.warn('Não foi possível carregar o FAQ da API:', e.message);
+            return this.faqBase();
+        }
+    }
+    faqBase() {
         return [
             { q: 'Como contrato um cuidador?', a: 'Busque por especialidade e distância, abra o perfil, clique em Contratar, preencha datas/horários e assine digitalmente.' },
             { q: 'O pagamento é seguro?', a: 'Sim. PIX, cartão ou boleto com comprovante. O repasse ao cuidador é registrado por contrato.' },

@@ -351,7 +351,8 @@ class AuthService {
      */
     async requestPasswordReset(identifier, userType) {
         if (!CONFIG.API.MOCK_MODE) {
-            return await apiService.post("/auth/password/reset", { identifier, userType });
+            // PasswordResetRequest aceita apenas identifier (e-mail ou CPF).
+            return await apiService.post("/auth/password/reset", { identifier });
         }
         await this.delay(1000);
         
@@ -379,6 +380,23 @@ class AuthService {
         
         // In production, send email with reset link
         console.log("Password reset email would be sent to:", user.email);
+    }
+
+    /**
+     * Confirma a redefinição com o token recebido por e-mail.
+     * POST /auth/password/confirm { token, novaSenha }
+     * @param {string} token - Token opaco do link (?token=...)
+     * @param {string} newPassword - Nova senha (regra do backend: 8+, maiúscula, minúscula, número e especial)
+     * @returns {Promise<void>}
+     */
+    async confirmPasswordReset(token, newPassword) {
+        if (!token) throw new Error("Token de redefinição ausente");
+        if (!CONFIG.API.MOCK_MODE) {
+            return await apiService.post("/auth/password/confirm", { token, novaSenha: newPassword });
+        }
+        // Mock: não há token real; apenas simula sucesso.
+        await this.delay(800);
+        if (!newPassword || newPassword.length < 8) throw new Error("Senha deve ter ao menos 8 caracteres");
     }
 
     /**

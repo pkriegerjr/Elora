@@ -597,7 +597,7 @@ class CaregiverService {
             const linhas = [];
             for (const c of ativos) {
                 try {
-                    const escalas = await apiService.get('/escalas', { contratoId: c.id });
+                    const escalas = await apiService.get(CONFIG.ENDPOINTS.escalas, { contratoId: c.id });
                     (escalas || []).forEach(e => linhas.push({
                         id: e.id,
                         contractId: c.id,

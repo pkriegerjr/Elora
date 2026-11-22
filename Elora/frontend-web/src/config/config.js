@@ -177,10 +177,13 @@ const CONFIG = {
         },
         clients: "/clients",
         caregivers: "/caregivers",
-        // P0: alinhado ao BuscaController (@RequestMapping /busca + @GetMapping /profissionais)
+        // P0: alinhado ao BuscaController (@RequestMapping /busca)
+        busca: "/busca",
         caregiversSearch: "/busca/profissionais",
         // P0: alinhado ao ContratoController (@RequestMapping /contratos)
         contracts: "/contratos",
+        // EscalaController: GET /escalas?contratoId&inicio&fim, POST /escalas/gerar, PATCH /escalas/{id}
+        escalas: "/escalas",
         // PagamentoController (/payments): POST, GET, GET /{id}, POST /{id}/pagar,
         // GET /{id}/status, PATCH /{id}/cancel, POST /{id}/pix/qrcode, POST /{id}/boleto, /repasses
         payments: "/payments",

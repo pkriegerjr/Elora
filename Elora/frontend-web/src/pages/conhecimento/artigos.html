@@ -14,7 +14,7 @@
 <nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="#" data-action="dashboard" class="btn btn-elora-outline btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a></div></nav>
 <div class="container py-4" id="main">
   <h4>Ajuda e base de conhecimento</h4>
-  <p class="small text-muted">GET /conhecimento/artigos (mock local até backend online).</p>
+  <p class="small text-muted">Conteúdo via GET /conhecimento/artigos e /conhecimento/faq (fallback local sem conexão).</p>
   <div class="row g-4">
     <div class="col-lg-8">
       <div class="card-elora p-3 mb-3">
@@ -57,17 +57,26 @@
 <script>
   let artigos = [];
   async function load(){
+    // Artigos e FAQ são independentes: uma falha não deve esconder o outro bloco.
     try{
       artigos = await conhecimentoService.listar();
       const cats = [...new Set(artigos.map(a=>a.categoria).filter(Boolean))];
       document.getElementById('filterCat').innerHTML = '<option value="">Todas categorias</option>' + cats.map(c=>`<option>${escapeHtml(c)}</option>`).join('');
-      document.getElementById('faqAcc').innerHTML = conhecimentoService.faq().map((f,i)=>`
+    }catch(err){
+      artigos = [];
+      notificationService.showError(err.message);
+    }
+    try{
+      const faqs = await conhecimentoService.faq();
+      document.getElementById('faqAcc').innerHTML = faqs.map((f,i)=>`
         <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#faq${i}">${escapeHtml(f.q)}</button></h2>
         <div id="faq${i}" class="accordion-collapse collapse" data-bs-parent="#faqAcc"><div class="accordion-body small">${escapeHtml(f.a)}</div></div></div>`).join('');
+    }catch(err){ notificationService.showError(err.message); }
+    try{
       const id = new URLSearchParams(window.location.search).get('id');
       if(id){ await abrir(id); }
-      render();
     }catch(err){ notificationService.showError(err.message); }
+    render();
   }
   function render(){
     const q = (document.getElementById('search').value||'').toLowerCase();
