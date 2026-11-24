@@ -17,6 +17,7 @@ import com.elora.module.usuario.dto.ClienteRegisterRequest;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
 import com.elora.module.usuario.entity.Perfil;
 import com.elora.module.usuario.entity.Usuario;
+import com.elora.module.usuario.enums.StatusVerificacao;
 import com.elora.module.usuario.repository.PerfilRepository;
 import com.elora.module.usuario.repository.ProfissionalDetalhesRepository;
 import com.elora.module.usuario.repository.UsuarioRepository;
@@ -108,6 +109,21 @@ class BuscaFlowTest {
         assertEquals(p3, r.get(0).getId());
         assertEquals(p1, r.get(1).getId());
         assertEquals(p2, r.get(2).getId());
+    }
+
+    @Test
+    void buscaNaoListaCadastroPendente() {
+        // Cuidador recém-cadastrado fica "pendente" por padrão e não aparece na vitrine.
+        Integer pendente = cuidador("pendente@t.com", "159357456", new BigDecimal("20.00"), new BigDecimal("4.00"));
+        var detalhes = detalhesRepository.findByUsuarioId(pendente).orElseThrow();
+        detalhes.setStatusVerificacao(StatusVerificacao.pendente);
+        detalhesRepository.save(detalhes);
+
+        List<ProfissionalResponse> r =
+                buscaService.buscar(null, null, null, null, null, null, null, "nota", "DESC", 20);
+
+        assertEquals(3, r.size());
+        assertTrue(r.stream().noneMatch(p -> p.getId().equals(pendente)));
     }
 
     @Test
@@ -238,6 +254,8 @@ class BuscaFlowTest {
         Integer id = usuarioService.registerCuidador(req).getId();
         var detalhes = detalhesRepository.findByUsuarioId(id).orElseThrow();
         detalhes.setNotaMedia(nota);
+        // A vitrine pública só lista cadastro aprovado.
+        detalhes.setStatusVerificacao(StatusVerificacao.aprovado);
         detalhesRepository.save(detalhes);
         return id;
     }

@@ -132,11 +132,14 @@ class ApiService {
             });
             const data=await res.json();
             if(!res.ok) throw new Error(data.message||"Falha ao renovar token");
-            this.setAuthToken(data.accessToken);
-            if(data.refreshToken) this.setRefreshToken(data.refreshToken);
-            this.failedQueue.forEach(p=>p.resolve(data.accessToken));
+            // Backend envolve a resposta em ApiResponse: { success, data: {...} }
+            const payload=data && data.data ? data.data : data;
+            if(!payload || !payload.accessToken) throw new Error("Resposta de refresh inválida");
+            this.setAuthToken(payload.accessToken);
+            if(payload.refreshToken) this.setRefreshToken(payload.refreshToken);
+            this.failedQueue.forEach(p=>p.resolve(payload.accessToken));
             this.failedQueue=[];
-            return data.accessToken;
+            return payload.accessToken;
         } catch(e){
             this.failedQueue.forEach(p=>p.reject(e));
             this.failedQueue=[];

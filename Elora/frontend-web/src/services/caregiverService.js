@@ -698,6 +698,22 @@ class CaregiverService {
      * @param {Object} filters - Search filters
      * @returns {Promise<Array>} Matching caregivers
      */
+    /**
+     * Catálogo de especialidades (tags) para os filtros de busca.
+     * API: GET /busca/especialidades -> [{ id, nome }]
+     * Mock: derivado dos cuidadores de demonstração.
+     * @returns {Promise<Array<{id:number|string,nome:string}>>}
+     */
+    async getEspecialidades() {
+        if (!CONFIG.API.MOCK_MODE) {
+            const lista = await apiService.get(`${CONFIG.ENDPOINTS.busca}/especialidades`);
+            return (lista || []).map(e => ({ id: e.id, nome: e.nome }));
+        }
+        const nomes = new Set();
+        this.getMockCaregivers().forEach(c => (c.specialties || []).forEach(s => nomes.add(s)));
+        return [...nomes].sort((a, b) => a.localeCompare(b)).map(nome => ({ id: nome, nome }));
+    }
+
     async searchCaregivers(filters = {}) {
         if (!CONFIG.API.MOCK_MODE) {
             const params = {};
@@ -705,6 +721,7 @@ class CaregiverService {
             if (nome) params.nome = nome;
             if (filters.maxPrice != null) params.precoMax = filters.maxPrice;
             if (filters.minRating != null) params.notaMinima = filters.minRating;
+            if (filters.especialidadeId != null) params.especialidadeId = filters.especialidadeId;
             if (filters.periodo) params.periodo = filters.periodo;
             if (filters.orderBy) params.ordenarPor = filters.orderBy;
             if (filters.limit) params.limit = filters.limit;

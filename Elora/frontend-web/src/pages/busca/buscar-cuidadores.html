@@ -22,7 +22,7 @@
     <div class="col-lg-3">
       <div class="filter-sidebar">
         <h5 class="fw-bold">Filtros</h5>
-        <div class="mb-3"><label for="fSpecialty" class="form-label small fw-semibold">Especialidade</label><select id="fSpecialty" class="form-select form-select-sm"><option value="">Todas</option><option value="idoso">Idoso</option><option value="alzheimer">Alzheimer</option><option value="parkinson">Parkinson</option><option value="mobilidade_reduzida">Mobilidade reduzida</option><option value="pos_operatorio">Pós-operatório</option><option value="medicacao">Medicação</option></select></div>
+        <div class="mb-3"><label for="fSpecialty" class="form-label small fw-semibold">Especialidade</label><select id="fSpecialty" class="form-select form-select-sm"><option value="">Todas</option></select></div>
         <div class="mb-3"><label for="fRating" class="form-label small fw-semibold">Avaliação mínima</label><select id="fRating" class="form-select form-select-sm"><option value="">Qualquer</option><option value="4.5">4.5+</option><option value="4.0">4.0+</option></select></div>
         <div class="mb-3"><label class="form-label small fw-semibold">Preço máx/h <span class="range-value" id="priceVal">R$ 200</span></label><input type="range" id="fPrice" class="form-range" min="20" max="200" value="200" aria-label="Preço máximo por hora"></div>
         <div class="mb-3"><label class="form-label small fw-semibold">Raio <span class="range-value" id="radiusVal">10 km</span></label><input type="range" id="fRadius" class="form-range" min="1" max="50" value="10" aria-label="Raio de busca em km"></div>
@@ -55,15 +55,37 @@
 <script src="../../services/app.js"></script>
 <script>
   const qs = new URLSearchParams(window.location.search);
+
+  // Catálogo vem do backend (GET /busca/especialidades) — nada de slugs fixos.
+  async function loadEspecialidades(){
+    const sel=document.getElementById('fSpecialty');
+    try{
+      const lista=await caregiverService.getEspecialidades();
+      sel.innerHTML='<option value="">Todas</option>'+lista.map(e=>
+        `<option value="${escapeHtml(String(e.id))}" data-nome="${escapeHtml(e.nome)}">${escapeHtml(e.nome)}</option>`
+      ).join('');
+    }catch(err){
+      console.warn('Não foi possível carregar especialidades:', err.message);
+    }
+  }
+  const normTag = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'').toLowerCase();
   function syncFromQS(){
-    if(qs.get('specialty')) document.getElementById('fSpecialty').value=qs.get('specialty');
+    const esp=qs.get('specialty');
+    if(esp){
+      const sel=document.getElementById('fSpecialty');
+      const alvo=normTag(esp);
+      const opt=[...sel.options].find(o=>normTag(o.value)===alvo
+        || normTag(o.dataset.nome)===alvo
+        || normTag(o.dataset.nome).includes(alvo)
+        || alvo.includes(normTag(o.dataset.nome)));
+      if(opt) sel.value=opt.value;
+    }
     if(qs.get('minRating')) document.getElementById('fRating').value=qs.get('minRating');
     if(qs.get('radius')) document.getElementById('fRadius').value=qs.get('radius');
     if(qs.get('location')) document.getElementById('fLocation').value=qs.get('location');
     document.getElementById('radiusVal').textContent = document.getElementById('fRadius').value + ' km';
     document.getElementById('priceVal').textContent = 'R$ ' + document.getElementById('fPrice').value;
   }
-  syncFromQS();
   document.getElementById('fRadius').addEventListener('input', e=> document.getElementById('radiusVal').textContent=e.target.value+' km');
   document.getElementById('fPrice').addEventListener('input', e=> document.getElementById('priceVal').textContent='R$ '+e.target.value);
   document.getElementById('btnLoc').addEventListener('click', async()=>{
@@ -73,8 +95,14 @@
   document.getElementById('btnClear').addEventListener('click', ()=>{ document.getElementById('fSpecialty').value=''; document.getElementById('fRating').value=''; document.getElementById('fPrice').value=200; document.getElementById('fRadius').value=10; document.getElementById('fLocation').value=''; document.getElementById('fVerified').checked=false; doSearch(); });
 
   async function doSearch(){
+    const sel=document.getElementById('fSpecialty');
+    const opt=sel.selectedOptions[0];
+    const temEsp=opt && opt.value!=='';
+    // API filtra por especialidadeId; mock filtra pelo nome da tag.
+    const especialidadeId=temEsp && /^\d+$/.test(opt.value) ? Number(opt.value) : undefined;
     const filters={
-      specialty: document.getElementById('fSpecialty').value || undefined,
+      specialty: temEsp ? (opt.dataset.nome || opt.textContent) : undefined,
+      especialidadeId,
       minRating: parseFloat(document.getElementById('fRating').value) || undefined,
       maxPrice: parseInt(document.getElementById('fPrice').value) || undefined,
       distance: parseInt(document.getElementById('fRadius').value),
@@ -89,19 +117,9 @@
     document.getElementById('caregiverList').innerHTML='';
     document.getElementById('empty').classList.add('d-none');
     try{
-      // tenta apiService se MOCK_MODE=false (Page), senão mock
-      let caregivers=[];
-      if(!CONFIG.API.MOCK_MODE){
-        // P0: params alinhados ao BuscaController GET /busca/profissionais
-        // (precoMax, notaMinima, especialidadeId, limit). Resposta é List (sem Page).
-        const params={ limit:20 };
-        if(filters.maxPrice) params.precoMax=filters.maxPrice;
-        if(filters.minRating) params.notaMinima=filters.minRating;
-        const page = await apiService.get(CONFIG.ENDPOINTS.caregiversSearch, params);
-        caregivers = page.content || page;
-      } else {
-        caregivers = await caregiverService.searchCaregivers(filters);
-      }
+      // O service já mapeia o DTO do backend (nome→name, notaMedia→rating, ...)
+      // e também aplica os filtros de verificados/distância no cliente.
+      const caregivers = await caregiverService.searchCaregivers(filters);
       renderList(caregivers);
       // mapa
       await mapsService.initializeMap({ containerId:'map' });
@@ -123,7 +141,7 @@
               <div class="d-flex align-items-center gap-2"><strong>${escapeHtml(c.name)}</strong> ${c.verified?'<span class="verified small"><i class="bi bi-patch-check-fill"></i> Verificado</span>':''}</div>
               <div class="small text-muted">${escapeHtml((c.specialties||[]).slice(0,3).join(' • '))}</div>
               <div class="small"><span class="stars">${'★'.repeat(Math.floor(c.rating||0))}${'☆'.repeat(5-Math.floor(c.rating||0))}</span> ${(c.rating||0).toFixed(1)} (${c.reviewCount||0}) ${c.distance? '• '+c.distance+' km':''}</div>
-              <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>${escapeHtml(c.address?.neighborhood||c.address?.city||'')} • R$ ${Number(c.hourlyRate||0).toFixed(2)}/h</div>
+              <div class="small text-muted">${(c.address?.neighborhood||c.address?.city)?`<i class="bi bi-geo-alt me-1"></i>${escapeHtml(c.address.neighborhood||c.address.city)} • `:''}R$ ${Number(c.hourlyRate||0).toFixed(2)}/h</div>
             </div>
             <button class="btn btn-outline-primary btn-sm align-self-start fav-btn" data-id="${c.id}" title="Favoritar" aria-label="Favoritar cuidador"><i class="bi bi-heart"></i></button>
           </div>
@@ -140,7 +158,11 @@
       try{ await clientService.addFavorite(btn.dataset.id); notificationService.showSuccess('Adicionado aos favoritos!'); btn.innerHTML='<i class="bi bi-heart-fill text-danger"></i>'; }catch(err){ notificationService.showError(err.message); }
     }));
   }
-  document.addEventListener('DOMContentLoaded', doSearch);
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadEspecialidades();
+    syncFromQS();
+    doSearch();
+  });
 </script>
 </body>
 </html>

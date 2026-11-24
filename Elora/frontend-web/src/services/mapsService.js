@@ -32,6 +32,10 @@ class MapsService {
 
         // A chave vem do backend (GET /config/maps-key -> {apiKey, configured}).
         // Sem chave configurada, mantém o mapa simulado.
+        // Em página pública (sem sessão) nem chama a API: evita 401 desnecessário.
+        if (window.authService && !authService.isAuthenticated()) {
+            return CONFIG.GOOGLE_MAPS.apiKey || '';
+        }
         if (this.apiKeyPromise === undefined) {
             this.apiKeyPromise = (async () => {
                 try {

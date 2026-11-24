@@ -41,12 +41,23 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
                     res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    res.setContentType("application/json");
+                    res.setCharacterEncoding("UTF-8");
+                    res.setContentType("application/json;charset=UTF-8");
                     res.getWriter().write("{\"success\":false,\"message\":\"Não autenticado\"}");
                 }))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/clients", "/caregivers").permitAll()
+                        // Vitrine pública: home, busca e perfil do cuidador funcionam sem login.
+                        // Favoritos (GET /busca/favoritos) continuam autenticados.
+                        .requestMatchers(HttpMethod.GET,
+                                "/busca/profissionais", "/busca/profissionais/**",
+                                "/busca/especialidades").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/conhecimento/artigos", "/conhecimento/artigos/**",
+                                "/conhecimento/faq").permitAll()
+                        // Avaliações exibidas no perfil público do cuidador.
+                        .requestMatchers(HttpMethod.GET, "/avaliacoes/cuidador/**").permitAll()
                         // Webhook do gateway: chamado servidor-a-servidor, sem Bearer.
                         // A autenticidade é validada no service pelo header asaas-access-token.
                         .requestMatchers(HttpMethod.POST, "/payments/webhook").permitAll()
@@ -72,7 +83,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsSource() {
         CorsConfiguration c = new CorsConfiguration();
         // Front estático (npx serve / python http.server) + Spring no :8080
-        c.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        // e port forwarding do Codespaces (https://<nome>-<porta>.app.github.dev).
+        c.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://*.app.github.dev"));
         c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
         c.setAllowCredentials(true);

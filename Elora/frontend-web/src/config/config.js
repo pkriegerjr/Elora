@@ -18,6 +18,11 @@ const CONFIG = {
             const backendPort = "8080";
             if (protocol === "file:") return `http://localhost:${backendPort}/api`;
             if (port === backendPort) return "/api";
+            // Codespaces: https://<nome>-8000.app.github.dev -> https://<nome>-8080.app.github.dev/api
+            if (/\.app\.github\.dev$/i.test(hostname)) {
+                const backendHost = hostname.replace(/-\d+\.app\.github\.dev$/i, `-${backendPort}.app.github.dev`);
+                return `https://${backendHost}/api`;
+            }
             return `${protocol}//${hostname}:${backendPort}/api`;
         })(),
         version: "v1",

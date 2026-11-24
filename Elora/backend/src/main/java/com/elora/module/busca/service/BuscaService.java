@@ -20,6 +20,7 @@ import com.elora.module.busca.repository.FavoritoRepository;
 import com.elora.module.busca.repository.UsuarioEspecialidadeRepository;
 import com.elora.module.usuario.entity.ProfissionalDetalhes;
 import com.elora.module.usuario.entity.Usuario;
+import com.elora.module.usuario.enums.StatusVerificacao;
 import com.elora.module.usuario.repository.ProfissionalDetalhesRepository;
 import com.elora.module.usuario.repository.UsuarioRepository;
 import com.elora.module.usuario.service.UsuarioService;
@@ -88,6 +89,8 @@ public class BuscaService {
                 .map(d -> usuarios.findById(d.getUsuarioId()).orElse(null))
                 .filter(u -> u != null && u.getDeletedAt() == null)
                 .filter(u -> usuarioService.perfisDe(u.getId()).contains(PERFIL_PROFISSIONAL))
+                // Vitrine: só profissionais com cadastro aprovado aparecem na busca pública.
+                .filter(u -> this.estaAprovado(u.getId()))
                 .filter(u -> passaNoNome(u, nome))
                 .filter(u -> passaNoPreco(u, precoMin, precoMax))
                 .filter(u -> passaNaNota(u, notaMinima))
@@ -184,6 +187,13 @@ public class BuscaService {
                 .findByDataAndPeriodoAndStatus(data, periodo, StatusDisponibilidade.disponivel)
                 .stream().map(d -> d.getUsuario().getId())
                 .collect(Collectors.toSet());
+    }
+
+    /** Vitrine pública: apenas cadastro aprovado (pendente/em_analise/rejeitado/correcao ficam fora). */
+    private boolean estaAprovado(Integer usuarioId) {
+        return profissionalDetalhes.findByUsuarioId(usuarioId)
+                .map(ProfissionalDetalhes::getStatusVerificacao)
+                .orElse(null) == StatusVerificacao.aprovado;
     }
 
     private boolean passaNoNome(Usuario u, String nome) {
