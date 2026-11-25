@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # =====================================================================
-# ELORA — sobe backend (Spring Boot :8080/api) + front estático (:8000)
+# ELORA — sobe backend (Spring Boot :8080/api) + front (:8000 com proxy /api)
+#
+# O front é servido por scripts/dev_proxy.py: a página e a API ficam na mesma
+# origem (http://localhost:8000), então o navegador só precisa dessa porta.
 #
 # Uso:
 #   ./scripts/dev.sh                 # backend + front
@@ -32,7 +35,10 @@ FRONT_PID=""
 
 usage() {
   cat <<'EOF'
-ELORA — sobe backend (Spring Boot :8080/api) + front estático (:8000)
+ELORA — sobe backend (Spring Boot :8080/api) + front (:8000 com proxy /api)
+
+O front é servido por scripts/dev_proxy.py na porta 8000 e encaminha /api
+para o backend. Acesse apenas http://localhost:8000 (não precisa da 8080).
 
 Uso:
   ./scripts/dev.sh                 # backend + front
@@ -78,7 +84,9 @@ backend_healthy() {
 }
 
 front_serving() {
-  curl -sf --max-time 2 -o /dev/null "http://localhost:${FRONT_PORT}/index.html"
+  # Exige o proxy (dev_proxy.py), não qualquer servidor estático na porta.
+  curl -sfI --max-time 2 "http://localhost:${FRONT_PORT}/index.html" 2>/dev/null \
+    | grep -qi "^x-elora-proxy: dev"
 }
 
 kill_pids() { # mata os PIDs informados, esperando um pouco
@@ -115,6 +123,9 @@ stop_ports() {
 
 cleanup() {
   trap - EXIT INT TERM
+  if [ "$STARTED_BACK" -eq 0 ] && [ "$STARTED_FRONT" -eq 0 ]; then
+    return 0
+  fi
   echo
   echo "Encerrando..."
   if [ "$STARTED_BACK" -eq 1 ]; then
@@ -145,7 +156,7 @@ if [ "$MODE" != "front" ]; then
     exit 1
   fi
 
-  BUSY="$(port_pids "$BACKEND_PORT" | tr '\n' ' ')"
+  BUSY="$(port_pids "$BACKEND_PORT" | tr '\n' ' ' | sed 's/ *$//')"
   if [ -n "${BUSY// /}" ]; then
     if backend_healthy; then
       echo "✔ Backend Elora já está no ar em ${API} (PID ${BUSY}) — reaproveitando."
@@ -162,7 +173,7 @@ if [ "$MODE" != "front" ]; then
 fi
 
 if [ "$MODE" != "backend" ]; then
-  BUSY="$(port_pids "$FRONT_PORT" | tr '\n' ' ')"
+  BUSY="$(port_pids "$FRONT_PORT" | tr '\n' ' ' | sed 's/ *$//')"
   if [ -n "${BUSY// /}" ]; then
     if front_serving; then
       echo "✔ Front já está no ar em http://localhost:${FRONT_PORT} (PID ${BUSY}) — reaproveitando."
@@ -210,8 +221,12 @@ if [ "$MODE" = "both" ] || [ "$MODE" = "front" ]; then
   echo "▶ Front    → http://localhost:${FRONT_PORT}"
   echo "  log: ${FRONT_LOG}"
   if command -v python3 >/dev/null 2>&1; then
-    ( cd "$FRONT" && exec python3 -m http.server "$FRONT_PORT" --bind 0.0.0.0 ) >"$FRONT_LOG" 2>&1 &
+    ( exec python3 "$ROOT/scripts/dev_proxy.py" \
+        --port "$FRONT_PORT" --bind 0.0.0.0 \
+        --root "$FRONT" --backend-port "$BACKEND_PORT" ) >"$FRONT_LOG" 2>&1 &
   else
+    echo "  ⚠ python3 não encontrado: servindo estático sem proxy."
+    echo "    O front precisará falar direto com http://localhost:${BACKEND_PORT}/api."
     ( cd "$FRONT" && exec npx --yes serve -l "$FRONT_PORT" . ) >"$FRONT_LOG" 2>&1 &
   fi
   FRONT_PID=$!
@@ -221,6 +236,12 @@ if [ "$MODE" = "both" ] || [ "$MODE" = "front" ]; then
     front_serving && break
     sleep 1
   done
+  if ! front_serving; then
+    echo "  ✖ O front não respondeu como proxy. Últimas linhas de ${FRONT_LOG}:"
+    tail -n 20 "$FRONT_LOG" | sed 's/^/  /'
+    exit 1
+  fi
+  echo "  ✔ front pronto (proxy /api → ${API})."
 fi
 
 # ---------------------------------------------------------------- resumo
@@ -230,6 +251,15 @@ if [ "$MODE" = "none" ]; then
   exit 0
 fi
 
+echo
+echo "Front (e API via proxy): http://localhost:${FRONT_PORT}"
+echo "API direta (opcional, para Swagger): ${API}"
+if [ -n "${CODESPACE_NAME:-}" ] && [ -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]; then
+  echo
+  echo "Codespaces — abra o front pela URL encaminhada:"
+  echo "  https://${CODESPACE_NAME}-${FRONT_PORT}.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+  echo "  A API vai pela mesma origem (/api); a porta ${BACKEND_PORT} pode ficar privada."
+fi
 echo
 echo "Logins demo (senha Senha@123):"
 echo "  admin@elora.local | juridico@elora.local | cliente.demo@elora.local | ana.souza@elora.local"

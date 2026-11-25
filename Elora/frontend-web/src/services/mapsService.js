@@ -80,10 +80,31 @@ class MapsService {
                 scrollWheelZoom: false
             });
 
-            L.tileLayer(CONFIG.MAPS.tileUrl, {
+            const tiles = L.tileLayer(CONFIG.MAPS.tileUrl, {
                 maxZoom: 19,
                 attribution: CONFIG.MAPS.attribution
-            }).addTo(this.map);
+            });
+
+            // Diagnóstico: avisa no console quando um tile do OpenStreetMap falha
+            // (rede, extensão ou política do provedor). Não altera o comportamento.
+            let tileErrors = 0;
+            tiles.on("tileerror", (event) => {
+                tileErrors += 1;
+                const failedUrl = (event && event.tile && event.tile.src) || "(URL desconhecida)";
+                if (tileErrors <= 10) {
+                    console.warn(`[Elora] Falha ao carregar tile do mapa (${tileErrors}):`, failedUrl);
+                } else if (tileErrors === 11) {
+                    console.warn("[Elora] Mais falhas de tile — silenciando novos avisos.");
+                }
+                if (tileErrors === 5) {
+                    console.warn(
+                        "[Elora] Vários tiles falharam. Verifique bloqueio de rede/extensão para",
+                        CONFIG.MAPS.tileUrl
+                    );
+                }
+            });
+
+            tiles.addTo(this.map);
 
             // Add user location marker if available
             if (this.userLocation) {
