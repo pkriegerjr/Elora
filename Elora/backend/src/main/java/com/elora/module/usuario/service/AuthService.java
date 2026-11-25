@@ -29,7 +29,9 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Login por e-mail ou CPF + refresh token opaco com rotação.
@@ -43,6 +45,13 @@ public class AuthService {
 
     private static final String CREDENCIAIS_INVALIDAS = "CPF/E-mail ou senha incorretos";
     private static final String SESSAO_EXPIRADA = "Sessão expirada. Entre novamente.";
+    private static final String PERFIL_DIVERGENTE = "Credenciais válidas, mas não correspondem ao perfil selecionado";
+
+    /** Perfis aceitos por aba do login (mesma regra do mapPerfisToType do front). */
+    private static final Map<String, Set<String>> PERFIS_POR_TIPO = Map.of(
+            "CLIENT", Set.of("cliente"),
+            "CAREGIVER", Set.of("profissional"),
+            "ADMIN", Set.of("admin", "moderador", "juridico", "financeiro"));
 
     private final UsuarioRepository usuarios;
     private final SessaoRepository sessoes;
@@ -72,9 +81,10 @@ public class AuthService {
         if (usuario.getStatus() != UsuarioStatus.ativo) {
             throw new BusinessException("Conta " + usuario.getStatus().name() + ". Fale com o suporte.");
         }
-        usuario.setUltimoLoginEm(LocalDateTime.now());
-
         List<String> perfis = usuarioService.perfisDe(usuario.getId());
+        validarPerfilSolicitado(req.getUserType(), perfis);
+
+        usuario.setUltimoLoginEm(LocalDateTime.now());
         String accessToken = gerarAccessToken(usuario, perfis);
         String refreshToken = novaSessao(usuario, ip, userAgent);
 
@@ -197,6 +207,22 @@ public class AuthService {
             return java.util.Optional.empty();
         }
         return usuarios.findByCpfAndDeletedAtIsNull(cpf);
+    }
+
+    /**
+     * A aba escolhida no login precisa corresponder a um dos perfis reais da
+     * conta. userType ausente/desconhecido mantém compatibilidade com clientes
+     * antigos que não enviam o campo.
+     */
+    private void validarPerfilSolicitado(String userType, List<String> perfis) {
+        if (userType == null || userType.isBlank()) return;
+        Set<String> esperados = PERFIS_POR_TIPO.get(userType.trim().toUpperCase(Locale.ROOT));
+        if (esperados == null) return;
+        boolean compativel = perfis.stream()
+                .filter(p -> p != null)
+                .map(p -> p.toLowerCase(Locale.ROOT))
+                .anyMatch(esperados::contains);
+        if (!compativel) throw new UnauthorizedException(PERFIL_DIVERGENTE);
     }
 
     private String gerarAccessToken(Usuario usuario, List<String> perfis) {

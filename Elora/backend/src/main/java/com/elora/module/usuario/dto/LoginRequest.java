@@ -7,8 +7,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * POST /auth/login — identifier é e-mail ou CPF (com ou sem máscara).
- * userType (CLIENT/CAREGIVER/ADMIN) é aceito por compatibilidade com o front
- * e ignorado na decisão de autenticação.
+ * userType (CLIENT/CAREGIVER/ADMIN) identifica a aba escolhida no front e é
+ * validado contra os perfis reais da conta antes de emitir o token.
  */
 @Data
 @NoArgsConstructor

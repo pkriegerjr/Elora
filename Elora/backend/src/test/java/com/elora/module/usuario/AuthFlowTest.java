@@ -8,7 +8,12 @@ import com.elora.module.usuario.dto.CuidadorRegisterRequest;
 import com.elora.module.usuario.dto.LoginRequest;
 import com.elora.module.usuario.dto.RefreshRequest;
 import com.elora.module.usuario.entity.Perfil;
+import com.elora.module.usuario.entity.Usuario;
+import com.elora.module.usuario.entity.UsuarioPerfil;
 import com.elora.module.usuario.repository.PerfilRepository;
+import com.elora.module.usuario.repository.SessaoRepository;
+import com.elora.module.usuario.repository.UsuarioPerfilRepository;
+import com.elora.module.usuario.repository.UsuarioRepository;
 import com.elora.module.usuario.service.AuthService;
 import com.elora.module.usuario.service.UsuarioService;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,9 +47,18 @@ class AuthFlowTest {
     @Autowired
     private PerfilRepository perfilRepository;
 
+    @Autowired
+    private SessaoRepository sessoes;
+
+    @Autowired
+    private UsuarioRepository usuarios;
+
+    @Autowired
+    private UsuarioPerfilRepository usuarioPerfis;
+
     @BeforeEach
     void seeds() {
-        for (String nome : new String[]{"cliente", "profissional"}) {
+        for (String nome : new String[]{"cliente", "profissional", "admin"}) {
             if (perfilRepository.findByNome(nome).isEmpty()) {
                 Perfil p = new Perfil();
                 p.setNome(nome);
@@ -63,6 +77,16 @@ class AuthFlowTest {
         req.setSenha("Senha@123");
         req.setConsentimentoLgpd(true);
         return req;
+    }
+
+    private Integer criarAdmin(String email, String cpf) {
+        Integer id = usuarioService.registerCliente(cadastro(email, cpf)).getId();
+        Usuario usuario = usuarios.findById(id).orElseThrow();
+        UsuarioPerfil vinculo = new UsuarioPerfil();
+        vinculo.setUsuario(usuario);
+        vinculo.setPerfil(perfilRepository.findByNome("admin").orElseThrow());
+        usuarioPerfis.save(vinculo);
+        return id;
     }
 
     @Test
@@ -131,6 +155,60 @@ class AuthFlowTest {
         // login registra ultimo_login_em (coluna v2.2)
         authService.login(new LoginRequest("ana@teste.com", "Senha@123", "CAREGIVER"), null, null);
         assertNotNull(authService.me(criado.getId()).getCriadoEm());
+    }
+
+    @Test
+    void loginComAbaDiferenteDoPerfilFalhaSemCriarSessao() {
+        Integer clienteId = usuarioService.registerCliente(cadastro("aba-cliente@teste.com", "52998224725")).getId();
+
+        CuidadorRegisterRequest cg = new CuidadorRegisterRequest();
+        cg.setNome("Ana Aba");
+        cg.setEmail("aba-cuidador@teste.com");
+        cg.setCpf("11144477735");
+        cg.setSenha("Senha@123");
+        cg.setConsentimentoLgpd(true);
+        cg.setPrecoHora(new java.math.BigDecimal("45.00"));
+        Integer cuidadorId = usuarioService.registerCuidador(cg).getId();
+
+        long sessoesAntes = sessoes.count();
+
+        assertThrows(UnauthorizedException.class, () ->
+                authService.login(new LoginRequest("aba-cliente@teste.com", "Senha@123", "CAREGIVER"), "127.0.0.1", "teste"));
+        assertThrows(UnauthorizedException.class, () ->
+                authService.login(new LoginRequest("aba-cliente@teste.com", "Senha@123", "ADMIN"), "127.0.0.1", "teste"));
+        assertThrows(UnauthorizedException.class, () ->
+                authService.login(new LoginRequest("aba-cuidador@teste.com", "Senha@123", "CLIENT"), "127.0.0.1", "teste"));
+        assertThrows(UnauthorizedException.class, () ->
+                authService.login(new LoginRequest("aba-cuidador@teste.com", "Senha@123", "ADMIN"), "127.0.0.1", "teste"));
+
+        assertEquals(sessoesAntes, sessoes.count(), "tentativas rejeitadas não podem criar sessão");
+        assertNull(usuarios.findById(clienteId).orElseThrow().getUltimoLoginEm());
+        assertNull(usuarios.findById(cuidadorId).orElseThrow().getUltimoLoginEm());
+
+        // mesmas credenciais na aba correta continuam funcionando
+        assertEquals(clienteId, authService.login(
+                new LoginRequest("aba-cliente@teste.com", "Senha@123", "CLIENT"), "127.0.0.1", "teste").getUser().getId());
+        assertEquals(cuidadorId, authService.login(
+                new LoginRequest("aba-cuidador@teste.com", "Senha@123", "CAREGIVER"), "127.0.0.1", "teste").getUser().getId());
+    }
+
+    @Test
+    void abaAdminAceitaPerfisInternosEUserTypeNormalizado() {
+        Integer adminId = criarAdmin("aba-admin@teste.com", "12345678909");
+
+        AuthResponse login = authService.login(
+                new LoginRequest("aba-admin@teste.com", "Senha@123", "admin"), "127.0.0.1", "teste");
+        assertEquals(adminId, login.getUser().getId());
+        assertTrue(login.getUser().getPerfis().contains("admin"));
+
+        // usuário multi-perfil também pode entrar pela aba cliente
+        AuthResponse comoCliente = authService.login(
+                new LoginRequest("aba-admin@teste.com", "Senha@123", "CLIENT"), "127.0.0.1", "teste");
+        assertEquals(adminId, comoCliente.getUser().getId());
+
+        // campo ausente mantém compatibilidade com clientes antigos
+        assertNotNull(authService.login(
+                new LoginRequest("aba-admin@teste.com", "Senha@123", null), "127.0.0.1", "teste").getAccessToken());
     }
 
     @Test

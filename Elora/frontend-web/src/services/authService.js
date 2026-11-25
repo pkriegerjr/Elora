@@ -81,11 +81,44 @@ class AuthService {
         if(p.some(x=>['admin','moderador','juridico','financeiro'].includes(x))) return CONFIG.USER_TYPES.ADMIN;
         return CONFIG.USER_TYPES.CLIENT;
     }
+
+    /** Mesma regra do backend AuthService.PERFIS_POR_TIPO (perfis internos => admin). */
+    perfilPermitido(perfis, type){
+        const p = (perfis||[]).map(x=>String(x).toLowerCase());
+        if(type===CONFIG.USER_TYPES.CLIENT) return p.includes('cliente');
+        if(type===CONFIG.USER_TYPES.CAREGIVER) return p.includes('profissional');
+        if(type===CONFIG.USER_TYPES.ADMIN) return p.some(x=>['admin','moderador','juridico','financeiro'].includes(x));
+        return false;
+    }
+
+    /**
+     * Login real: envia a aba escolhida e só cria a sessão se o perfil
+     * retornado pelo backend for compatível com ela.
+     */
+    async loginComPerfil(credentials, expectedType){
+        const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, {
+            identifier: credentials.identifier,
+            password: credentials.password,
+            userType: expectedType.toUpperCase()
+        });
+        const perfis = res.user?.perfis || [];
+        if(!this.perfilPermitido(perfis, expectedType)){
+            throw new Error("Credenciais válidas, mas não correspondem ao perfil selecionado");
+        }
+        const userData = { ...res.user, name: res.user.nome, type: expectedType, perfis };
+        this.setSession(userData, res.accessToken, credentials.rememberMe, res.refreshToken);
+        return { user: userData, token: res.accessToken };
+    }
+
     async getMe(){
         if(!CONFIG.API.MOCK_MODE){
             const user = await apiService.get(CONFIG.ENDPOINTS.auth.me);
             // user = UsuarioResponse {id,nome,email,cpf,perfis[]} — normaliza para front
-            const type = this.mapPerfisToType(user.perfis);
+            // preserva a aba escolhida no login quando ela ainda é válida (usuário multi-perfil)
+            const atual = this.currentUser?.type;
+            const type = atual && this.perfilPermitido(user.perfis, atual)
+                ? atual
+                : this.mapPerfisToType(user.perfis);
             const mapped = { ...user, name: user.nome, id: user.id, email: user.email, cpf: user.cpf, perfis: user.perfis, type };
             this.updateCurrentUser(mapped);
             return mapped;
@@ -94,11 +127,7 @@ class AuthService {
     }
     async loginCliente(credentials) {
         if (!CONFIG.API.MOCK_MODE) {
-            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password });
-            const type = this.mapPerfisToType(res.user?.perfis);
-            const userData = { ...res.user, name: res.user.nome, type, perfis: res.user.perfis };
-            this.setSession(userData, res.accessToken, credentials.rememberMe, res.refreshToken);
-            return { user: userData, token: res.accessToken };
+            return this.loginComPerfil(credentials, CONFIG.USER_TYPES.CLIENT);
         }
         await this.delay(800);
         
@@ -134,11 +163,7 @@ class AuthService {
      */
     async loginCuidador(credentials) {
         if (!CONFIG.API.MOCK_MODE) {
-            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password });
-            const type = this.mapPerfisToType(res.user?.perfis);
-            const userData = { ...res.user, name: res.user.nome, type, perfis: res.user.perfis };
-            this.setSession(userData, res.accessToken, credentials.rememberMe, res.refreshToken);
-            return { user: userData, token: res.accessToken };
+            return this.loginComPerfil(credentials, CONFIG.USER_TYPES.CAREGIVER);
         }
         await this.delay(800);
         
@@ -183,11 +208,7 @@ class AuthService {
      */
     async loginAdministrador(credentials) {
         if (!CONFIG.API.MOCK_MODE) {
-            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, { identifier: credentials.identifier, password: credentials.password });
-            const type = this.mapPerfisToType(res.user?.perfis);
-            const userData = { ...res.user, name: res.user.nome, type, perfis: res.user.perfis };
-            this.setSession(userData, res.accessToken, credentials.rememberMe, res.refreshToken);
-            return { user: userData, token: res.accessToken };
+            return this.loginComPerfil(credentials, CONFIG.USER_TYPES.ADMIN);
         }
         await this.delay(800);
         
