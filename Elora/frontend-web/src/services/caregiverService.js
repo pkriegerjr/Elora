@@ -645,8 +645,11 @@ class CaregiverService {
         if (!CONFIG.API.MOCK_MODE) {
             const user = authService.getCurrentUser();
             if (!user || !user.id) return [];
-            const list = await apiService.get(`${CONFIG.ENDPOINTS.avaliacoes}/cuidador/${user.id}`);
-            return (list || []).map(r => this.mapReviewFromApi(r))
+            const res = await apiService.get(`${CONFIG.ENDPOINTS.avaliacoes}/cuidador/${user.id}`);
+            // /avaliacoes/cuidador/{id} devolve um resumo com `avaliacoes`;
+            // versões antigas/devolvem array direto (ou página com `content`).
+            const lista = Array.isArray(res) ? res : (res?.avaliacoes ?? res?.content ?? []);
+            return (lista || []).map(r => this.mapReviewFromApi(r))
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         }
 

@@ -47,6 +47,21 @@ class PaymentService {
         };
     }
 
+    /** Pagamento mais recente de um contrato (pode haver mais de um por contrato). */
+    latestPaymentFor(payments, contractId){
+        if(!Array.isArray(payments) || contractId === null || contractId === undefined) return null;
+        const time = p => new Date(p?.updatedAt || p?.atualizadoEm || p?.createdAt || p?.criadoEm || 0).getTime() || 0;
+        return payments
+            .filter(p => p && String(p.contractId ?? p.contratoId) === String(contractId))
+            .sort((a,b)=> time(b) - time(a))[0] || null;
+    }
+
+    /** Pagamento aprovado (não deve haver ação de pagar). */
+    isApprovedPayment(p){
+        const s = String(p?.statusV2 || p?.status || '').toLowerCase();
+        return ['aprovado', 'approved'].includes(s);
+    }
+
     /** 'PIX'/'CARD'/'BOLETO' (front) -> enum MetodoPagamento (pix/cartao/boleto). */
     normalizeMethod(method) {
         const m = String(method || 'pix').toLowerCase();

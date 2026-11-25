@@ -47,7 +47,7 @@
   function toV2(s){ try { return CONFIG.toV2ContractStatus(s); } catch(e){ return String(s||'').toLowerCase(); } }
 
   // Normaliza mock (EN, clientId/caregiverId) e API (PT, clienteId/profissionalId/codigo) para o mesmo view-model
-  function normalize(c){
+  function normalize(c, payments=[]){
     return {
       id: c.id,
       codigo: c.codigo || c.id,
@@ -56,26 +56,27 @@
       startDate: c.startDate || c.dataInicio || null,
       endDate: c.endDate || c.dataFim || null,
       status: c.status,
-      total: (c.totalValue && c.totalValue.total) ?? c.valueBreakdown?.total ?? c.valorTotal ?? 0,
+      total: contractService.contractTotal(c) ?? 0,
+      payment: paymentService.latestPaymentFor(payments, c.id),
       createdAt: c.createdAt || c.criadoEm || null
     };
   }
 
   async function fetchContracts(){
-    if(!CONFIG.API.MOCK_MODE){
-      const page = await apiService.get(CONFIG.ENDPOINTS.contracts, { papel: 'cliente' });
-      const list = page.content || page;
-      return (Array.isArray(list) ? list : []).map(normalize);
-    }
-    return (await clientService.getContracts()).map(normalize);
+    const [source, payments] = await Promise.all([
+      CONFIG.API.MOCK_MODE ? clientService.getContracts() : apiService.get(CONFIG.ENDPOINTS.contracts, { papel: 'cliente' }),
+      paymentService.getUserPayments()
+    ]);
+    const list = source.content || source;
+    return (Array.isArray(list) ? list : []).map(c => normalize(c, payments));
   }
 
   function actionsFor(n){
     const v = toV2(n.status);
     let btns = `<a href="contrato.html?id=${encodeURIComponent(n.id)}" class="btn btn-sm btn-elora-outline">Ver</a>`;
-    if(PAYABLE.includes(n.status) || PAYABLE.includes(v)) btns += ` <a href="../financeiro/pagamento.html?contractId=${encodeURIComponent(n.id)}" class="btn btn-sm btn-elora-primary">Pagar</a>`;
+    if((PAYABLE.includes(n.status) || PAYABLE.includes(v)) && !paymentService.isApprovedPayment(n.payment)) btns += ` <a href="../financeiro/pagamento.html?contractId=${encodeURIComponent(n.id)}" class="btn btn-sm btn-elora-primary">Pagar</a>`;
     if(REVIEWABLE.includes(n.status) || REVIEWABLE.includes(v)) btns += ` <a href="../avaliacoes/avaliar.html?contractId=${encodeURIComponent(n.id)}" class="btn btn-sm btn-elora-outline">Avaliar</a>`;
-    btns += ` <a href="../juridico/denunciar.html?contractId=${encodeURIComponent(n.id)}" class="btn btn-sm btn-outline-danger">Denunciar</a>`;
+    btns += ` <a href="../juridico/denunciar.html?contractId=${encodeURIComponent(n.id)}" class="btn btn-sm btn-elora-danger">Denunciar</a>`;
     if(CANCELLABLE.includes(n.status) || CANCELLABLE.includes(v)) btns += ` <button class="btn btn-sm btn-outline-secondary btn-cancel" data-id="${encodeURIComponent(n.id)}">Cancelar</button>`;
     return btns;
   }
@@ -96,7 +97,10 @@
         <div class="card-elora p-3 h-100 d-flex flex-column">
           <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
             <span class="badge bg-light text-dark border">${escapeHtml(String(n.codigo))}</span>
-            <span class="${contractStatusBadge(n.status)}">${escapeHtml(contractService.getStatusLabel(n.status))}</span>
+            <div class="text-end">
+              <span class="${contractStatusBadge(n.status)}">${escapeHtml(contractService.getStatusLabel(n.status))}</span>
+              ${n.payment? `<div class="small mt-1">Pagamento: <span class="${paymentStatusBadge(n.payment.status)}">${escapeHtml(n.payment.statusLabel || paymentService.getStatusLabel(n.payment.status))}</span></div>`:''}
+            </div>
           </div>
           <strong>${escapeHtml(n.titulo)}</strong>
           <div class="small text-muted"><i class="bi bi-person me-1"></i>${escapeHtml(n.caregiverName)}</div>

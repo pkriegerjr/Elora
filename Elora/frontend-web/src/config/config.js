@@ -9,17 +9,22 @@ const CONFIG = {
     // API Configuration — Spring Boot — Fase 1: base http://localhost:8080/api (application.properties:3 /api)
     API: {
         // Backend Spring: context-path /api na porta 8080.
-        // - Servido pelo proxy de dev (scripts/dev.sh -> :8000), pelo Live Server com
-        //   proxy (.vscode/settings.json -> :5500) ou pelo próprio Spring: relativo "/api".
-        // - Servidor estático sem proxy: absoluto para a API
-        //   (localhost:8080; no Codespaces, <prefixo>-8080.app.github.dev).
+        // - Proxy de dev (scripts/dev.sh -> :8000), Spring direto (:8080) e produção
+        //   atrás de reverse proxy (80/443): mesma origem => "/api".
+        // - Servidor estático sem proxy (Live Server :5500, npx serve, python http.server):
+        //   absoluto para a API (localhost:8080; no Codespaces, <prefixo>-8080.app.github.dev).
         // - Aberto via file://: absoluto para localhost:8080.
+        // - Se o Live Server tiver proxy /api configurado, use ?apiBase=/api.
         baseURL: (function resolveApiBaseURL() {
             if (typeof window === "undefined" || !window.location) return "/api";
 
             // 1) Override explícito (útil para depurar sem editar arquivo):
-            //    ?apiBase=https://minha-api.exemplo/api
+            //    ?apiBase=https://minha-api.exemplo/api (ou /api se houver proxy)
+            //    window.ELORA_API_BASE = 'https://minha-api.exemplo/api'
             //    localStorage.setItem('elora_api_base', 'https://minha-api.exemplo/api')
+            try {
+                if (window.ELORA_API_BASE) return String(window.ELORA_API_BASE).replace(/\/+$/, "");
+            } catch (e) { /* window indisponível */ }
             try {
                 const fromQuery = new URLSearchParams(window.location.search).get("apiBase");
                 if (fromQuery) return String(fromQuery).replace(/\/+$/, "");
@@ -34,20 +39,19 @@ const CONFIG = {
             if (protocol === "file:") return `http://localhost:${backendPort}/api`;
 
             // Codespaces: https://<prefixo>-<porta>.app.github.dev
-            // - 8000 (proxy do dev.sh), 8080 (Spring) e 5500 (Live Server com proxy) → mesma origem.
-            // - Qualquer outra porta → API na 8080.
+            // - 8000 (proxy do dev.sh) e 8080 (Spring) usam "/api" na mesma origem.
+            // - 5500 (Live Server) e quaisquer outras portas → API no prefixo 8080.
             const codespace = hostname.match(/^(.*)-(\d+)\.app\.github\.dev$/i);
             if (codespace) {
                 const prefix = codespace[1];
                 const forwardedPort = codespace[2];
-                if (["8000", "5500", backendPort].includes(forwardedPort)) return "/api";
+                if (["8000", backendPort].includes(forwardedPort)) return "/api";
                 return `https://${prefix}-${backendPort}.app.github.dev/api`;
             }
 
-            // Proxy de dev (8000), Live Server com proxy (5500), Spring direto
-            // ou produção atrás de reverse proxy: mesma origem => "/api".
-            // Inclui 80/443 (porta vazia).
-            const sameOriginPorts = ["", "80", "443", "8000", "5500", backendPort];
+            // Proxy de dev (8000), Spring direto ou produção atrás de reverse proxy:
+            // mesma origem => "/api". Inclui 80/443 (porta vazia).
+            const sameOriginPorts = ["", "80", "443", "8000", backendPort];
             if (sameOriginPorts.includes(port)) return "/api";
 
             // Servidor estático sem proxy (ex.: Live Server em localhost:5500): API absoluta.

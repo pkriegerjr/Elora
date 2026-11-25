@@ -84,7 +84,7 @@ Elora/
 └── .github/                       # vazio (só .gitkeep)
 ```
 
-> `MOCK_MODE=false` (padrão em `src/config/config.js:30`) consome a API Spring Boot em `http://localhost:8080/api`. Defina `true` para rodar 100% no `localStorage` sem backend.
+> `MOCK_MODE=false` (padrão em `src/config/config.js`) consome a API Spring Boot em `http://localhost:8080/api` quando o front é servido por servidor estático sem proxy (ex.: Live Server na porta 5500). Com `./scripts/dev.sh`, a página e a API ficam na mesma origem (`/api` relativo). Defina `MOCK_MODE=true` para rodar 100% no `localStorage` sem backend.
 
 ## Banco de Dados — Schema v2 (Atual, Neon)
 
@@ -121,12 +121,15 @@ cp .env.example .env   # preencha DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD/JWT_SE
 mvn clean install
 mvn spring-boot:run  # -> http://localhost:8080/api/swagger-ui.html (context-path /api)
 
-# 4. Frontend Web — 100% estático, MOCK_MODE=false (default src/config/config.js:30)
-# Para MOCK_MODE=true, edite MOCK_MODE para true e recarregue (roda 100% no localStorage, sem backend).
-npx serve Elora/frontend-web
-# ou
-python -m http.server --directory Elora/frontend-web 8000
-# -> http://localhost:8000  (index) e http://localhost:8000/src/pages/...
+# 4. Frontend Web — 100% estático, MOCK_MODE=false
+# Forma suportada: sobe front (:8000) + proxy /api para o backend (:8080) juntos.
+./Elora/scripts/dev.sh
+# -> http://localhost:8000/src/pages/auth/login.html
+#
+# Servidor estático puro (Live Server :5500, npx serve, python http.server):
+# o front chama a API direto em http://localhost:8080/api (CORS liberado para localhost:*).
+# Se esse servidor tiver proxy /api configurado, abra a página com ?apiBase=/api.
+# Para MOCK_MODE=true, edite MOCK_MODE para true e recarregue (100% localStorage, sem backend).
 
 # 5. Mobile / Docs / Infra
 # mobile-app descartado (não faz mais parte do escopo ativo). docs/, infra/{docker,k8s,scripts}/ e .github/ estão vazios (só .gitkeep). Sem npm install / workflows.

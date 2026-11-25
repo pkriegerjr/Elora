@@ -51,7 +51,7 @@
               <p><strong>Período:</strong> ${formatDate(c.startDate)} a ${formatDate(c.endDate)} • Dias: ${(c.days||[]).map(getDayShortName).join(', ')} • Horário: ${c.schedule?.start} - ${c.schedule?.end}</p>
               <p><strong>Atividades:</strong> ${escapeHtml((c.activities||[]).join(', '))}</p>
               <div class="bg-light p-3 rounded small">
-                <div>Subtotal: ${formatCurrency(c.valueBreakdown?.subtotal||c.totalValue?.subtotal||0)} • Taxa 10%: ${formatCurrency(c.valueBreakdown?.platformFee||c.totalValue?.platformFee||0)} • <strong>Total: ${formatCurrency(c.valueBreakdown?.total||c.totalValue?.total||0)}</strong> • Horas totais: ${c.valueBreakdown?.totalHours||c.totalValue?.totalHours||0}</div>
+                <div>Subtotal: ${formatCurrency(c.valueBreakdown?.subtotal||c.totalValue?.subtotal||0)} • Taxa 10%: ${formatCurrency(c.valueBreakdown?.platformFee||c.totalValue?.platformFee||0)} • <strong>Total: ${formatCurrency(contractService.contractTotal(c) ?? 0)}</strong> • Horas totais: ${c.valueBreakdown?.totalHours||c.totalValue?.totalHours||0}</div>
               </div>
               <hr>
               <div class="row g-3 small">

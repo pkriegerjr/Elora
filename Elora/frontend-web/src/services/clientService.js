@@ -315,9 +315,9 @@ class ClientService {
      */
     async getContracts(status = null) {
         if (!CONFIG.API.MOCK_MODE) {
-            const list = await apiService.get(CONFIG.ENDPOINTS.contracts);
-            const svc = window.caregiverService;
-            const mapped = (list || []).map(c => svc ? svc.mapContractFromApi(c) : c);
+            const list = await apiService.get(CONFIG.ENDPOINTS.contracts, { papel: 'cliente' });
+            const svc = window.contractService;
+            const mapped = (list || []).map(c => svc?.mapContractFromApi ? svc.mapContractFromApi(c) : c);
             if (!status) return mapped;
             const alvo = CONFIG.toV2ContractStatus(status);
             return mapped.filter(c => String(c.status).toLowerCase() === alvo);

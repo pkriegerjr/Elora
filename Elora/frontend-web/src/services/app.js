@@ -423,6 +423,16 @@ function contractStatusBadge(s) {
     if (up.includes("AWAITING") || up === "AGUARD_ASSINATURA" || up === "EM_DISPUTA" || up === "NEGOCIACAO" || up === "PROPOSTA") return "badge bg-info";
     return "badge bg-warning text-dark";
 }
+/**
+ * Classe Bootstrap do badge por status de pagamento (V2 PT + aliases EN).
+ */
+function paymentStatusBadge(s) {
+    const up = String(s || "").toUpperCase();
+    if (up === "APROVADO" || up === "APPROVED") return "badge bg-success";
+    if (up === "PENDENTE" || up === "PROCESSANDO" || up === "PENDING" || up === "PROCESSING") return "badge bg-warning text-dark";
+    if (up === "RECUSADO" || up === "ESTORNADO" || up === "REJECTED" || up === "REFUNDED") return "badge bg-danger";
+    return "badge bg-secondary";
+}
 
 /**
  * Mask CPF for display
@@ -663,6 +673,7 @@ window.maskCPF = maskCPF;
 window.caregiverStatusLabel = caregiverStatusLabel;
 window.caregiverStatusBadge = caregiverStatusBadge;
 window.contractStatusBadge = contractStatusBadge;
+window.paymentStatusBadge = paymentStatusBadge;
 window.maskPhone = maskPhone;
 window.getDayName = getDayName;
 window.getDayShortName = getDayShortName;

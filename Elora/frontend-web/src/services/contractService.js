@@ -45,6 +45,29 @@ class ContractService {
     }
 
     /**
+     * Valor total do contrato em qualquer um dos formatos usados pelas telas:
+     * DTO Spring (valorTotal), mapper de contratos (totalValue.total),
+     * mapper antigo (totalValue numérico) e breakdown.
+     * @returns {number|null} null quando não há valor cadastrado
+     */
+    contractTotal(c){
+        if(!c) return null;
+        const candidatos = [
+            c.totalValue?.total,
+            c.valorTotal,
+            c.valueBreakdown?.total,
+            typeof c.totalValue === 'number' ? c.totalValue : null,
+            c.totalValue
+        ];
+        for(const v of candidatos){
+            if(v === null || v === undefined || v === '') continue;
+            const n = Number(v);
+            if(Number.isFinite(n)) return n;
+        }
+        return null;
+    }
+
+    /**
      * Create a new contract
      * @param {Object} contractData - Contract data
      * @returns {Promise<Object>} Created contract

@@ -49,7 +49,7 @@
         : existingPayments.find(p=>String(p.contractId)===String(contractId));
       if(!payment && contract){
         // cria pagamento pendente
-        const total = contract.valueBreakdown?.total || contract.totalValue?.total || 0;
+        const total = contractService.contractTotal(contract) ?? 0;
         payment = await paymentService.createPayment({ contractId: contract.id, clientId: contract.clientId, caregiverId: contract.caregiverId, amount: total, method: contract.paymentMethod || 'PIX' });
       }
       render();

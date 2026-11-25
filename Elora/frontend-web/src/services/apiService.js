@@ -78,8 +78,9 @@ class ApiService {
         return m ? decodeURIComponent(m[1]) : null;
     }
 
-    async processResponse(response){
+    async processResponse(response, meta={}){
         let data;
+        const context = meta.method && meta.url ? ` (${meta.method} ${meta.url} → ${response.status})` : "";
         const ct=response.headers.get("content-type");
         if(ct && ct.includes("application/json")){
             const text=await response.text();
@@ -88,7 +89,7 @@ class ApiService {
             // Desembrulha automaticamente para compat com services que esperam data direto
             if(data && typeof data.success==='boolean' && 'data' in data){
                 if(!response.ok){
-                    const err=new Error(data.message || `HTTP ${response.status}`);
+                    const err=new Error((data.message || `HTTP ${response.status}`) + context);
                     err.status=response.status; err.data=data;
                     if(this.errorInterceptor) await this.errorInterceptor(err, response);
                     throw err;
@@ -103,7 +104,7 @@ class ApiService {
         }
         if(this.responseInterceptor) data=await this.responseInterceptor(data, response);
         if(!response.ok){
-            const err=new Error((data && (data.message || data.error)) || `HTTP ${response.status}`);
+            const err=new Error(((data && (data.message || data.error)) || `HTTP ${response.status}`) + context);
             err.status=response.status; err.data=data;
             if(this.errorInterceptor) await this.errorInterceptor(err, response);
             throw err;
@@ -161,6 +162,8 @@ class ApiService {
         // Em mock mode, serviços decidem se usam mock; aqui apenas faz fetch real quando chamado
         const url=this.buildUrl(endpoint);
         const config=this.buildOptions(options);
+        const method=(config.method || "GET").toUpperCase();
+        const meta={ method, url };
         try{
             const response=await fetch(url, config);
             if(response.status===401 && this.getRefreshToken()){
@@ -168,10 +171,10 @@ class ApiService {
                     const newToken=await this.tryRefreshToken();
                     config.headers[CONFIG.API.auth.headerName]=`${CONFIG.API.auth.tokenPrefix}${newToken}`;
                     const retry=await fetch(url, config);
-                    return await this.processResponse(retry);
-                } catch(_){ throw await this.processResponse(response); }
+                    return await this.processResponse(retry, meta);
+                } catch(_){ throw await this.processResponse(response, meta); }
             }
-            return await this.processResponse(response);
+            return await this.processResponse(response, meta);
         } catch(error){
             if(error.name==="TypeError" && String(error.message).includes("fetch")){
                 // Se MOCK_MODE e backend offline, não estoura erro em demo
@@ -179,7 +182,7 @@ class ApiService {
                     console.warn("[ELORA] Backend offline e MOCK_MODE=true — usando dados mock. Erro:", error.message);
                     throw error;
                 }
-                throw new Error("Erro de conexão com a API Spring Boot. Verifique se o backend está em "+this.baseURL);
+                throw new Error(`Erro de conexão com a API Spring Boot em ${this.baseURL} (${method} ${url})`);
             }
             throw error;
         }
