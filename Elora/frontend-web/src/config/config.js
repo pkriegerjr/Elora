@@ -45,10 +45,36 @@ const CONFIG = {
     GOOGLE_MAPS: {
         apiKey: "YOUR_GOOGLE_MAPS_API_KEY_HERE", // nunca commitar chave real
         libraries: ["places", "geometry"],
+        // Sem chave, o mapa usa a localização por IP (LOCATION_IP) — não carrega script do Google
         defaultCenter: { lat: -23.5505, lng: -46.6333 },
         defaultZoom: 12,
         // Endpoint Spring que retorna a chave com controle de acesso
         configEndpoint: "/config/maps-key"
+    },
+
+    // Mapa gratuito: Leaflet + tiles do OpenStreetMap (sem API key paga).
+    MAPS: {
+        provider: "leaflet",
+        leafletCss: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+        leafletJs: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+        tileUrl: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        defaultCenter: { lat: -23.5505, lng: -46.6333 },
+        defaultZoom: 12
+    },
+
+    // Localização usada quando não há chave do Google Maps (caminho sem APIs pagas).
+    // Edite latitude/longitude/cidade com a sua localização real, se desejar.
+    LOCATION_IP: {
+        ip: "3.95.197.167",
+        type: "ipv4",
+        country_code: "BR",
+        country_name: "Brazil",
+        region_name: "São Paulo",
+        city: "São Paulo",
+        zip: "01310-100",
+        latitude: -23.5505,
+        longitude: -46.6333
     },
 
     APP: {

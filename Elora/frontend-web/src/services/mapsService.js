@@ -1,14 +1,9 @@
 /**
  * ELORA Platform - Maps Service
- * 
- * This module handles Google Maps integration for geolocation,
- * nearby caregiver search, distance calculation, and map interactions.
- * 
- * IMPORTANT: Google Maps API key should NEVER be hardcoded in production.
- * It should be obtained from a secure backend configuration endpoint.
- * 
- * For this prototype, the map functionality is simulated.
- * Real implementation requires a valid Google Maps JavaScript API key.
+ *
+ * Usa Leaflet + OpenStreetMap (gratuitos, sem API key paga) para exibir o mapa,
+ * marcadores de cuidadores e a localização do usuario (via CONFIG.LOCATION_IP).
+ * Fallback: mapa simulado se a biblioteca/CDN nao carregar.
  */
 
 class MapsService {
@@ -23,60 +18,50 @@ class MapsService {
     }
 
     /**
-     * Initialize Google Maps
-     * @param {Object} options - Map options
-     * @returns {Promise<google.maps.Map>} Map instance
+     * Carrega Leaflet + CSS uma vez (CDN, sem chave).
+     * @returns {Promise<void>}
      */
-    async loadGoogleMapsScript(){
-        if(document.querySelector('script[data-elora-maps]')) return;
+    async loadMapLibrary(){
+        if (typeof L !== "undefined") return;
 
-        // A chave vem do backend (GET /config/maps-key -> {apiKey, configured}).
-        // Sem chave configurada, mantém o mapa simulado.
-        // Em página pública (sem sessão) nem chama a API: evita 401 desnecessário.
-        if (window.authService && !authService.isAuthenticated()) {
-            return CONFIG.GOOGLE_MAPS.apiKey || '';
-        }
-        if (this.apiKeyPromise === undefined) {
-            this.apiKeyPromise = (async () => {
-                try {
-                    const cfg = await apiService.get(CONFIG.ENDPOINTS.mapsKey);
-                    if (cfg && cfg.configured && cfg.apiKey) return cfg.apiKey;
-                } catch (e) {
-                    // Sem sessão/backend: cai para a chave estática (se houver).
-                    console.warn("Não foi possível obter a chave do Google Maps:", e.message);
-                }
-                return CONFIG.GOOGLE_MAPS.apiKey || '';
-            })();
-        }
-        const apiKey = await this.apiKeyPromise;
-
-        if(!apiKey || String(apiKey).startsWith("YOUR")){
-            return;
+        if (!document.querySelector('link[data-elora-leaflet-css]')) {
+            const css = document.createElement('link');
+            css.dataset.eloraLeafletCss = "true";
+            css.rel = "stylesheet";
+            css.href = CONFIG.MAPS.leafletCss;
+            document.head.appendChild(css);
         }
 
-        await new Promise((resolve,reject)=>{
-            const s=document.createElement('script');
-            s.dataset.eloraMaps="true";
-            s.src=`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=${CONFIG.GOOGLE_MAPS.libraries.join(',')}`;
-            s.async=true; s.defer=true;
-            s.onload=resolve; s.onerror=reject;
-            document.head.appendChild(s);
-        });
+        if (!document.querySelector('script[data-elora-leaflet-js]') && !this.loadPromise) {
+            this.loadPromise = new Promise((resolve, reject) => {
+                const js = document.createElement('script');
+                js.dataset.eloraLeafletJs = "true";
+                js.src = CONFIG.MAPS.leafletJs;
+                js.async = true;
+                js.onload = resolve;
+                js.onerror = reject;
+                document.head.appendChild(js);
+            });
+        }
+
+        if (this.loadPromise) {
+            try { await this.loadPromise; } finally { this.loadPromise = null; }
+        }
     }
 
+    // Alias mantido para compatibilidade com chamadas antigas.
+    async loadGoogleMapsScript(){ return this.loadMapLibrary(); }
+
     async initializeMap(options = {}) {
-        // Tenta carregar script real se MOCK_MODE=false
-        if(!CONFIG.API.MOCK_MODE){
-            try{ await this.loadGoogleMapsScript(); } catch(e){ console.warn(e); }
-        }
-        
+        // Mapa real (Leaflet/OpenStreetMap) — sem API paga.
+        try{ await this.loadMapLibrary(); } catch(e){ console.warn("Falha ao carregar Leaflet:", e.message); }
+
         if (this.isInitialized && this.map) {
             return this.map;
         }
 
-        // Check if Google Maps API is available
-        if (typeof google === "undefined" || !google.maps) {
-            console.warn("Google Maps API não carregada. Usando modo de simulação.");
+        if (typeof L === "undefined") {
+            console.warn("Leaflet indisponível. Usando mapa simulado.");
             return this.initializeMockMap(options);
         }
 
@@ -86,17 +71,19 @@ class MapsService {
                 throw new Error("Container do mapa não encontrado");
             }
 
-            const center = options.center || CONFIG.GOOGLE_MAPS.defaultCenter;
-            const zoom = options.zoom || CONFIG.GOOGLE_MAPS.defaultZoom;
+            const center = options.center || CONFIG.MAPS.defaultCenter;
+            const zoom = options.zoom || CONFIG.MAPS.defaultZoom;
 
-            this.map = new google.maps.Map(container, {
-                center,
+            this.map = L.map(container, {
+                center: [center.lat, center.lng],
                 zoom,
-                mapTypeControl: false,
-                streetViewControl: false,
-                fullscreenControl: true,
-                styles: this.getMapStyles()
+                scrollWheelZoom: false
             });
+
+            L.tileLayer(CONFIG.MAPS.tileUrl, {
+                maxZoom: 19,
+                attribution: CONFIG.MAPS.attribution
+            }).addTo(this.map);
 
             // Add user location marker if available
             if (this.userLocation) {
@@ -125,8 +112,8 @@ class MapsService {
                     <div class="text-center p-4">
                         <i class="bi bi-geo-alt text-primary" style="font-size: 3rem;"></i>
                         <h5 class="mt-3 text-muted">Mapa Interativo</h5>
-                        <p class="text-muted small">Integração com Google Maps JavaScript API</p>
-                        <p class="text-muted small">Configure a API Key em config/config.js</p>
+                        <p class="text-muted small">Mapa com OpenStreetMap (Leaflet)</p>
+                        <p class="text-muted small">Verifique a conexão com o CDN/tiles do mapa</p>
                         <div class="mt-3">
                             <button class="btn btn-outline-primary btn-sm" onclick="mapsService.getUserLocation()">
                                 <i class="bi bi-geo-fill me-1"></i> Minha Localização
@@ -185,7 +172,30 @@ class MapsService {
      * Get user's current location using browser Geolocation API
      * @returns {Promise<Object>} Location {lat, lng}
      */
+    /**
+     * Get user's current location.
+     * Prefers the IP data from CONFIG.LOCATION_IP (no paid APIs) and falls
+     * back to the browser Geolocation API when no IP data is configured.
+     * @returns {Promise<Object>} Location {lat, lng}
+     */
     async getUserLocation() {
+        // Sem chaves de API pagas: usa a localização por IP configurada.
+        const ipData = (typeof CONFIG !== "undefined" && CONFIG.LOCATION_IP) || null;
+        if (ipData && ipData.latitude && ipData.longitude) {
+            this.userLocation = {
+                lat: Number(ipData.latitude),
+                lng: Number(ipData.longitude)
+            };
+
+            // Update map center if map exists
+            if (this.map && typeof L !== "undefined") {
+                this.map.setView([this.userLocation.lat, this.userLocation.lng], this.map.getZoom());
+                this.addUserLocationMarker();
+            }
+
+            return Promise.resolve(this.userLocation);
+        }
+
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
                 reject(new Error("Geolocalização não suportada neste navegador"));
@@ -200,8 +210,8 @@ class MapsService {
                     };
                     
                     // Update map center if map exists
-                    if (this.map && typeof google !== "undefined") {
-                        this.map.setCenter(this.userLocation);
+                    if (this.map && typeof L !== "undefined") {
+                        this.map.setView([this.userLocation.lat, this.userLocation.lng], this.map.getZoom());
                         this.addUserLocationMarker();
                     }
                     
@@ -237,44 +247,35 @@ class MapsService {
     addUserLocationMarker() {
         if (!this.userLocation || !this.map) return;
 
-        if (typeof google !== "undefined" && google.maps) {
+        if (typeof L !== "undefined") {
             // Remove existing user marker
+            this.markers.filter(m => m.isUserMarker).forEach(m => this.map.removeLayer(m));
             this.markers = this.markers.filter(m => !m.isUserMarker);
-            
-            const marker = new google.maps.Marker({
-                position: this.userLocation,
-                map: this.map,
-                title: "Sua localização",
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                    fillColor: "#0d6efd",
-                    fillOpacity: 1,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 3
-                },
-                zIndex: 1000
+
+            const icon = L.divIcon({
+                className: "elora-user-marker",
+                html: '<div class="elora-user-ball" style="width:22px;height:22px;border-radius:50%;background:#0d6efd;border:4px solid #fff;box-shadow:0 2px 8px rgba(13,110,253,.55);cursor:grab"></div>',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
             });
-            
+
+            const marker = L.marker([this.userLocation.lat, this.userLocation.lng], {
+                icon,
+                draggable: true,
+                title: "Sua localização (arraste para ajustar)"
+            }).addTo(this.map);
+
+            marker.bindPopup("<strong>Você está aqui</strong><br><small>Arraste a bola azul para ajustar</small>");
+            marker.on('dragend', () => {
+                const p = marker.getLatLng();
+                this.userLocation = { lat: p.lat, lng: p.lng };
+                if (typeof this.onUserLocationDrag === 'function') {
+                    this.onUserLocationDrag(p.lat, p.lng);
+                }
+            });
+
             marker.isUserMarker = true;
             this.markers.push(marker);
-
-            // Add accuracy circle
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const circle = new google.maps.Circle({
-                        strokeColor: "#0d6efd",
-                        strokeOpacity: 0.3,
-                        strokeWeight: 1,
-                        fillColor: "#0d6efd",
-                        fillOpacity: 0.1,
-                        map: this.map,
-                        center: this.userLocation,
-                        radius: pos.coords.accuracy
-                    });
-                    this.markers.push(circle);
-                });
-            }
         }
     }
 
@@ -307,7 +308,7 @@ class MapsService {
         });
 
         // Add markers to map if available
-        if (this.map && typeof google !== "undefined") {
+        if (this.map && typeof L !== "undefined") {
             this.createCaregiverMarkers(caregivers);
         }
 
@@ -319,7 +320,7 @@ class MapsService {
      * @param {Array} caregivers - Array of caregiver objects
      */
     createCaregiverMarkers(caregivers) {
-        if (!this.map || typeof google === "undefined") return;
+        if (!this.map || typeof L === "undefined") return;
 
         // Clear existing caregiver markers
         this.clearCaregiverMarkers();
@@ -327,67 +328,50 @@ class MapsService {
         caregivers.forEach(caregiver => {
             if (!caregiver.address || !caregiver.address.lat || !caregiver.address.lng) return;
 
-            const position = {
-                lat: caregiver.address.lat,
-                lng: caregiver.address.lng
-            };
+            const position = [caregiver.address.lat, caregiver.address.lng];
 
-            const marker = new google.maps.Marker({
-                position,
-                map: this.map,
-                title: caregiver.name,
+            const marker = L.marker(position, {
                 icon: this.getCaregiverMarkerIcon(caregiver),
-                caregiverId: caregiver.id
-            });
+                title: caregiver.name
+            }).addTo(this.map);
 
-            // Create info window
-            const infoWindow = new google.maps.InfoWindow({
-                content: this.createInfoWindowContent(caregiver)
-            });
-
-            marker.addListener("click", () => {
-                // Close other info windows
-                this.infoWindows.forEach(iw => iw.close());
-                infoWindow.open(this.map, marker);
-            });
-
+            marker.bindPopup(this.createInfoWindowContent(caregiver));
+            marker.caregiverId = caregiver.id;
             this.markers.push(marker);
-            this.infoWindows.push(infoWindow);
         });
 
         // Fit bounds to show all markers
         if (caregivers.length > 0) {
-            const bounds = new google.maps.LatLngBounds();
+            const points = [];
             if (this.userLocation) {
-                bounds.extend(this.userLocation);
+                points.push([this.userLocation.lat, this.userLocation.lng]);
             }
             caregivers.forEach(cg => {
                 if (cg.address?.lat && cg.address?.lng) {
-                    bounds.extend({ lat: cg.address.lat, lng: cg.address.lng });
+                    points.push([cg.address.lat, cg.address.lng]);
                 }
             });
-            this.map.fitBounds(bounds);
+            if (points.length) {
+                this.map.fitBounds(L.latLngBounds(points), { padding: [30, 30] });
+            }
         }
     }
 
     /**
-     * Get marker icon for caregiver
+     * Get marker icon for caregiver (Leaflet divIcon)
      * @param {Object} caregiver - Caregiver object
-     * @returns {Object} Marker icon config
+     * @returns {Object} Leaflet div icon
      */
     getCaregiverMarkerIcon(caregiver) {
         const color = caregiver.verified ? "#198754" : "#ffc107";
-        const scale = caregiver.rating >= 4.5 ? 14 : 12;
+        const size = caregiver.rating >= 4.5 ? 22 : 18;
 
-        return {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale,
-            fillColor: color,
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 2,
-            labelOrigin: new google.maps.Point(0, 0)
-        };
+        return L.divIcon({
+            className: "elora-caregiver-marker",
+            html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 5px rgba(0,0,0,.35)"></div>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2]
+        });
     }
 
     /**
@@ -437,12 +421,12 @@ class MapsService {
      * Clear caregiver markers
      */
     clearCaregiverMarkers() {
-        this.markers.forEach(marker => {
-            if (marker.caregiverId && marker.setMap) {
-                marker.setMap(null);
+        this.markers.filter(m => m.caregiverId).forEach(marker => {
+            if (this.map && typeof L !== "undefined") {
+                this.map.removeLayer(marker);
             }
         });
-        this.infoWindows.forEach(iw => iw.close());
+        this.infoWindows.forEach(iw => iw.close && iw.close());
         this.markers = this.markers.filter(m => !m.caregiverId);
         this.infoWindows = [];
     }
@@ -546,7 +530,7 @@ class MapsService {
 
         await this.delay(200);
         // Return São Paulo center as mock
-        return CONFIG.GOOGLE_MAPS.defaultCenter;
+        return CONFIG.MAPS.defaultCenter;
     }
 
     /**
@@ -555,32 +539,10 @@ class MapsService {
      * @param {Function} onSelect - Callback when place selected
      */
     initializeAutocomplete(input, onSelect) {
-        if (typeof google === "undefined" || !google.maps.places) {
-            console.warn("Google Places API não disponível");
-            return null;
-        }
-
-        const autocomplete = new google.maps.places.Autocomplete(input, {
-            types: ["geocode"],
-            componentRestrictions: { country: "br" },
-            fields: ["geometry", "formatted_address", "address_components"]
-        });
-
-        autocomplete.addListener("place_changed", () => {
-            const place = autocomplete.getPlace();
-            if (place.geometry) {
-                onSelect({
-                    address: place.formatted_address,
-                    location: {
-                        lat: place.geometry.location.lat(),
-                        lng: place.geometry.location.lng()
-                    },
-                    components: place.address_components
-                });
-            }
-        });
-
-        return autocomplete;
+        // Autocomplete de endereco exigia Google Places (pago). Sem chave, o
+        // preenchimento de endereco continua disponivel via ViaCEP no cadastro.
+        console.info("Autocomplete de endereço indisponível (Google Places desativado).");
+        return null;
     }
 
     /**

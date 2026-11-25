@@ -26,7 +26,26 @@
         <div class="mb-3"><label for="fRating" class="form-label small fw-semibold">Avaliação mínima</label><select id="fRating" class="form-select form-select-sm"><option value="">Qualquer</option><option value="4.5">4.5+</option><option value="4.0">4.0+</option></select></div>
         <div class="mb-3"><label class="form-label small fw-semibold">Preço máx/h <span class="range-value" id="priceVal">R$ 200</span></label><input type="range" id="fPrice" class="form-range" min="20" max="200" value="200" aria-label="Preço máximo por hora"></div>
         <div class="mb-3"><label class="form-label small fw-semibold">Raio <span class="range-value" id="radiusVal">10 km</span></label><input type="range" id="fRadius" class="form-range" min="1" max="50" value="10" aria-label="Raio de busca em km"></div>
-        <div class="mb-3"><label for="fLocation" class="form-label small fw-semibold">Localização</label><input id="fLocation" class="form-control form-control-sm" placeholder="CEP ou lat,lng"><button id="btnLoc" class="btn btn-outline-primary btn-sm w-100 mt-2"><i class="bi bi-geo-fill me-1"></i> Usar minha localização</button></div>
+        <div class="mb-3">
+          <label for="fCep" class="form-label small fw-semibold">CEP</label>
+          <input id="fCep" class="form-control form-control-sm" placeholder="00000-000" maxlength="9" inputmode="numeric" aria-label="CEP">
+          <button id="btnCep" class="btn btn-outline-primary btn-sm w-100 mt-2"><i class="bi bi-search me-1"></i> Buscar CEP</button>
+        </div>
+        <div class="mb-3">
+          <label for="fNumber" class="form-label small fw-semibold">Número</label>
+          <input id="fNumber" class="form-control form-control-sm" placeholder="Ex.: 120" maxlength="10" aria-label="Número">
+        </div>
+        <div class="mb-3 position-relative">
+          <label for="fLocation" class="form-label small fw-semibold">Localização</label>
+          <input id="fLocation" class="form-control form-control-sm" placeholder="Digite rua, cidade ou CEP..." autocomplete="off" aria-autocomplete="list" aria-controls="locationSuggestions">
+          <div id="locationSuggestions" class="list-group position-absolute w-100 mt-1 shadow-sm d-none" style="z-index:1100;max-height:240px;overflow-y:auto;"></div>
+          <div class="row g-2 mt-1">
+            <div class="col-8"><input id="fCity" class="form-control form-control-sm" readonly placeholder="Cidade"></div>
+            <div class="col-4"><input id="fState" class="form-control form-control-sm" readonly placeholder="UF"></div>
+          </div>
+          <input type="hidden" id="fLat"><input type="hidden" id="fLng">
+          <button id="btnLoc" class="btn btn-outline-secondary btn-sm w-100 mt-2"><i class="bi bi-geo-fill me-1"></i> Usar localização padrão</button>
+        </div>
         <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="fVerified"><label class="form-check-label small" for="fVerified">Só verificados</label></div>
         <button id="btnSearch" class="btn btn-elora-primary w-100"><i class="bi bi-search me-1"></i> Aplicar</button>
         <button id="btnClear" class="btn btn-outline-secondary w-100 mt-2 btn-sm">Limpar</button>
@@ -43,6 +62,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../config/config.js"></script>
+<script src="../../services/locationService.js"></script>
 <script src="../../services/apiService.js"></script>
 <script src="../../services/mockData.js"></script>
 <script src="../../services/authService.js"></script>
@@ -55,6 +75,71 @@
 <script src="../../services/app.js"></script>
 <script>
   const qs = new URLSearchParams(window.location.search);
+  let currentLocation = null; // {lat,lng,label,city,state,...}
+  let suppressLocationInput = false;
+  let locationDebounce = null;
+
+  function maskCepInput(value){ return locationService.maskCep(value); }
+  function hideSuggestions(){ document.getElementById('locationSuggestions').classList.add('d-none'); }
+
+  function currentBias(){
+    const base = currentLocation || mapsService.userLocation || {
+      lat: CONFIG.LOCATION_IP.latitude, lng: CONFIG.LOCATION_IP.longitude,
+      city: CONFIG.LOCATION_IP.city, state: CONFIG.LOCATION_IP.region_name
+    };
+    return {
+      lat: base.lat, lng: base.lng,
+      city: base.city || (currentLocation && currentLocation.city) || (CONFIG.LOCATION_IP.city || ''),
+      state: base.state || (currentLocation && currentLocation.state) || (CONFIG.LOCATION_IP.region_name || '')
+    };
+  }
+
+  function applyLocation(loc){
+    if(!loc || !isFinite(loc.lat) || !isFinite(loc.lng)) return;
+    currentLocation = loc;
+    suppressLocationInput = true;
+    document.getElementById('fLocation').value = loc.label || '';
+    suppressLocationInput = false;
+    hideSuggestions();
+    document.getElementById('fCity').value = loc.city || '';
+    document.getElementById('fState').value = loc.state || '';
+    document.getElementById('fLat').value = loc.lat;
+    document.getElementById('fLng').value = loc.lng;
+    mapsService.userLocation = { lat: loc.lat, lng: loc.lng };
+    if(mapsService.map && typeof L !== 'undefined'){
+      mapsService.map.setView([loc.lat, loc.lng], mapsService.map.getZoom());
+    }
+  }
+
+  async function resolveCepInput(){
+    const digits = locationService.onlyDigits(document.getElementById('fCep').value);
+    if(digits.length !== 8){ notificationService.showError('Digite um CEP válido com 8 dígitos'); return; }
+    const btn = document.getElementById('btnCep');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></i> Buscando...';
+    try{
+      const numero = document.getElementById('fNumber').value.trim();
+      const loc = await locationService.resolveCep(digits, numero);
+      applyLocation(loc);
+      notificationService.showSuccess('Localização: ' + loc.label);
+      await doSearch();
+    }catch(err){ notificationService.showError(err.message); }
+    finally{ btn.disabled = false; btn.innerHTML = '<i class="bi bi-search me-1"></i> Buscar CEP'; }
+  }
+
+  function renderSuggestions(items){
+    const box = document.getElementById('locationSuggestions');
+    if(!items || !items.length){ hideSuggestions(); return; }
+    box.innerHTML = items.map((it,i)=>
+      `<button type="button" class="list-group-item list-group-item-action small" data-index="${i}"><i class="bi bi-geo-alt me-2"></i>${escapeHtml(it.label || it.displayName || '')}</button>`
+    ).join('');
+    box.classList.remove('d-none');
+    box.querySelectorAll('button').forEach(btn=> btn.addEventListener('click', ()=>{
+      const item = items[Number(btn.dataset.index)];
+      hideSuggestions();
+      applyLocation(item);
+      doSearch();
+    }));
+  }
 
   // Catálogo vem do backend (GET /busca/especialidades) — nada de slugs fixos.
   async function loadEspecialidades(){
@@ -69,7 +154,7 @@
     }
   }
   const normTag = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'').toLowerCase();
-  function syncFromQS(){
+  async function syncFromQS(){
     const esp=qs.get('specialty');
     if(esp){
       const sel=document.getElementById('fSpecialty');
@@ -82,17 +167,103 @@
     }
     if(qs.get('minRating')) document.getElementById('fRating').value=qs.get('minRating');
     if(qs.get('radius')) document.getElementById('fRadius').value=qs.get('radius');
-    if(qs.get('location')) document.getElementById('fLocation').value=qs.get('location');
+    const locParam = qs.get('location');
+    if(locParam){
+      const digits = locationService.onlyDigits(locParam);
+      if(digits.length === 8 && !locParam.includes(',')){
+        document.getElementById('fCep').value = locationService.maskCep(digits);
+        await resolveCepInput();
+      } else {
+        let parsed = await locationService.resolveText(locParam);
+        if(parsed && isFinite(parsed.lat) && isFinite(parsed.lng)){
+          try{
+            const readable = await locationService.reverse(parsed.lat, parsed.lng);
+            if(readable) parsed = { ...parsed, label: readable.label, city: readable.city, state: readable.state,
+              street: readable.street, neighborhood: readable.neighborhood, number: readable.number };
+          }catch(err){ console.warn('Reverse geocode indisponível:', err.message); }
+        }
+        if(parsed) applyLocation(parsed);
+        else document.getElementById('fLocation').value = locParam;
+      }
+    }
     document.getElementById('radiusVal').textContent = document.getElementById('fRadius').value + ' km';
     document.getElementById('priceVal').textContent = 'R$ ' + document.getElementById('fPrice').value;
   }
   document.getElementById('fRadius').addEventListener('input', e=> document.getElementById('radiusVal').textContent=e.target.value+' km');
   document.getElementById('fPrice').addEventListener('input', e=> document.getElementById('priceVal').textContent='R$ '+e.target.value);
-  document.getElementById('btnLoc').addEventListener('click', async()=>{
-    try{ const loc=await mapsService.getUserLocation(); document.getElementById('fLocation').value=loc.lat.toFixed(5)+','+loc.lng.toFixed(5); doSearch(); }catch(err){ notificationService.showError(err.message); }
+  document.getElementById('fCep').addEventListener('input', e=> e.target.value = maskCepInput(e.target.value));
+  document.getElementById('fCep').addEventListener('blur', ()=>{
+    if(locationService.onlyDigits(document.getElementById('fCep').value).length === 8) resolveCepInput();
   });
+  document.getElementById('btnCep').addEventListener('click', resolveCepInput);
+  document.getElementById('btnLoc').addEventListener('click', async()=>{
+    try{
+      const loc = await mapsService.getUserLocation();
+      const ip = CONFIG.LOCATION_IP;
+      applyLocation({
+        lat: loc.lat, lng: loc.lng,
+        label: `${ip.city || 'Localização'} - ${ip.region_name || ''} - ${ip.country_name || 'Brasil'}`.replace(/\s*-\s*$/,''),
+        city: ip.city || '', state: ip.region_name || '', country: ip.country_name || 'Brasil'
+      });
+      await doSearch();
+    }catch(err){ notificationService.showError(err.message); }
+  });
+
+  // Localização editável com sugestões (tipo Google Maps).
+  document.getElementById('fLocation').addEventListener('input', e=>{
+    if(suppressLocationInput) return;
+    const value = e.target.value.trim();
+    if(value.length < 3){ hideSuggestions(); return; }
+    clearTimeout(locationDebounce);
+    locationDebounce = setTimeout(async()=>{
+      try{ renderSuggestions(await locationService.autocomplete(value, 5, currentBias())); }
+      catch(err){ console.warn('Autocomplete indisponível:', err.message); hideSuggestions(); }
+    }, 450);
+  });
+  document.getElementById('fLocation').addEventListener('keydown', async e=>{
+    if(e.key === 'Escape'){ hideSuggestions(); return; }
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    const value = e.target.value.trim();
+    const digits = locationService.onlyDigits(value);
+    if(digits.length === 8 && !value.includes(',')){
+      document.getElementById('fCep').value = locationService.maskCep(digits);
+      hideSuggestions();
+      await resolveCepInput();
+      return;
+    }
+    const first = document.querySelector('#locationSuggestions button');
+    if(first){ first.click(); return; }
+    try{
+      const parsed = await locationService.resolveText(value);
+      if(parsed){ applyLocation(parsed); await doSearch(); }
+      else notificationService.showError('Localização não encontrada');
+    }catch(err){ notificationService.showError(err.message); }
+  });
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('.position-relative') || !e.target.closest('#fLocation, #locationSuggestions')) hideSuggestions();
+  });
+
+  // Arrastar o ponto azul atualiza endereço e pesquisa.
+  mapsService.onUserLocationDrag = async (lat, lng)=>{
+    try{
+      const loc = await locationService.reverse(lat, lng);
+      if(loc) applyLocation(loc);
+      await doSearch();
+    }catch(err){ console.warn('Não foi possível atualizar o endereço ao arrastar:', err.message); }
+  };
+
   document.getElementById('btnSearch').addEventListener('click', doSearch);
-  document.getElementById('btnClear').addEventListener('click', ()=>{ document.getElementById('fSpecialty').value=''; document.getElementById('fRating').value=''; document.getElementById('fPrice').value=200; document.getElementById('fRadius').value=10; document.getElementById('fLocation').value=''; document.getElementById('fVerified').checked=false; doSearch(); });
+  document.getElementById('btnClear').addEventListener('click', ()=>{
+    document.getElementById('fSpecialty').value=''; document.getElementById('fRating').value='';
+    document.getElementById('fPrice').value=200; document.getElementById('fRadius').value=10;
+    document.getElementById('fCep').value=''; document.getElementById('fNumber').value='';
+    document.getElementById('fCity').value=''; document.getElementById('fState').value='';
+    document.getElementById('fLat').value=''; document.getElementById('fLng').value='';
+    document.getElementById('fLocation').value=''; document.getElementById('fVerified').checked=false;
+    currentLocation = null;
+    doSearch();
+  });
 
   async function doSearch(){
     const sel=document.getElementById('fSpecialty');
@@ -109,9 +280,14 @@
       verifiedOnly: document.getElementById('fVerified').checked || undefined,
       userLocation: null
     };
-    const locStr=document.getElementById('fLocation').value.trim();
-    if(locStr.includes(',')){ const [lat,lng]=locStr.split(',').map(Number); if(!isNaN(lat)) filters.userLocation={lat,lng}; }
-    else if(mapsService.userLocation) filters.userLocation=mapsService.userLocation;
+    if(currentLocation && isFinite(currentLocation.lat)){
+      filters.userLocation = { lat: currentLocation.lat, lng: currentLocation.lng };
+    } else {
+      const hiddenLat = document.getElementById('fLat').value;
+      const hiddenLng = document.getElementById('fLng').value;
+      if(hiddenLat && hiddenLng) filters.userLocation = { lat: Number(hiddenLat), lng: Number(hiddenLng) };
+      else if(mapsService.userLocation) filters.userLocation = mapsService.userLocation;
+    }
 
     document.getElementById('loading').classList.remove('d-none');
     document.getElementById('caregiverList').innerHTML='';
@@ -160,7 +336,7 @@
   }
   document.addEventListener('DOMContentLoaded', async () => {
     await loadEspecialidades();
-    syncFromQS();
+    await syncFromQS();
     doSearch();
   });
 </script>

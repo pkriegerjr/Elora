@@ -120,7 +120,11 @@
           <input type="range" class="form-range" id="filterRadius" min="1" max="50" value="10">
         </div>
         <div class="col-md-2">
-          <label for="filterLocation" class="form-label fw-semibold">CEP / Cidade</label><input type="text" class="form-control" id="filterLocation" placeholder="01310-100">
+          <label for="filterLocation" class="form-label fw-semibold">CEP / Cidade</label>
+          <div class="position-relative">
+            <input type="text" class="form-control" id="filterLocation" placeholder="01310-100 ou cidade" autocomplete="off">
+            <div id="homeLocationSuggestions" class="list-group position-absolute w-100 mt-1 shadow-sm d-none" style="z-index:1100;max-height:240px;overflow-y:auto;"></div>
+          </div>
         </div>
         <div class="col-md-2 d-grid">
           <button type="submit" class="btn btn-elora-primary btn-lg"><i class="bi bi-search me-1"></i> Buscar</button>
@@ -197,6 +201,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="src/config/config.js"></script>
+  <script src="src/services/locationService.js"></script>
   <script src="src/services/apiService.js"></script>
   <script src="src/services/mockData.js"></script>
   <script src="src/services/authService.js"></script>
@@ -212,13 +217,40 @@
     document.getElementById('btnUseLocation')?.addEventListener('click', async ()=>{
       try{ const loc = await mapsService.getUserLocation(); notificationService.showSuccess('Localização obtida!'); document.getElementById('filterLocation').value = loc.lat.toFixed(4)+', '+loc.lng.toFixed(4); }catch(err){ notificationService.showError(err.message); }
     });
+    let homeLocation = null;
+    let homeLocationTimer = null;
+    const homeSuggestions = document.getElementById('homeLocationSuggestions');
+    document.getElementById('filterLocation')?.addEventListener('input', e=>{
+      homeLocation = null;
+      const value = e.target.value.trim();
+      if(value.length < 3){ homeSuggestions.classList.add('d-none'); return; }
+      clearTimeout(homeLocationTimer);
+      homeLocationTimer = setTimeout(async()=>{
+        try{
+          const bias = { lat: CONFIG.LOCATION_IP.latitude, lng: CONFIG.LOCATION_IP.longitude, city: CONFIG.LOCATION_IP.city, state: CONFIG.LOCATION_IP.region_name };
+          const items = await locationService.autocomplete(value, 5, bias);
+          if(!items.length){ homeSuggestions.classList.add('d-none'); return; }
+          homeSuggestions.innerHTML = items.map((it,i)=>`<button type="button" class="list-group-item list-group-item-action small" data-index="${i}"><i class="bi bi-geo-alt me-2"></i>${escapeHtml(it.label||'')}</button>`).join('');
+          homeSuggestions.classList.remove('d-none');
+          homeSuggestions.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{
+            const loc = items[Number(b.dataset.index)];
+            homeLocation = loc;
+            document.getElementById('filterLocation').value = loc.label;
+            homeSuggestions.classList.add('d-none');
+          }));
+        }catch(err){ homeSuggestions.classList.add('d-none'); }
+      }, 450);
+    });
+    document.addEventListener('click', e=>{
+      if(!e.target.closest('#filterLocation, #homeLocationSuggestions')) homeSuggestions.classList.add('d-none');
+    });
     document.getElementById('homeSearchForm')?.addEventListener('submit', e=>{
       e.preventDefault();
       const qs = new URLSearchParams({
         specialty: document.getElementById('filterSpecialty').value,
         minRating: document.getElementById('filterRating').value,
         radius: document.getElementById('filterRadius').value,
-        location: document.getElementById('filterLocation').value
+        location: homeLocation ? `${homeLocation.lat},${homeLocation.lng}` : document.getElementById('filterLocation').value
       }).toString();
       window.location.href = 'src/pages/busca/buscar-cuidadores.html?'+qs;
     });
