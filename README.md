@@ -15,7 +15,7 @@ Documento de Arquitetura v3.0 — Baseado no modelo 4+1 [KRU95]. Foco em acessib
 | **Cache / Sessão** | Roadmap — sem Redis no `pom.xml` | `infra/docker-compose.yml` com Redis foi removido |
 | **Storage** | Roadmap — sem S3 integrado | Upload real pendente |
 | **Tempo Real** | Mock — `notificationService.js` com polling 30s | FCM não integrado |
-| **Integrações** | Google Maps (mock, chave via `GET /api/config/maps-key` em prod), Gateway pagamento mock (`MockGatewayPagamentoService`), ViaCEP no front | PIX/cartão/boleto com `idempotency_key`, sem gateway real |
+| **Integrações** | Leaflet + OpenStreetMap (mapa gratuito, sem chave), localização inicial via `CONFIG.LOCATION_IP`, ViaCEP no front, Gateway pagamento mock (`MockGatewayPagamentoService`) | PIX/cartão/boleto com `idempotency_key`, sem gateway real |
 
 > Docker foi descontinuado no projeto. Não há `docker-compose.yml`. Banco local/prod é PostgreSQL (Neon).
 
