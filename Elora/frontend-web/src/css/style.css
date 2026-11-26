@@ -78,6 +78,13 @@ a:focus-visible{ text-decoration: underline; text-underline-offset: 3px; }
 @media (prefers-reduced-motion: reduce){ .skeleton{animation:none} .card-elora{transition:none} .card-elora:hover{transform:none} }
 /* Botões de ação sem estilo próprio (favoritar, ler, detalhe) — alvo mínimo 44px */
 .fav-btn, .btn-unfav, .btn-read, .btn-del, .btn-detail{min-height:44px;min-width:44px}
+/* Estado favoritado: visível e harmonioso com o padrão existente */
+.fav-btn.is-favorited{border-color:#dc3545;color:#dc3545;background:#fff}
+.fav-btn.is-favorited:hover,.fav-btn.is-favorited:focus-visible{background:#dc3545;color:#fff}
+.fav-btn.is-favorited:hover .bi-heart-fill,.fav-btn.is-favorited:focus-visible .bi-heart-fill{color:#fff!important}
+.btn-elora-outline.is-favorited{border-color:#dc3545;color:#dc3545}
+.btn-elora-outline.is-favorited:hover,.btn-elora-outline.is-favorited:focus-visible{background:#dc3545;color:#fff}
+.btn-elora-outline.is-favorited:hover .bi-heart-fill,.btn-elora-outline.is-favorited:focus-visible .bi-heart-fill{color:#fff!important}
 /* Distribuições de relatórios (Por método / Por status / Perfis / ...) — mesmo padrão stat-card/badge-elora */
 .dist-group{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.25rem 0}
 .dist-label{font-size:.8rem;font-weight:600;color:var(--elora-muted);text-transform:uppercase;letter-spacing:.04em;margin-right:.25rem}

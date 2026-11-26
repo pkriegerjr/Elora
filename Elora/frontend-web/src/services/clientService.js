@@ -273,6 +273,15 @@ class ClientService {
     }
 
     /**
+     * Get favorite caregiver IDs as a Set of strings for quick lookup.
+     * @returns {Promise<Set<string>>}
+     */
+    async getFavoriteIds() {
+        const favorites = await this.getFavorites();
+        return new Set((favorites || []).map(f => String(f.id)));
+    }
+
+    /**
      * Get client's favorite caregivers
      * @returns {Promise<Array>} Array of caregiver objects
      */
