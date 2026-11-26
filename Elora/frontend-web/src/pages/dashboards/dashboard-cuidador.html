@@ -49,6 +49,9 @@
         </div>
         <div class="col-lg-4">
           <div class="card-elora p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2"><h5 class="mb-0">Notificações recentes</h5><a href="../notificacoes/lista.html" class="btn btn-elora-outline btn-sm">Ver todas</a></div><div id="notifList" class="small"></div><button id="btnMarkAll" class="btn btn-outline-secondary btn-sm w-100 mt-2">Marcar todas como lidas</button>
+          </div>
+          <div class="card-elora p-3 mt-3">
             <h5>Documentos</h5><div id="docStatus" class="small"></div>
             <button class="btn btn-elora-outline btn-sm w-100 mt-2" data-bs-toggle="modal" data-bs-target="#docModal">Enviar documentos</button>
           </div>
@@ -73,6 +76,9 @@
 <script src="../../services/mapsService.js?v=20261125-4"></script>
 <script src="../../services/app.js?v=20261125-4"></script>
 <script>
+  function notifTipoLabel(t){
+    return ({denuncia:'Denúncia',validacao:'Validação',contrato:'Contrato',pagamento:'Pagamento',avaliacao:'Avaliação',sistema:'Sistema'})[t] || t || 'Sistema';
+  }
   async function load(){
     if(!authService.isCaregiver()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('dashboards/dashboard-cuidador.html'); return; }
     const user=authService.getCurrentUser();
@@ -96,11 +102,30 @@
       document.getElementById('contractsBody').innerHTML = contracts.length? contracts.map(c=>`<tr><td>${escapeHtml(c.client?.name||c.clientId)}</td><td class="small">${formatDate(c.startDate)} - ${formatDate(c.endDate)}</td><td><span class="${contractStatusBadge(c.status)}">${escapeHtml(contractService.getStatusLabel(c.status))}</span></td><td><a href="../contratos/contrato.html?id=${c.id}" class="btn btn-sm btn-elora-outline">Ver</a></td></tr>`).join('') : '<tr><td colspan="4" class="text-center small text-muted">Nenhum contrato.</td></tr>';
       document.getElementById('docStatus').innerHTML = Object.entries(verif.documents).map(([k,v])=>`<div class="d-flex justify-content-between"><span>${escapeHtml(k)}</span><span class="badge ${v==='approved'?'bg-success': v==='pending_review'?'bg-warning text-dark':'bg-secondary'}">${v}</span></div>`).join('');
       document.getElementById('reviewsBox').innerHTML = reviews.slice(0,3).map(r=>`<div class="border-bottom py-2"><span class="stars">${'★'.repeat(r.rating)}</span> <small>${formatDate(r.createdAt)}</small><div>${escapeHtml(r.comment)}</div></div>`).join('') || '<span class="text-muted">Sem avaliações.</span>';
+      const notifs = await notificationService.getNotifications({ limit: 5 });
+      document.getElementById('notifList').innerHTML = notifs.map(n=>`
+        <div class="border-bottom py-2 ${n.lida?'opacity-50':''}">
+          <div class="d-flex flex-wrap justify-content-between gap-1"><strong class="small">${escapeHtml(n.titulo||'Notificação')}</strong><small class="text-muted">${n.enviadoEm?formatDateTime(n.enviadoEm):''}</small></div>
+          <div class="small text-muted">${escapeHtml(n.corpo||'')}</div>
+          <div class="mt-1 d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge bg-secondary">${escapeHtml(notifTipoLabel(n.referenciaTipo||n.tipo))}</span>
+            ${!n.lida?`<button class="btn btn-sm btn-link p-0 btn-notif-read" data-id="${n.id}" aria-label="Marcar notificação como lida">marcar lida</button>`:''}
+          </div>
+        </div>`).join('') || '<p class="small text-muted">Sem notificações.</p>';
+      document.querySelectorAll('.btn-notif-read').forEach(b=> b.addEventListener('click', async()=>{
+        try{ await notificationService.markAsRead(b.dataset.id); await load(); }
+        catch(e){ notificationService.showError(e.message); }
+      }));
+      await notificationService.updateUnreadCount();
       // prefill avail
       (profile.availability?.days||[]).forEach(d=> document.querySelectorAll('.day').forEach(el=>{ if(parseInt(el.value)===d) el.checked=true; }));
       if(profile.availability?.schedule){ document.getElementById('availStart').value=profile.availability.schedule.start||'07:00'; document.getElementById('availEnd').value=profile.availability.schedule.end||'19:00'; }
     }catch(err){ notificationService.showError(err.message); }
   }
+  document.getElementById('btnMarkAll')?.addEventListener('click', async()=>{
+    try{ await notificationService.markAllAsRead(); await load(); notificationService.showSuccess('Notificações marcadas como lidas.'); }
+    catch(e){ notificationService.showError(e.message); }
+  });
   document.getElementById('formAvail')?.addEventListener('submit', async e=>{ e.preventDefault(); const days=[...document.querySelectorAll('.day:checked')].map(x=>parseInt(x.value)); try{ await caregiverService.updateAvailability({ days, schedule:{ start: document.getElementById('availStart').value, end: document.getElementById('availEnd').value }}); notificationService.showSuccess('Disponibilidade atualizada'); }catch(err){ notificationService.showError(err.message); } });
   document.getElementById('btnUploadDocs')?.addEventListener('click', async()=>{
     const docs={}; ['doc1','doc2','doc3','doc4'].forEach((id,i)=>{ const f=document.getElementById(id).files[0]; if(f) docs['doc'+i]=f; });

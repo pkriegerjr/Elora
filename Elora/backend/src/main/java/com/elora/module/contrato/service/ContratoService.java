@@ -10,6 +10,7 @@ import com.elora.module.contrato.entity.Contrato;
 import com.elora.module.contrato.enums.StatusContrato;
 import com.elora.module.contrato.mapper.ContratoMapper;
 import com.elora.module.contrato.repository.ContratoRepository;
+import com.elora.module.notificacao.service.AvisoSistemaService;
 import com.elora.module.usuario.entity.Usuario;
 import com.elora.module.usuario.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class ContratoService {
 
     private final ContratoRepository contratos;
     private final UsuarioService usuarioService;
+    private final AvisoSistemaService avisos;
 
     private static final String PERFIL_PROFISSIONAL = "profissional";
 
@@ -160,7 +162,48 @@ public class ContratoService {
                     "Transição de " + contrato.getStatus() + " para " + novoStatus + " não é permitida");
         }
         contrato.setStatus(novoStatus);
-        return ContratoMapper.toResponse(contratos.save(contrato));
+        Contrato salvo = contratos.save(contrato);
+        avisarMudancaStatus(salvo, novoStatus);
+        return ContratoMapper.toResponse(salvo);
+    }
+
+    /** Cliente e cuidador acompanham os marcos relevantes do contrato. */
+    private void avisarMudancaStatus(Contrato contrato, StatusContrato status) {
+        String titulo;
+        String descricao;
+        switch (status) {
+            case proposta -> {
+                titulo = "Proposta enviada";
+                descricao = "recebeu uma proposta.";
+            }
+            case ativo -> {
+                titulo = "Contrato ativado";
+                descricao = "foi ativado.";
+            }
+            case concluido -> {
+                titulo = "Contrato concluído";
+                descricao = "foi concluído.";
+            }
+            case em_disputa -> {
+                titulo = "Contrato em disputa";
+                descricao = "entrou em disputa e precisa de mediação.";
+            }
+            case rescindido -> {
+                titulo = "Contrato rescindido";
+                descricao = "foi rescindido.";
+            }
+            default -> {
+                return;
+            }
+        }
+        String corpo = "O contrato " + contrato.getCodigo() + " " + descricao;
+        avisos.notificarSeguroUsuarios(
+                List.of(contrato.getCliente().getId(), contrato.getProfissional().getId()),
+                titulo, corpo, "contrato", contrato.getId());
+        if (status == StatusContrato.em_disputa) {
+            avisos.notificarSeguro(AvisoSistemaService.FINANCEIRO, titulo,
+                    corpo + " Acesse o painel para acompanhar.", "contrato", contrato.getId());
+        }
     }
 
     /** Exclui fisicamente SÓ rascunho (criador/cliente/staff). */

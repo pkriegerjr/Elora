@@ -12,6 +12,7 @@ import com.elora.module.avaliacao.mapper.AvaliacaoMapper;
 import com.elora.module.avaliacao.repository.AvaliacaoRepository;
 import com.elora.module.contrato.entity.Contrato;
 import com.elora.module.contrato.repository.ContratoRepository;
+import com.elora.module.notificacao.service.AvisoSistemaService;
 import com.elora.module.usuario.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class AvaliacaoService {
     private final AvaliacaoRepository avaliacoes;
     private final ContratoRepository contratos;
     private final UsuarioService usuarioService;
+    private final AvisoSistemaService avisos;
 
     /** POST: cria (201). Avaliador = logado; avaliado = profissional do contrato. */
     @Transactional
@@ -67,7 +69,14 @@ public class AvaliacaoService {
         nova.setNota(req.getNota().shortValue()); // API Integer → SMALLINT
         nova.setComentario(req.getComentario() == null ? null : req.getComentario().trim());
         // nota_media do profissional: trigger do banco recalcula sozinho.
-        return AvaliacaoMapper.toResponse(avaliacoes.save(nova));
+        Avaliacao salva = avaliacoes.save(nova);
+        String comentario = salva.getComentario() == null || salva.getComentario().isBlank()
+                ? "" : " Comentário: " + salva.getComentario();
+        avisos.notificarSeguroUsuario(salva.getAvaliado().getId(),
+                "Nova avaliação recebida",
+                "Você recebeu uma avaliação de " + salva.getNota() + " estrela(s)." + comentario,
+                "avaliacao", salva.getId());
+        return AvaliacaoMapper.toResponse(salva);
     }
 
     /** GET /cuidador/{id}: agregado + itens (404 se não é cuidador). */

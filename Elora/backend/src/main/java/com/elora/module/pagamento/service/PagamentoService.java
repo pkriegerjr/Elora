@@ -8,6 +8,7 @@ import com.elora.common.exception.UnauthorizedException;
 import com.elora.module.contrato.entity.Contrato;
 import com.elora.module.contrato.enums.StatusContrato;
 import com.elora.module.contrato.repository.ContratoRepository;
+import com.elora.module.notificacao.service.AvisoSistemaService;
 import com.elora.module.pagamento.dto.CancelarPagamentoRequest;
 import com.elora.module.pagamento.dto.CobrancaResponse;
 import com.elora.module.pagamento.dto.CriarPagamentoRequest;
@@ -67,6 +68,7 @@ public class PagamentoService {
     private final GatewayPagamentoService gateway;
     private final UsuarioService usuarioService;
     private final AuditoriaService auditoria;
+    private final AvisoSistemaService avisos;
 
     @Value("${app.integracoes.pagamento.provider:mock}")
     private String provider;
@@ -120,6 +122,8 @@ public class PagamentoService {
         p.setIdempotencyKey(chave);
         Pagamento salvo = pagamentos.save(p);
         auditoria.registrar(viewerId, "pagamento.criar", "pagamento", salvo.getId(), ip);
+        avisarFinanceiro(salvo, "Pagamento pendente", "está aguardando confirmação.");
+        avisarUsuario(p.getPagadorId(), salvo, "Pagamento pendente", "está aguardando confirmação.");
         return mapear(salvo);
     }
 
@@ -190,6 +194,8 @@ public class PagamentoService {
         pagamentos.save(p);
         String motivo = req == null || req.getMotivo() == null ? "" : " (" + req.getMotivo() + ")";
         auditoria.registrar(viewerId, "pagamento.cancelar" + motivo, "pagamento", p.getId(), ip);
+        avisarFinanceiro(p, "Pagamento recusado", "foi cancelado pelo usuário.");
+        avisarUsuario(p.getPagadorId(), p, "Pagamento recusado", "foi cancelado.");
         return mapear(p);
     }
 
@@ -340,6 +346,8 @@ public class PagamentoService {
                 p.setStatus(StatusPagamento.recusado);
                 pagamentos.save(p);
                 auditoria.registrar(atorId, "pagamento.recusar", "pagamento", p.getId(), ip);
+                avisarFinanceiro(p, "Pagamento recusado", "foi recusado pelo gateway.");
+                avisarUsuario(p.getPagadorId(), p, "Pagamento recusado", "foi recusado pelo gateway.");
                 return mapear(p);
             }
             case PENDENTE -> {
@@ -369,6 +377,7 @@ public class PagamentoService {
         if (novo) {
             garantirRepasse(p, ip);
             auditoria.registrar(atorId, "pagamento.aprovar", "pagamento", p.getId(), ip);
+            avisarUsuario(p.getPagadorId(), p, "Pagamento confirmado", "foi confirmado.");
         }
         return mapear(p);
     }
@@ -386,6 +395,8 @@ public class PagamentoService {
         r.setStatus(StatusRepasse.pendente);
         Repasse salvo = repasses.save(r);
         auditoria.registrar(p.getPagadorId(), "repasse.criar", "repasse", salvo.getId(), ip);
+        avisarUsuario(contrato.getProfissional().getId(), p, "Repasse pendente",
+                "um repasse foi criado e está pendente.");
     }
 
     private void marcarEstornado(Pagamento p, Integer atorId, String ip) {
@@ -394,13 +405,34 @@ public class PagamentoService {
         }
         p.setStatus(StatusPagamento.estornado);
         pagamentos.save(p);
-        repasses.findByPagamentoId(p.getId()).ifPresent(r -> {
-            if (r.getStatus() == StatusRepasse.pendente) {
-                r.setStatus(StatusRepasse.falha);
-                repasses.save(r);
-            }
-        });
+        Repasse repasse = repasses.findByPagamentoId(p.getId()).orElse(null);
+        boolean bloqueouRepasse = repasse != null && repasse.getStatus() == StatusRepasse.pendente;
+        if (bloqueouRepasse) {
+            repasse.setStatus(StatusRepasse.falha);
+            repasses.save(repasse);
+        }
         auditoria.registrar(atorId, "pagamento.estornar", "pagamento", p.getId(), ip);
+        avisarFinanceiro(p, "Pagamento estornado", "foi estornado e o repasse foi bloqueado.");
+        avisarUsuario(p.getPagadorId(), p, "Pagamento estornado", "foi estornado.");
+        if (bloqueouRepasse) {
+            Contrato contrato = contratos.findById(p.getContratoId()).orElse(null);
+            if (contrato != null) {
+                avisarUsuario(contrato.getProfissional().getId(), p, "Repasse bloqueado",
+                        "o repasse foi bloqueado após o estorno.");
+            }
+        }
+    }
+
+    private void avisarFinanceiro(Pagamento p, String titulo, String descricao) {
+        avisos.notificarSeguro(AvisoSistemaService.FINANCEIRO, titulo,
+                "Pagamento #" + p.getId() + " do contrato " + p.getContratoId() + " " + descricao,
+                "pagamento", p.getId());
+    }
+
+    private void avisarUsuario(Integer usuarioId, Pagamento p, String titulo, String descricao) {
+        avisos.notificarSeguroUsuario(usuarioId, titulo,
+                "Pagamento #" + p.getId() + " do contrato " + p.getContratoId() + " " + descricao,
+                "pagamento", p.getId());
     }
 
     private void validarWebhook(String tokenRecebido) {

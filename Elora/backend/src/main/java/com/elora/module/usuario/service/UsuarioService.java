@@ -4,6 +4,7 @@ import com.elora.common.exception.BusinessException;
 import com.elora.common.exception.ForbiddenException;
 import com.elora.common.exception.ResourceNotFoundException;
 import com.elora.common.util.DocumentUtils;
+import com.elora.module.notificacao.service.AvisoSistemaService;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
 import com.elora.module.usuario.dto.ClienteUpdateRequest;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
@@ -46,6 +47,7 @@ public class UsuarioService {
     private final ProfissionalDetalhesRepository profissionalDetalhes;
     private final ContratanteDetalhesRepository contratanteDetalhes;
     private final PasswordEncoder passwordEncoder;
+    private final AvisoSistemaService avisos;
 
     @Transactional
     public UsuarioResponse registerCliente(ClienteRegisterRequest req) {
@@ -89,6 +91,11 @@ public class UsuarioService {
         detalhes.setStatusVerificacao(StatusVerificacao.pendente);
         detalhes.setNotaMedia(new BigDecimal("0.00"));
         profissionalDetalhes.save(detalhes);
+
+        avisos.notificarSeguro(AvisoSistemaService.ADMINISTRACAO,
+                "Cuidador aguardando validação",
+                usuario.getNome() + " cadastrou o perfil e aguarda validação documental.",
+                "validacao", usuario.getId());
 
         return toResponse(usuario);
     }

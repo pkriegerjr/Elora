@@ -5,8 +5,12 @@ import com.elora.common.exception.ResourceNotFoundException;
 import com.elora.module.notificacao.dto.CriarNotificacaoRequest;
 import com.elora.module.notificacao.dto.NotificacaoResponse;
 import com.elora.module.notificacao.dto.PreferenciasRequest;
+import com.elora.module.notificacao.service.AvisoSistemaService;
 import com.elora.module.notificacao.service.NotificacaoService;
+import com.elora.module.profissional.dto.ValidacaoRequest;
+import com.elora.module.profissional.service.ProfissionalService;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
+import com.elora.module.usuario.dto.CuidadorRegisterRequest;
 import com.elora.module.usuario.dto.UsuarioResponse;
 import com.elora.module.usuario.entity.Perfil;
 import com.elora.module.usuario.entity.Usuario;
@@ -21,7 +25,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -40,7 +46,13 @@ class NotificacaoFlowTest {
     private NotificacaoService notificacaoService;
 
     @Autowired
+    private AvisoSistemaService avisos;
+
+    @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private ProfissionalService profissionalService;
 
     @Autowired
     private PerfilRepository perfilRepository;
@@ -57,6 +69,7 @@ class NotificacaoFlowTest {
     @BeforeEach
     void setup() {
         perfil("cliente");
+        perfil("profissional");
         perfil("admin");
 
         clienteId = usuarioService.registerCliente(cadastro("cli@teste.com", "52998224725")).getId();
@@ -127,6 +140,58 @@ class NotificacaoFlowTest {
 
         assertEquals(1, notificacaoService.marcarTodasComoLidas(clienteId));
         assertEquals(0, notificacaoService.contarNaoLidas(clienteId));
+    }
+
+    @Test
+    void avisoInternoRespeitaPerfis() {
+        int enviados = avisos.notificar(Set.of("admin"), "Aviso interno", "Corpo do aviso", "sistema", null);
+        assertEquals(1, enviados);
+        assertEquals(1, notificacaoService.listar(adminId, false, "sistema", 20).size());
+        assertEquals(0, notificacaoService.listar(clienteId, false, "sistema", 20).size());
+    }
+
+    @Test
+    void avisoDeCuidadorPendenteParaAdministracao() {
+        CuidadorRegisterRequest req = new CuidadorRegisterRequest();
+        req.setNome("Cuidador Aviso");
+        req.setEmail("cuidador-aviso@teste.com");
+        req.setCpf("98765432100");
+        req.setSenha("Senha@123");
+        req.setPrecoHora(new BigDecimal("50.00"));
+        req.setConsentimentoLgpd(true);
+        usuarioService.registerCuidador(req);
+
+        assertEquals(1, notificacaoService.listar(adminId, false, "validacao", 20).size());
+        assertEquals(0, notificacaoService.listar(clienteId, false, "validacao", 20).size());
+    }
+
+    @Test
+    void avisoDiretoParaUsuarioFinal() {
+        int enviados = avisos.notificarUsuario(clienteId, "Aviso ao cliente", "Corpo do aviso", "sistema", null);
+
+        assertEquals(1, enviados);
+        assertEquals(1, notificacaoService.listar(clienteId, false, "sistema", 20).size());
+        assertEquals(0, notificacaoService.listar(adminId, false, "sistema", 20).size());
+    }
+
+    @Test
+    void avisoDeValidacaoParaOCuidador() {
+        CuidadorRegisterRequest req = new CuidadorRegisterRequest();
+        req.setNome("Cuidador Validado");
+        req.setEmail("cuidador-validado@teste.com");
+        req.setCpf("11122233396");
+        req.setSenha("Senha@123");
+        req.setPrecoHora(new BigDecimal("50.00"));
+        req.setConsentimentoLgpd(true);
+        Integer cuidadorId = usuarioService.registerCuidador(req).getId();
+
+        ValidacaoRequest validacao = new ValidacaoRequest();
+        validacao.setResultado("aprovado");
+        validacao.setObservacao("Documentos conferidos");
+        profissionalService.validar(cuidadorId, adminId, validacao);
+
+        assertEquals(1, notificacaoService.listar(cuidadorId, false, "validacao", 20).size());
+        assertEquals(0, notificacaoService.listar(clienteId, false, "validacao", 20).size());
     }
 
     @Test

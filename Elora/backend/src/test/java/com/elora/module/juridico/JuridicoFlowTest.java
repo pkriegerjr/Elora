@@ -2,13 +2,20 @@ package com.elora.module.juridico;
 
 import com.elora.common.exception.BusinessException;
 import com.elora.common.exception.ForbiddenException;
+import com.elora.module.avaliacao.dto.CriarAvaliacaoRequest;
+import com.elora.module.avaliacao.service.AvaliacaoService;
 import com.elora.module.contrato.dto.CriarContratoRequest;
+import com.elora.module.contrato.enums.StatusContrato;
 import com.elora.module.contrato.service.ContratoService;
 import com.elora.module.juridico.dto.AtualizarStatusDenunciaRequest;
 import com.elora.module.juridico.dto.CriarDenunciaRequest;
 import com.elora.module.juridico.dto.DenunciaResponse;
 import com.elora.module.juridico.enums.StatusDenuncia;
 import com.elora.module.juridico.service.JuridicoService;
+import com.elora.module.notificacao.service.NotificacaoService;
+import com.elora.module.pagamento.dto.CriarPagamentoRequest;
+import com.elora.module.pagamento.enums.MetodoPagamento;
+import com.elora.module.pagamento.service.PagamentoService;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
 import com.elora.module.usuario.entity.Perfil;
@@ -54,6 +61,15 @@ class JuridicoFlowTest {
     @Autowired
     private ContratoService contratoService;
 
+    @Autowired
+    private PagamentoService pagamentoService;
+
+    @Autowired
+    private NotificacaoService notificacaoService;
+
+    @Autowired
+    private AvaliacaoService avaliacaoService;
+
     private Integer cli;
     private Integer prof;
     private Integer admin;
@@ -83,6 +99,9 @@ class JuridicoFlowTest {
         assertEquals(1, juridicoService.listarTodas().size());
         assertEquals(1, juridicoService.minhas(cli).size());
         assertEquals(d.getId(), juridicoService.detalhar(d.getId(), cli).getId());
+        // Aviso automático da denúncia vai só para a equipe.
+        assertEquals(1, notificacaoService.listar(admin, false, "denuncia", 50).size());
+        assertEquals(0, notificacaoService.listar(cli, false, "denuncia", 50).size());
     }
 
     @Test
@@ -112,11 +131,14 @@ class JuridicoFlowTest {
                 new AtualizarStatusDenunciaRequest(StatusDenuncia.em_analise, "Assumida"), admin);
         assertEquals(StatusDenuncia.em_analise, emAnalise.getStatus());
         assertEquals(admin, emAnalise.getAnalisadoPor());
+        assertEquals(1, notificacaoService.listar(cli, false, "denuncia", 50).size());
 
         DenunciaResponse resolvida = juridicoService.atualizarStatus(d.getId(),
                 new AtualizarStatusDenunciaRequest(StatusDenuncia.resolvida, "Procedente"), admin);
         assertEquals(StatusDenuncia.resolvida, resolvida.getStatus());
         assertEquals("Procedente", resolvida.getParecer());
+        assertEquals(2, notificacaoService.listar(cli, false, "denuncia", 50).size());
+        assertEquals(1, notificacaoService.listar(admin, false, "denuncia", 50).size());
 
         assertThrows(BusinessException.class,
                 () -> juridicoService.atualizarStatus(d.getId(),
@@ -126,6 +148,48 @@ class JuridicoFlowTest {
                 new AtualizarStatusDenunciaRequest(StatusDenuncia.aberta, null), admin);
         assertEquals(StatusDenuncia.aberta, reaberta.getStatus());
         assertEquals(null, reaberta.getAnalisadoPor());
+    }
+
+    @Test
+    void avisosAutomaticosDeContratoEPagamento() {
+        contratoService.atualizarStatus(admin, contratoId, StatusContrato.proposta);
+        assertEquals(1, notificacaoService.listar(cli, false, "contrato", 50).size());
+        assertEquals(1, notificacaoService.listar(prof, false, "contrato", 50).size());
+        assertEquals(0, notificacaoService.listar(admin, false, "contrato", 50).size());
+
+        contratoService.atualizarStatus(admin, contratoId, StatusContrato.negociacao);
+        contratoService.atualizarStatus(admin, contratoId, StatusContrato.aguard_assinatura);
+        contratoService.atualizarStatus(admin, contratoId, StatusContrato.ativo);
+        assertEquals(2, notificacaoService.listar(cli, false, "contrato", 50).size());
+        assertEquals(2, notificacaoService.listar(prof, false, "contrato", 50).size());
+
+        var pagamento = pagamentoService.criar(cli, new CriarPagamentoRequest(
+                contratoId, new BigDecimal("100.00"), MetodoPagamento.pix, null), "127.0.0.1");
+        assertEquals(1, notificacaoService.listar(cli, false, "pagamento", 50).size());
+        assertEquals(0, notificacaoService.listar(prof, false, "pagamento", 50).size());
+        assertEquals(1, notificacaoService.listar(admin, false, "pagamento", 50).size());
+
+        pagamentoService.pagar(cli, pagamento.getId(), null, "127.0.0.1");
+        assertEquals(2, notificacaoService.listar(cli, false, "pagamento", 50).size());
+        assertEquals(1, notificacaoService.listar(prof, false, "pagamento", 50).size());
+
+        contratoService.atualizarStatus(admin, contratoId, StatusContrato.em_disputa);
+        assertEquals(3, notificacaoService.listar(cli, false, "contrato", 50).size());
+        assertEquals(3, notificacaoService.listar(prof, false, "contrato", 50).size());
+        assertEquals(1, notificacaoService.listar(admin, false, "contrato", 50).size());
+
+        pagamentoService.estornar(admin, pagamento.getId(), null, "127.0.0.1");
+        assertEquals(3, notificacaoService.listar(cli, false, "pagamento", 50).size());
+        assertEquals(2, notificacaoService.listar(prof, false, "pagamento", 50).size());
+        assertEquals(2, notificacaoService.listar(admin, false, "pagamento", 50).size());
+    }
+
+    @Test
+    void avisoAutomaticoDeAvaliacao() {
+        avaliacaoService.criar(cli, new CriarAvaliacaoRequest(contratoId, 5, "Excelente cuidado"));
+
+        assertEquals(1, notificacaoService.listar(prof, false, "avaliacao", 50).size());
+        assertEquals(0, notificacaoService.listar(cli, false, "avaliacao", 50).size());
     }
 
     @Test

@@ -56,7 +56,7 @@
         </div>
         <div class="col-lg-4">
           <div class="card-elora p-3">
-            <h5>Notificações recentes</h5><div id="notifList" class="small"></div><button id="btnMarkAll" class="btn btn-outline-secondary btn-sm w-100 mt-2">Marcar todas como lidas</button>
+            <div class="d-flex justify-content-between align-items-center mb-2"><h5 class="mb-0">Notificações recentes</h5><a href="../notificacoes/lista.html" class="btn btn-elora-outline btn-sm">Ver todas</a></div><div id="notifList" class="small"></div><button id="btnMarkAll" class="btn btn-outline-secondary btn-sm w-100 mt-2">Marcar todas como lidas</button>
           </div>
           <div class="card-elora p-3 mt-3">
             <h6>Meu perfil</h6><div id="profileBox" class="small text-muted"></div><button class="btn btn-elora-outline btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#editProfileModal">Editar</button>
@@ -87,16 +87,20 @@
     const total = contractService.contractTotal(c);
     return total === null ? 'A combinar' : formatCurrency(total);
   }
+  function notifTipoLabel(t){
+    return ({denuncia:'Denúncia',validacao:'Validação',contrato:'Contrato',pagamento:'Pagamento',avaliacao:'Avaliação',sistema:'Sistema'})[t] || t || 'Sistema';
+  }
   async function load(){
     if(!authService.isClient()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('dashboards/dashboard-cliente.html'); return; }
     const user=authService.getCurrentUser();
     document.getElementById('profileBox').innerHTML = `<div>${escapeHtml(user.name)}</div><div>${escapeHtml(user.email)}</div><div>${escapeHtml(user.phone||'')}</div>`;
     try{
-      const [contracts, favs, payments, notifs] = await Promise.all([clientService.getContracts(), clientService.getFavorites(), clientService.getPayments(), clientService.getNotifications()]);
+      const [contracts, favs, payments] = await Promise.all([clientService.getContracts(), clientService.getFavorites(), clientService.getPayments()]);
+      const notifs = await notificationService.getNotifications();
       document.getElementById('statContracts').textContent=contracts.length;
       document.getElementById('statFavs').textContent=favs.length;
       document.getElementById('statPays').textContent=payments.length;
-      document.getElementById('statNotifs').textContent=notifs.filter(n=>!n.read).length;
+      document.getElementById('statNotifs').textContent=notifs.filter(n=>!n.lida).length;
       const tbody=document.getElementById('contractsBody');
       tbody.innerHTML = contracts.length ? contracts.map(c=>{
         const pag = paymentService.latestPaymentFor(payments, c.id);
@@ -108,11 +112,26 @@
       }).join('') : '<tr><td colspan="5" class="text-center small text-muted">Nenhum contrato ainda. <a href="../busca/buscar-cuidadores.html">Buscar cuidadores</a></td></tr>';
       document.getElementById('favList').innerHTML = favs.length? favs.map(f=>`<div class="col-12"><div class="d-flex gap-2 align-items-center border rounded p-2"><div class="avatar-placeholder sm"><i class="bi bi-person"></i></div><div class="flex-grow-1"><strong class="small">${escapeHtml(f.name)}</strong><div class="small text-muted">${escapeHtml((f.specialties||[]).slice(0,2).join(', '))}</div></div><a href="../busca/perfil-cuidador.html?id=${f.id}" class="btn btn-sm btn-elora-outline">Ver</a><button class="btn btn-sm btn-outline-danger btn-unfav" data-id="${f.id}"><i class="bi bi-heart-fill"></i></button></div></div>`).join('') : '<p class="small text-muted">Sem favoritos.</p>';
       document.querySelectorAll('.btn-unfav').forEach(b=> b.addEventListener('click', async()=>{ await clientService.removeFavorite(b.dataset.id); notificationService.showSuccess('Removido'); load(); }));
-      document.getElementById('notifList').innerHTML = notifs.slice(0,5).map(n=>`<div class="border-bottom py-2 ${n.read?'opacity-50':''}"><strong class="small">${escapeHtml(n.title)}</strong><div class="small text-muted">${escapeHtml(n.message)}</div><small class="text-muted">${formatDateTime(n.createdAt)}</small> ${!n.read?'<button class="btn btn-sm btn-link p-0 ms-2 btn-read" data-id="'+n.id+'">marcar lida</button>':''}</div>`).join('') || '<p class="small text-muted">Sem notificações.</p>';
-      document.querySelectorAll('.btn-read').forEach(b=> b.addEventListener('click', async()=>{ await clientService.markNotificationRead(b.dataset.id); load(); }));
+      document.getElementById('notifList').innerHTML = notifs.slice(0,5).map(n=>`
+        <div class="border-bottom py-2 ${n.lida?'opacity-50':''}">
+          <div class="d-flex flex-wrap justify-content-between gap-1"><strong class="small">${escapeHtml(n.titulo||'Notificação')}</strong><small class="text-muted">${n.enviadoEm?formatDateTime(n.enviadoEm):''}</small></div>
+          <div class="small text-muted">${escapeHtml(n.corpo||'')}</div>
+          <div class="mt-1 d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge bg-secondary">${escapeHtml(notifTipoLabel(n.referenciaTipo||n.tipo))}</span>
+            ${!n.lida?`<button class="btn btn-sm btn-link p-0 btn-read" data-id="${n.id}" aria-label="Marcar notificação como lida">marcar lida</button>`:''}
+          </div>
+        </div>`).join('') || '<p class="small text-muted">Sem notificações.</p>';
+      document.querySelectorAll('.btn-read').forEach(b=> b.addEventListener('click', async()=>{
+        try{ await notificationService.markAsRead(b.dataset.id); await load(); }
+        catch(e){ notificationService.showError(e.message); }
+      }));
+      await notificationService.updateUnreadCount();
     }catch(err){ notificationService.showError(err.message); }
   }
-  document.getElementById('btnMarkAll')?.addEventListener('click', async()=>{ await notificationService.markAllAsRead(); load(); });
+  document.getElementById('btnMarkAll')?.addEventListener('click', async()=>{
+    try{ await notificationService.markAllAsRead(); await load(); notificationService.showSuccess('Notificações marcadas como lidas.'); }
+    catch(e){ notificationService.showError(e.message); }
+  });
   document.getElementById('btnSaveProfile')?.addEventListener('click', async()=>{
     try{ await clientService.updateProfile({ name: document.getElementById('editName').value, phone: document.getElementById('editPhone').value, careNeeds: { description: document.getElementById('editCareNeeds').value }}); notificationService.showSuccess('Perfil atualizado'); bootstrap.Modal.getInstance(document.getElementById('editProfileModal')).hide(); load(); }catch(err){ notificationService.showError(err.message); }
   });

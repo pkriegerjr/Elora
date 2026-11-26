@@ -3,6 +3,7 @@ import com.elora.common.exception.*; import com.elora.integration.storage.*;
 import com.elora.module.profissional.dto.*;
 import com.elora.module.profissional.entity.*; import com.elora.module.profissional.enums.DocumentoStatus; import com.elora.module.profissional.enums.Periodo; import com.elora.module.profissional.mapper.ProfissionalMapper;
 import com.elora.module.usuario.entity.Usuario;
+import com.elora.module.notificacao.service.AvisoSistemaService;
 import com.elora.module.profissional.repository.*; import com.elora.module.usuario.entity.ProfissionalDetalhes;
 import com.elora.module.usuario.enums.StatusVerificacao; import com.elora.module.usuario.repository.*;
 import com.elora.module.usuario.service.UsuarioService;
@@ -27,6 +28,7 @@ public class ProfissionalService {
   private final ProfissionalMapper mapper;
   private final StorageService storage;
   private final UsuarioService usuariosService;
+  private final AvisoSistemaService avisos;
 
   /** Limite da aplicação (menor que o do multipart): erro 422 com mensagem clara. */
   @Value("${app.integracoes.storage.max-bytes:5242880}")
@@ -169,6 +171,24 @@ public class ProfissionalService {
     d.setStatusVerificacao(novo);
     d.setDocumentoVerificado(novo==StatusVerificacao.aprovado);
     detalhesRepo.save(d);
+
+    String titulo = switch(novo){
+      case aprovado -> "Cadastro aprovado";
+      case rejeitado -> "Cadastro rejeitado";
+      case correcao -> "Correção solicitada";
+      default -> "Cadastro atualizado";
+    };
+    String descricao = switch(novo){
+      case aprovado -> "aprovado";
+      case rejeitado -> "rejeitado";
+      case correcao -> "com correção solicitada";
+      default -> "atualizado";
+    };
+    String observacao = req.getObservacao()==null || req.getObservacao().isBlank()
+      ? "" : " Observação: " + req.getObservacao().trim();
+    avisos.notificarSeguroUsuario(profId, titulo,
+      "Seu cadastro foi " + descricao + "." + observacao + " Acesse seu painel para detalhes.",
+      "validacao", profId);
     return getById(profId);
   }
 

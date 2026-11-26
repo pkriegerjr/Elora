@@ -13,6 +13,7 @@ import com.elora.module.juridico.entity.ProcessoRescisao;
 import com.elora.module.juridico.enums.StatusDenuncia;
 import com.elora.module.juridico.mapper.DenunciaMapper;
 import com.elora.module.juridico.repository.DenunciaRepository;
+import com.elora.module.notificacao.service.AvisoSistemaService;
 import com.elora.module.usuario.entity.Usuario;
 import com.elora.module.usuario.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,7 @@ public class JuridicoService {
     private final DenunciaRepository denuncias;
     private final ContratoRepository contratos;
     private final UsuarioService usuarioService;
+    private final AvisoSistemaService avisos;
 
     // Rescisões: stub mantido até a próxima fase (Fase 5 do roadmap).
     private final AtomicInteger seq = new AtomicInteger(1);
@@ -91,7 +93,13 @@ public class JuridicoService {
         d.setMotivo(motivo);
         d.setDescricao(descricao);
         d.setStatus(StatusDenuncia.aberta);
-        return DenunciaMapper.toResponse(denuncias.save(d));
+        Denuncia salva = denuncias.save(d);
+        avisos.notificarSeguro(AvisoSistemaService.JURIDICO,
+                "Nova denúncia #" + salva.getId(),
+                "Denúncia registrada por " + denunciante.getNome() + " — motivo: " + motivo
+                        + ". Acesse o Painel de Denúncias para analisar.",
+                "denuncia", salva.getId());
+        return DenunciaMapper.toResponse(salva);
     }
 
     /** Fila completa (somente equipe; checagem de papel no controller). */
@@ -141,7 +149,20 @@ public class JuridicoService {
             d.setAnalisadoPor(usuarioService.getVisivel(viewerId));
         }
         d.setStatus(novo);
-        return DenunciaMapper.toResponse(denuncias.save(d));
+        Denuncia salva = denuncias.save(d);
+        String rotulo = switch (novo) {
+            case aberta -> "Aberta";
+            case em_analise -> "Em análise";
+            case resolvida -> "Resolvida";
+            case arquivada -> "Arquivada";
+        };
+        String parecer = d.getParecer() == null || d.getParecer().isBlank()
+                ? "" : " Parecer: " + d.getParecer();
+        avisos.notificarSeguroUsuario(salva.getDenunciante().getId(),
+                "Denúncia #" + salva.getId() + " — " + rotulo,
+                "Sua denúncia foi atualizada para " + rotulo + "." + parecer,
+                "denuncia", salva.getId());
+        return DenunciaMapper.toResponse(salva);
     }
 
     /** Contadores do painel jurídico (compatível com o front atual). */
