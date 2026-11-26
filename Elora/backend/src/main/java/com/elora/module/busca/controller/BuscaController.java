@@ -40,7 +40,7 @@ public class BuscaController {
 
     private final BuscaService buscaService;
 
-    // GET /busca/profissionais?nome=ana&precoMax=30&notaMinima=4&especialidadeId=1
+    // GET /busca/profissionais?nome=ana&precoMax=30&notaMinima=4&especialidadeId=1&especialidadeId=2
     //   &data=2026-03-10&periodo=matutino&ordenarPor=preco&direcao=ASC&limit=20
     @GetMapping("/profissionais")
     public ResponseEntity<ApiResponse<List<ProfissionalResponse>>> buscar(
@@ -48,7 +48,7 @@ public class BuscaController {
             @RequestParam(required = false) BigDecimal precoMin,
             @RequestParam(required = false) BigDecimal precoMax,
             @RequestParam(required = false) BigDecimal notaMinima,
-            @RequestParam(required = false) Integer especialidadeId,
+            @RequestParam(required = false) List<Integer> especialidadeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data,
             @RequestParam(required = false) Periodo periodo,
             @RequestParam(defaultValue = "nota") String ordenarPor, // preco|nota|nome

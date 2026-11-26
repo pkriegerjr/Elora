@@ -188,7 +188,16 @@ class ApiService {
         }
     }
 
-    async get(endpoint, params={}){ const qs=new URLSearchParams(params).toString(); return this.request(qs?`${endpoint}?${qs}`:endpoint,{method:"GET"}); }
+    async get(endpoint, params={}){
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, value])=>{
+            if(value === undefined || value === null) return;
+            if(Array.isArray(value)) value.forEach(item => qs.append(key, item));
+            else qs.append(key, value);
+        });
+        const query = qs.toString();
+        return this.request(query ? `${endpoint}?${query}` : endpoint, { method:"GET" });
+    }
     async post(endpoint, data={}){ return this.request(endpoint,{method:"POST",body:JSON.stringify(data)}); }
     async put(endpoint, data={}){ return this.request(endpoint,{method:"PUT",body:JSON.stringify(data)}); }
     async patch(endpoint, data={}){ return this.request(endpoint,{method:"PATCH",body:JSON.stringify(data)}); }

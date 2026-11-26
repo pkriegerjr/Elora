@@ -61,6 +61,13 @@ a:focus-visible{ text-decoration: underline; text-underline-offset: 3px; }
 @keyframes elora-user-pulse{0%{box-shadow:0 0 0 0 rgba(13,110,253,.55)}70%{box-shadow:0 0 0 14px rgba(13,110,253,0)}100%{box-shadow:0 0 0 0 rgba(13,110,253,0)}}
 .mock-map-container{min-height:420px}
 .filter-sidebar{background:#fff;border:1px solid var(--elora-border);border-radius:16px;padding:1rem;position:sticky;top:88px}
+.specialty-check-list{display:grid;gap:.2rem;max-height:7.5rem;overflow-y:auto;padding-right:.25rem;scrollbar-width:thin}
+.specialty-check-list .form-check{display:flex;align-items:center;gap:.45rem;min-height:auto;margin:0;padding-left:0}
+.specialty-check-list .form-check-input{float:none;flex:0 0 auto;margin:0;accent-color:var(--elora-primary);border-color:var(--elora-primary);cursor:pointer}
+.specialty-check-list .form-check-input:checked{background-color:var(--elora-primary);border-color:var(--elora-primary)}
+.specialty-check-list .form-check-label{font-size:.8125rem;line-height:1.4;color:var(--elora-muted);cursor:pointer}
+.specialty-check-list .form-check-label:hover{color:var(--elora-primary)}
+.specialty-check-list .form-check-input:focus-visible{outline:3px solid #fff;outline-offset:2px;box-shadow:0 0 0 4px #0e7a7b}
 .range-value{font-weight:700;color:var(--elora-primary)}
 .contract-paper{background:#fff;border-radius:16px;border:1px solid var(--elora-border);box-shadow:var(--elora-shadow)}
 .stepper{display:flex;gap:.5rem;align-items:center}

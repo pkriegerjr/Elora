@@ -129,16 +129,32 @@ class BuscaFlowTest {
     @Test
     void filtroQualitativo() {
         List<ProfissionalResponse> r =
-                buscaService.buscar(null, null, null, null, teaId, null, null, "nota", "DESC", 20);
+                buscaService.buscar(null, null, null, null, List.of(teaId), null, null, "nota", "DESC", 20);
         assertEquals(1, r.size());
         assertEquals(p1, r.get(0).getId());
         assertTrue(r.get(0).getEspecialidades().contains("TEA"));
     }
 
     @Test
+    void filtroPorMultiplasEspecialidadesUneResultados() {
+        Especialidade idoso = new Especialidade();
+        idoso.setNome("Idoso");
+        Integer idosoId = especialidadeRepository.save(idoso).getId();
+        vinculosRepository.save(new UsuarioEspecialidade(p2, idosoId));
+
+        List<ProfissionalResponse> r = buscaService.buscar(null, null, null, null,
+                List.of(teaId, idosoId), null, null, "nota", "DESC", 20);
+
+        assertEquals(2, r.size());
+        assertTrue(r.stream().anyMatch(p -> p.getId().equals(p1)));
+        assertTrue(r.stream().anyMatch(p -> p.getId().equals(p2)));
+        assertTrue(r.stream().noneMatch(p -> p.getId().equals(p3)));
+    }
+
+    @Test
     void especialidadeInexistente() {
         assertThrows(ResourceNotFoundException.class, () ->
-                buscaService.buscar(null, null, null, null, 99999, null, null, "nota", "DESC", 20));
+                buscaService.buscar(null, null, null, null, List.of(99999), null, null, "nota", "DESC", 20));
     }
 
     @Test
@@ -165,12 +181,12 @@ class BuscaFlowTest {
     void buscaCombinada() {
         // TEA + teto 60 + menor preço primeiro → só p1
         List<ProfissionalResponse> r = buscaService.buscar(null, null, new BigDecimal("60"),
-                null, teaId, null, null, "preco", "ASC", 20);
+                null, List.of(teaId), null, null, "preco", "ASC", 20);
         assertEquals(1, r.size());
         assertEquals(p1, r.get(0).getId());
         // TEA + teto 30 → vazio (AND de verdade)
         List<ProfissionalResponse> vazio = buscaService.buscar(null, null, new BigDecimal("30"),
-                null, teaId, null, null, "preco", "ASC", 20);
+                null, List.of(teaId), null, null, "preco", "ASC", 20);
         assertTrue(vazio.isEmpty());
     }
 

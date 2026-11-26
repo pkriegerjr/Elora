@@ -22,7 +22,10 @@
     <div class="col-lg-3">
       <div class="filter-sidebar">
         <h5 class="fw-bold">Filtros</h5>
-        <div class="mb-3"><label for="fSpecialty" class="form-label small fw-semibold">Especialidade</label><select id="fSpecialty" class="form-select form-select-sm"><option value="">Todas</option></select></div>
+        <div class="mb-3">
+          <label id="fSpecialtyLabel" class="form-label small fw-semibold">Especialidade</label>
+          <div id="fSpecialty" class="specialty-check-list specialty-check-list--sidebar" role="group" aria-labelledby="fSpecialtyLabel"></div>
+        </div>
         <div class="mb-3"><label for="fRating" class="form-label small fw-semibold">Avaliação mínima</label><select id="fRating" class="form-select form-select-sm"><option value="">Qualquer</option><option value="4.5">4.5+</option><option value="4.0">4.0+</option></select></div>
         <div class="mb-3"><label class="form-label small fw-semibold">Preço máx/h <span class="range-value" id="priceVal">R$ 200</span></label><input type="range" id="fPrice" class="form-range" min="20" max="200" value="200" aria-label="Preço máximo por hora"></div>
         <div class="mb-3"><label class="form-label small fw-semibold">Raio <span class="range-value" id="radiusVal">10 km</span></label><input type="range" id="fRadius" class="form-range" min="1" max="50" value="10" aria-label="Raio de busca em km"></div>
@@ -143,27 +146,46 @@
 
   // Catálogo vem do backend (GET /busca/especialidades) — nada de slugs fixos.
   async function loadEspecialidades(){
-    const sel=document.getElementById('fSpecialty');
+    const box=document.getElementById('fSpecialty');
     try{
       const lista=await caregiverService.getEspecialidades();
-      sel.innerHTML='<option value="">Todas</option>'+lista.map(e=>
-        `<option value="${escapeHtml(String(e.id))}" data-nome="${escapeHtml(e.nome)}">${escapeHtml(e.nome)}</option>`
-      ).join('');
+      box.innerHTML =
+        '<div class="form-check"><input class="form-check-input" type="checkbox" id="fEspAll" checked><label class="form-check-label" for="fEspAll">Todas</label></div>' +
+        lista.map(e=>{
+          const id=`fEsp-${escapeHtml(String(e.id))}`;
+          const nome=escapeHtml(e.nome);
+          return `<div class="form-check"><input class="form-check-input" type="checkbox" id="${id}" value="${escapeHtml(String(e.id))}" data-nome="${nome}"><label class="form-check-label" for="${id}">${nome}</label></div>`;
+        }).join('');
     }catch(err){
       console.warn('Não foi possível carregar especialidades:', err.message);
     }
   }
+  document.getElementById('fSpecialty')?.addEventListener('change', e=>{
+    const box=e.currentTarget;
+    const all=document.getElementById('fEspAll');
+    if(!all) return;
+    if(e.target===all){
+      if(all.checked) box.querySelectorAll('input[data-nome]').forEach(i=> i.checked=false);
+    } else if(e.target.checked){
+      all.checked=false;
+    } else if(!box.querySelector('input[data-nome]:checked')){
+      all.checked=true;
+    }
+  });
   const normTag = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'').toLowerCase();
   async function syncFromQS(){
-    const esp=qs.get('specialty');
-    if(esp){
-      const sel=document.getElementById('fSpecialty');
-      const alvo=normTag(esp);
-      const opt=[...sel.options].find(o=>normTag(o.value)===alvo
-        || normTag(o.dataset.nome)===alvo
-        || normTag(o.dataset.nome).includes(alvo)
-        || alvo.includes(normTag(o.dataset.nome)));
-      if(opt) sel.value=opt.value;
+    const paramsEsp=[...qs.getAll('especialidadeId'), ...qs.getAll('specialty')].filter(Boolean).map(normTag);
+    if(paramsEsp.length){
+      const box=document.getElementById('fSpecialty');
+      let marcados=0;
+      box.querySelectorAll('input[data-nome]').forEach(i=>{
+        const tags=[i.value, i.dataset.nome].map(normTag);
+        if(paramsEsp.some(a=> tags.some(t=> t===a || t.includes(a) || a.includes(t)))){
+          i.checked=true; marcados++;
+        }
+      });
+      const all=document.getElementById('fEspAll');
+      if(marcados && all) all.checked=false;
     }
     if(qs.get('minRating')) document.getElementById('fRating').value=qs.get('minRating');
     if(qs.get('radius')) document.getElementById('fRadius').value=qs.get('radius');
@@ -255,7 +277,8 @@
 
   document.getElementById('btnSearch').addEventListener('click', doSearch);
   document.getElementById('btnClear').addEventListener('click', ()=>{
-    document.getElementById('fSpecialty').value=''; document.getElementById('fRating').value='';
+    document.querySelectorAll('#fSpecialty input[type="checkbox"]').forEach(i=> i.checked = i.id === 'fEspAll');
+    document.getElementById('fRating').value='';
     document.getElementById('fPrice').value=200; document.getElementById('fRadius').value=10;
     document.getElementById('fCep').value=''; document.getElementById('fNumber').value='';
     document.getElementById('fCity').value=''; document.getElementById('fState').value='';
@@ -266,14 +289,13 @@
   });
 
   async function doSearch(){
-    const sel=document.getElementById('fSpecialty');
-    const opt=sel.selectedOptions[0];
-    const temEsp=opt && opt.value!=='';
-    // API filtra por especialidadeId; mock filtra pelo nome da tag.
-    const especialidadeId=temEsp && /^\d+$/.test(opt.value) ? Number(opt.value) : undefined;
+    const selecionadas=[...document.querySelectorAll('#fSpecialty input[data-nome]:checked')];
+    // API filtra por especialidadeId (lista); mock filtra pelas tags.
+    const especialidadeIds=selecionadas.map(i=>Number(i.value)).filter(Number.isFinite);
+    const specialties=selecionadas.map(i=>i.dataset.nome);
     const filters={
-      specialty: temEsp ? (opt.dataset.nome || opt.textContent) : undefined,
-      especialidadeId,
+      especialidadeIds,
+      specialties,
       minRating: parseFloat(document.getElementById('fRating').value) || undefined,
       maxPrice: parseInt(document.getElementById('fPrice').value) || undefined,
       distance: parseInt(document.getElementById('fRadius').value),

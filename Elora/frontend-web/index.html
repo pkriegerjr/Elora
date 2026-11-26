@@ -98,15 +98,8 @@
     <div class="search-card p-3 p-md-4">
       <form id="homeSearchForm" class="row g-3 align-items-end">
         <div class="col-md-3">
-          <label for="filterSpecialty" class="form-label fw-semibold">Especialidade</label><select class="form-select" id="filterSpecialty">
-            <option value="">Todas</option>
-            <option value="idoso">Idosos</option>
-            <option value="alzheimer">Alzheimer</option>
-            <option value="parkinson">Parkinson</option>
-            <option value="mobilidade_reduzida">Mobilidade reduzida</option>
-            <option value="pos_operatorio">Pós-operatório</option>
-            <option value="medicacao">Medicação</option>
-          </select>
+          <label id="filterSpecialtyLabel" class="form-label fw-semibold">Especialidade</label>
+          <div id="filterSpecialty" class="specialty-check-list" role="group" aria-labelledby="filterSpecialtyLabel"></div>
         </div>
         <div class="col-md-3">
           <label for="filterRating" class="form-label fw-semibold">Avaliação mínima</label><select class="form-select" id="filterRating">
@@ -131,8 +124,6 @@
         </div>
       </form>
       <div class="d-flex gap-2 mt-3 flex-wrap">
-        <button class="btn btn-outline-secondary btn-sm" onclick="selectSpecialty('alzheimer')"><i class="bi bi-heart me-1"></i> Alzheimer</button>
-        <button class="btn btn-outline-secondary btn-sm" onclick="selectSpecialty('pos_operatorio')">Pós-operatório</button>
         <button class="btn btn-outline-secondary btn-sm" id="btnUseLocation"><i class="bi bi-geo-fill me-1"></i> Usar minha localização</button>
       </div>
     </div>
@@ -247,12 +238,15 @@
     document.getElementById('homeSearchForm')?.addEventListener('submit', e=>{
       e.preventDefault();
       const qs = new URLSearchParams({
-        specialty: document.getElementById('filterSpecialty').value,
         minRating: document.getElementById('filterRating').value,
         radius: document.getElementById('filterRadius').value,
         location: homeLocation ? `${homeLocation.lat},${homeLocation.lng}` : document.getElementById('filterLocation').value
-      }).toString();
-      window.location.href = 'src/pages/busca/buscar-cuidadores.html?'+qs;
+      });
+      document.querySelectorAll('#filterSpecialty input[data-nome]:checked').forEach(i=>{
+        qs.append('especialidadeId', i.value);
+        qs.append('specialty', i.dataset.nome);
+      });
+      window.location.href = 'src/pages/busca/buscar-cuidadores.html?'+qs.toString();
     });
     async function renderFeatured(){
       const list = document.getElementById('featuredList');
@@ -284,25 +278,34 @@
       }catch(err){ list.innerHTML = '<p class="text-danger small">'+(typeof escapeHtml!=='undefined'?escapeHtml(err.message):err.message)+'</p>'; }
     }
     // Especialidades do formulário vêm do backend (GET /busca/especialidades).
-    const normTag = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'').toLowerCase();
     async function loadHomeSpecialties(){
-      const sel=document.getElementById('filterSpecialty');
-      if(!sel) return;
+      const box=document.getElementById('filterSpecialty');
+      if(!box) return;
+      const allId='homeEspAll';
       try{
         const lista=await caregiverService.getEspecialidades();
         if(!lista.length) return;
-        sel.innerHTML='<option value="">Todas</option>'+lista.map(e=>
-          `<option value="${escapeHtml(e.nome)}">${escapeHtml(e.nome)}</option>`).join('');
+        box.innerHTML =
+          `<div class="form-check"><input class="form-check-input" type="checkbox" id="${allId}" checked><label class="form-check-label" for="${allId}">Todas</label></div>` +
+          lista.map(e=>{
+            const id=`homeEsp-${escapeHtml(String(e.id))}`;
+            const nome=escapeHtml(e.nome);
+            return `<div class="form-check"><input class="form-check-input" type="checkbox" id="${id}" value="${escapeHtml(String(e.id))}" data-nome="${nome}"><label class="form-check-label" for="${id}">${nome}</label></div>`;
+          }).join('');
       }catch(err){ console.warn('Especialidades indisponíveis:', err.message); }
     }
-    function selectSpecialty(term){
-      const sel=document.getElementById('filterSpecialty');
-      if(!sel) return;
-      const alvo=normTag(term);
-      const opt=[...sel.options].find(o=>normTag(o.value)===alvo || normTag(o.textContent).includes(alvo) || alvo.includes(normTag(o.value)));
-      if(opt) sel.value=opt.value;
-    }
-    window.selectSpecialty=selectSpecialty;
+    document.getElementById('filterSpecialty')?.addEventListener('change', e=>{
+      const box=e.currentTarget;
+      const all=document.getElementById('homeEspAll');
+      if(!all) return;
+      if(e.target===all){
+        if(all.checked) box.querySelectorAll('input[data-nome]').forEach(i=> i.checked=false);
+      } else if(e.target.checked){
+        all.checked=false;
+      } else if(!box.querySelector('input[data-nome]:checked')){
+        all.checked=true;
+      }
+    });
     document.addEventListener('DOMContentLoaded', ()=>{ loadHomeSpecialties(); renderFeatured(); });
   </script>
 </body>

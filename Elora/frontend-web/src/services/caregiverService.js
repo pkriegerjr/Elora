@@ -718,13 +718,20 @@ class CaregiverService {
     }
 
     async searchCaregivers(filters = {}) {
+        const normEsp = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const nomesRaw = filters.specialties ?? (filters.specialty ? [filters.specialty] : []);
+        const alvosEsp = (Array.isArray(nomesRaw) ? nomesRaw : [nomesRaw]).map(normEsp).filter(Boolean);
         if (!CONFIG.API.MOCK_MODE) {
             const params = {};
             const nome = filters.name || filters.search || filters.nome;
             if (nome) params.nome = nome;
             if (filters.maxPrice != null) params.precoMax = filters.maxPrice;
             if (filters.minRating != null) params.notaMinima = filters.minRating;
-            if (filters.especialidadeId != null) params.especialidadeId = filters.especialidadeId;
+            const idsRaw = filters.especialidadeIds ?? (filters.especialidadeId != null ? [filters.especialidadeId] : []);
+            const ids = (Array.isArray(idsRaw) ? idsRaw : [idsRaw])
+                .filter(v => v !== null && v !== undefined && v !== '');
+            if (ids.length === 1) params.especialidadeId = ids[0];
+            else if (ids.length > 1) params.especialidadeId = ids;
             if (filters.periodo) params.periodo = filters.periodo;
             if (filters.orderBy) params.ordenarPor = filters.orderBy;
             if (filters.limit) params.limit = filters.limit;
@@ -732,10 +739,9 @@ class CaregiverService {
             let lista = await apiService.get(CONFIG.ENDPOINTS.caregiversSearch, params);
             lista = (lista || []).map(c => this.mapCaregiverFromApi(c));
 
-            if (filters.specialty) {
-                const alvo = String(filters.specialty).toLowerCase();
+            if (alvosEsp.length) {
                 lista = lista.filter(c => (c.specialties || [])
-                    .some(s => String(s).toLowerCase() === alvo));
+                    .some(s => alvosEsp.includes(normEsp(s))));
             }
             if (filters.verifiedOnly) lista = lista.filter(c => c.verified);
             if (filters.distance && filters.userLocation) {
@@ -752,9 +758,9 @@ class CaregiverService {
         let caregivers = this.getMockCaregivers()
             .filter(cg => cg.status === CONFIG.CAREGIVER_STATUS.APPROVED);
         
-        if (filters.specialty) {
-            caregivers = caregivers.filter(cg => 
-                cg.specialties && cg.specialties.includes(filters.specialty)
+        if (alvosEsp.length) {
+            caregivers = caregivers.filter(cg =>
+                (cg.specialties || []).some(s => alvosEsp.includes(normEsp(s)))
             );
         }
         

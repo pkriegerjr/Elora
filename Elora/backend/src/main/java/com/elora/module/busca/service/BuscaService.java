@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -72,7 +73,7 @@ public class BuscaService {
      */
     @Transactional(readOnly = true)
     public List<ProfissionalResponse> buscar(String nome, BigDecimal precoMin, BigDecimal precoMax,
-                                             BigDecimal notaMinima, Integer especialidadeId,
+                                             BigDecimal notaMinima, List<Integer> especialidadeIds,
                                              LocalDate data, Periodo periodo,
                                              String ordenarPor, String direcao, int limit) {
         if (precoMin != null && precoMax != null && precoMin.compareTo(precoMax) > 0) {
@@ -81,7 +82,7 @@ public class BuscaService {
         OrdenacaoBusca ordem = OrdenacaoBusca.parse(ordenarPor);
         boolean asc = parseDirecao(direcao);
 
-        Set<Integer> comEspecialidade = idsComEspecialidade(especialidadeId);
+        Set<Integer> comEspecialidade = idsComEspecialidade(especialidadeIds);
         Set<Integer> livresNaAgenda = idsLivresNaAgenda(data, periodo);
         Map<Integer, String> nomesEsp = mapaEspecialidades();
 
@@ -168,15 +169,25 @@ public class BuscaService {
     // Apoio (um método por filtro — fácil de ler e testar)
     // ------------------------------------------------------------------
 
-    private Set<Integer> idsComEspecialidade(Integer especialidadeId) {
-        if (especialidadeId == null) {
+    /** União (OU) dos profissionais das especialidades informadas. */
+    private Set<Integer> idsComEspecialidade(List<Integer> especialidadeIds) {
+        if (especialidadeIds == null || especialidadeIds.isEmpty()) {
             return null;
         }
-        especialidades.findById(especialidadeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Especialidade não encontrada"));
-        return usuarioEspecialidades.findByEspecialidadeId(especialidadeId).stream()
-                .map(UsuarioEspecialidade::getUsuarioId)
-                .collect(Collectors.toSet());
+        Set<Integer> usuarios = new HashSet<>();
+        boolean algumId = false;
+        for (Integer especialidadeId : especialidadeIds) {
+            if (especialidadeId == null) {
+                continue;
+            }
+            algumId = true;
+            especialidades.findById(especialidadeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Especialidade não encontrada"));
+            usuarios.addAll(usuarioEspecialidades.findByEspecialidadeId(especialidadeId).stream()
+                    .map(UsuarioEspecialidade::getUsuarioId)
+                    .collect(Collectors.toSet()));
+        }
+        return algumId ? usuarios : null;
     }
 
     private Set<Integer> idsLivresNaAgenda(LocalDate data, Periodo periodo) {
