@@ -74,7 +74,11 @@ function setupGlobalListeners() {
         const backBtn = e.target.closest("[data-action='back']");
         if (backBtn) {
             e.preventDefault();
-            window.history.back();
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = backBtn.dataset.fallback || backBtn.getAttribute("href");
+            }
         }
     });
     

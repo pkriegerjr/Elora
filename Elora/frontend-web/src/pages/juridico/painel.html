@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel Jurídico — Elora</title>
+  <title>Painel de Denúncias — Elora</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,8 +14,7 @@
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
 <nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><div class="d-flex gap-2"><a href="../dashboards/dashboard-admin.html" class="btn btn-elora-outline btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a><a href="denunciar.html" class="btn btn-elora-primary btn-sm">Denunciar</a></div></div></nav>
 <div class="container py-4" id="main">
-  <h4>Painel jurídico</h4>
-  <p class="small text-muted">GET /juridico/painel • tabelas <code>denuncia</code>, <code>disputa</code>, rescisão via <code>contrato.status</code> (mock local até backend online).</p>
+  <h4>Painel de Denúncias</h4>
   <div class="row g-3 mb-4">
     <div class="col-md-2"><div class="stat-card"><small class="text-muted">Val. pendentes</small><h3 id="sPend">0</h3></div></div>
     <div class="col-md-2"><div class="stat-card"><small class="text-muted">Em análise</small><h3 id="sAnalise">0</h3></div></div>
@@ -29,7 +28,7 @@
     <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-res" role="tab" aria-selected="false">Rescisões</button></li>
   </ul>
   <div class="tab-content">
-    <div class="tab-pane fade show active" id="tab-den"><div class="card-elora p-3"><div class="table-responsive"><table class="table align-middle"><caption class="sr-only">Denúncias</caption><thead><tr><th scope="col">Data</th><th scope="col">Motivo</th><th scope="col">Contrato</th><th scope="col">Status</th></tr></thead><tbody id="denBody"><tr><td colspan="4" class="text-muted small text-center">Carregando...</td></tr></tbody></table></div></div></div>
+    <div class="tab-pane fade show active" id="tab-den"><div class="card-elora p-3"><div class="table-responsive"><table class="table align-middle"><caption class="sr-only">Denúncias</caption><thead><tr><th scope="col">Data</th><th scope="col">Motivo</th><th scope="col">Contrato</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead><tbody id="denBody"><tr><td colspan="5" class="text-muted small text-center">Carregando...</td></tr></tbody></table></div></div></div>
     <div class="tab-pane fade" id="tab-res">
       <div class="card-elora p-3 mb-3">
         <h5>Solicitar rescisão</h5>
@@ -41,6 +40,22 @@
         <p class="small text-muted mt-2 mb-0">POST /juridico/rescisoes + cancela o contrato (mock).</p>
       </div>
       <div class="card-elora p-3"><div class="table-responsive"><table class="table align-middle"><caption class="sr-only">Rescisões</caption><thead><tr><th scope="col">Data</th><th scope="col">Contrato</th><th scope="col">Motivo</th><th scope="col">Status</th></tr></thead><tbody id="resBody"><tr><td colspan="4" class="text-muted small text-center">Carregando...</td></tr></tbody></table></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="denModal" tabindex="-1" aria-labelledby="denModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="denModalLabel">Detalhes da denúncia</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body" id="denModalBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-elora-primary" id="btnSalvarStatus">Salvar análise</button>
+        <button type="button" class="btn btn-elora-outline" data-bs-dismiss="modal">Fechar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -56,6 +71,42 @@
 <script src="../../services/juridicoService.js?v=20261125-4"></script>
 <script src="../../services/app.js?v=20261125-4"></script>
 <script>
+  let denunciasCarregadas = [];
+  let denunciaAtual = null;
+
+  function abrirDenuncia(index){
+    const d = denunciasCarregadas[index];
+    if(!d) return;
+    denunciaAtual = d;
+    const campo = (label, valor) => `<div class="col-md-6"><small class="text-muted d-block">${label}</small><span>${escapeHtml(valor ?? '—')}</span></div>`;
+    const statusOptions = ['aberta','em_analise','resolvida','arquivada'].map(s=>`<option value="${s}" ${s===d.status?'selected disabled':''}>${s}</option>`).join('');
+    const linkContrato = d.contratoId
+      ? `<a href="../contratos/contrato.html?id=${encodeURIComponent(d.contratoId)}" class="btn btn-elora-outline btn-sm"><i class="bi bi-file-earmark-text me-1"></i> Ver contrato</a>` : '';
+    const linkPerfil = d.denunciadoId
+      ? `<a href="../busca/perfil-cuidador.html?id=${encodeURIComponent(d.denunciadoId)}" class="btn btn-elora-outline btn-sm"><i class="bi bi-person me-1"></i> Ver perfil</a>` : '';
+    document.getElementById('denModalBody').innerHTML = `
+      <div class="row g-3">
+        ${campo('ID', d.id)}
+        ${campo('Data', d.createdAt ? formatDate(d.createdAt) : '—')}
+        ${campo('Status', d.status)}
+        ${campo('Motivo', d.motivo)}
+        ${campo('Contrato', d.contratoId)}
+        ${campo('Denunciante', d.denuncianteId)}
+        ${campo('Denunciado', d.denunciadoId)}
+        <div class="col-12"><small class="text-muted d-block">Descrição</small><p class="mb-0">${escapeHtml(d.descricao||'—')}</p></div>
+        ${d.parecer ? `<div class="col-12"><small class="text-muted d-block">Parecer</small><p class="mb-0">${escapeHtml(d.parecer)}</p></div>` : ''}
+        ${(linkContrato||linkPerfil) ? `<div class="col-12 d-flex gap-2 pt-2">${linkContrato}${linkPerfil}</div>` : ''}
+        <div class="col-12 border-top pt-3">
+          <label class="form-label small" for="denStatus">Atualizar status</label>
+          <select id="denStatus" class="form-select form-select-sm">${statusOptions}</select>
+          <label class="form-label small mt-2" for="denParecer">Parecer</label>
+          <textarea id="denParecer" class="form-control form-control-sm" rows="3" maxlength="2000" placeholder="Parecer da análise (opcional)">${escapeHtml(d.parecer||'')}</textarea>
+        </div>
+      </div>`;
+    document.getElementById('btnSalvarStatus').classList.remove('d-none');
+    new bootstrap.Modal(document.getElementById('denModal')).show();
+  }
+
   async function load(){
     if(!authService.isAuthenticated()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('juridico/painel.html'); return; }
     if(!authService.isAdmin()){ document.getElementById('main').innerHTML='<div class="alert alert-danger" role="alert">Acesso restrito à equipe jurídica/administração.</div>'; return; }
@@ -67,12 +118,38 @@
       document.getElementById('sDenAn').textContent = p.denunciasEmAnalise ?? 0;
       document.getElementById('sRes').textContent = p.rescisoesPendentes ?? 0;
       document.getElementById('sDis').textContent = p.emDisputa ?? 0;
-      const den = await juridicoService.listarDenuncias();
-      document.getElementById('denBody').innerHTML = den.length ? den.map(d=>`<tr><td class="small">${formatDate(d.createdAt)}</td><td><strong>${escapeHtml(d.motivo)}</strong><div class="small text-muted">${escapeHtml(d.descricao||'')}</div></td><td class="small">${escapeHtml(d.contratoId||'—')}</td><td><span class="badge ${d.status==='aberta'?'bg-warning text-dark':'bg-info'}">${escapeHtml(d.status)}</span></td></tr>`).join('') : '<tr><td colspan="4" class="text-center small text-muted">Nenhuma denúncia. <a href="denunciar.html">Criar denúncia</a></td></tr>';
+      denunciasCarregadas = await juridicoService.listarDenuncias();
+      document.getElementById('denBody').innerHTML = denunciasCarregadas.length
+        ? denunciasCarregadas.map((d,i)=>`<tr>
+            <td class="small">${d.createdAt ? formatDate(d.createdAt) : '—'}</td>
+            <td><strong>${escapeHtml(d.motivo)}</strong><div class="small text-muted">${escapeHtml(d.descricao||'')}</div></td>
+            <td class="small">${escapeHtml(d.contratoId||'—')}</td>
+            <td><span class="badge ${({aberta:'bg-warning text-dark',em_analise:'bg-info',resolvida:'bg-success',arquivada:'bg-secondary'})[d.status]||'bg-secondary'}">${escapeHtml(d.status)}</span></td>
+            <td><button type="button" class="btn btn-elora-outline btn-sm" data-den-index="${i}" aria-label="Ver denúncia ${i+1}"><i class="bi bi-eye me-1"></i> Ver</button></td>
+          </tr>`).join('')
+        : '<tr><td colspan="5" class="text-center small text-muted">Nenhuma denúncia. <a href="denunciar.html">Criar denúncia</a></td></tr>';
       const res = await juridicoService.listarRescisoes();
       document.getElementById('resBody').innerHTML = res.length ? res.map(r=>`<tr><td class="small">${formatDate(r.createdAt)}</td><td class="small">${escapeHtml(r.contratoId)}</td><td class="small">${escapeHtml(r.motivo)}</td><td><span class="badge bg-secondary">${escapeHtml(r.status)}</span></td></tr>`).join('') : '<tr><td colspan="4" class="text-center small text-muted">Nenhuma rescisão solicitada.</td></tr>';
     }catch(err){ notificationService.showError(err.message); }
   }
+  document.getElementById('denBody')?.addEventListener('click', e=>{
+    const btn = e.target.closest('[data-den-index]');
+    if(btn) abrirDenuncia(Number(btn.dataset.denIndex));
+  });
+  document.getElementById('btnSalvarStatus')?.addEventListener('click', async ()=>{
+    if(!denunciaAtual) return;
+    const btn = document.getElementById('btnSalvarStatus');
+    const status = document.getElementById('denStatus')?.value;
+    const parecer = document.getElementById('denParecer')?.value.trim() || null;
+    showLoading(btn, 'Salvando...');
+    try{
+      await juridicoService.atualizarStatusDenuncia(denunciaAtual.id, status, parecer);
+      bootstrap.Modal.getInstance(document.getElementById('denModal'))?.hide();
+      notificationService.showSuccess('Análise atualizada');
+      await load();
+    }catch(err){ notificationService.showError(err.message); }
+    finally{ hideLoading(btn); }
+  });
   document.getElementById('formRescisao')?.addEventListener('submit', async e=>{
     e.preventDefault();
     try{

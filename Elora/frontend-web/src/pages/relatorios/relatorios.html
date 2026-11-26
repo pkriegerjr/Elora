@@ -2,9 +2,10 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Relatórios — Elora</title>
+  <title>Relatórios Gerenciais — Elora</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="../../css/style.css" rel="stylesheet">
   <link href="../../css/dashboard.css" rel="stylesheet">
   <link href="../../css/responsive.css" rel="stylesheet">
@@ -20,9 +21,14 @@
       <input type="date" id="fim" class="form-control form-control-sm" aria-label="Data final">
       <button id="btnFiltrar" class="btn btn-elora-primary btn-sm text-nowrap flex-shrink-0">Filtrar período</button>
       <button id="btnLimpar" class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0">Limpar</button>
+      <button id="btnCsv" class="btn btn-elora-outline btn-sm text-nowrap flex-shrink-0"><i class="bi bi-download me-1"></i>Exportar CSV</button>
     </div>
   </div>
   <div id="alert403" class="alert alert-warning d-none"></div>
+
+  <h6 class="text-muted small text-uppercase mt-4 mb-2">Pendências que precisam de decisão</h6>
+  <div id="acoes" class="row g-3 mb-4"></div>
+
   <ul class="nav nav-pills mb-3" id="tabs" role="tablist" aria-label="Tipos de relatório">
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-resumo">Resumo</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-financeiro">Financeiro</button></li>
@@ -39,7 +45,13 @@
     <div class="tab-pane fade" id="tab-avaliacoes"><div id="avaliacoes"></div></div>
     <div class="tab-pane fade" id="tab-denuncias"><div id="denuncias"></div></div>
   </div>
-  <p class="small text-muted mt-3">Fonte: <code>RelatorioController.java:32</code> — financeiro exige <code>admin/financeiro</code>, resto exige equipe (403 caso contrário, RelatorioService.java:255).</p>
+
+  <div class="d-flex flex-wrap gap-2 mt-4 small border-top pt-3">
+    <a href="../dashboards/dashboard-admin.html" class="btn btn-elora-outline btn-sm">Validar cuidadores</a>
+    <a href="../juridico/painel.html" class="btn btn-elora-outline btn-sm">Painel de Denúncias</a>
+    <a href="#tab-contratos" class="btn btn-elora-outline btn-sm">Contratos</a>
+    <a href="#tab-financeiro" class="btn btn-elora-outline btn-sm">Financeiro</a>
+  </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../config/config.js?v=20261125-4"></script>
@@ -50,10 +62,16 @@
 <script src="../../services/relatorioService.js?v=20261125-4"></script>
 <script src="../../services/app.js?v=20261125-4"></script>
 <script>
+  const dados = {};
+  const TAB_KEY = {
+    'tab-resumo': 'resumo', 'tab-financeiro': 'financeiro', 'tab-usuarios': 'usuarios',
+    'tab-contratos': 'contratos', 'tab-avaliacoes': 'avaliacoes', 'tab-denuncias': 'denuncias'
+  };
+
   function show403(err){
     const el=document.getElementById('alert403');
     if(err && err.status===403){
-      el.textContent='Acesso negado (403) — relatórios restritos à equipe Elora. Faça login como admin/jurídico/financeiro (RelatorioService.java:255).';
+      el.textContent='Acesso negado (403) — relatórios restritos à equipe Elora. Faça login como admin/jurídico/financeiro.';
       el.classList.remove('d-none');
       notificationService.showWarning(el.textContent,'403');
       return true;
@@ -63,50 +81,105 @@
   }
   function distTone(k){
     const n = String(k||'').toLowerCase();
-    if(['aprovado','pago','ativo','resolvida','resolvido','concluido','aprovada'].includes(n)) return 'positive';
+    if(['aprovado','pago','ativo','resolvida','resolvido','concluido','aprovada','processado'].includes(n)) return 'positive';
     if(['pendente','em_analise','aberta','aberto','aguard_assinatura','negociacao','proposta','em_disputa'].includes(n)) return 'pending';
     if(['recusado','recusada','estornado','estornada','cancelado','cancelada','rescindido','rejeitado','arquivada','arquivado'].includes(n)) return 'negative';
     return '';
   }
   function kv(obj){ return Object.entries(obj||{}).map(([k,v])=>{ const t=distTone(k); return `<span class="dist-chip${t?' '+t:''}"><span class="dot" aria-hidden="true"></span>${escapeHtml(k)}: <strong>${escapeHtml(v)}</strong></span>`; }).join(''); }
+  function rotuloPeriodo(inicio, fim){ return inicio ? `${inicio} a ${fim||''}` : 'sem filtro de período'; }
+
+  function acaoCard(label, valor, url, icone){
+    return `<div class="col-md-3"><a href="${url}" class="text-decoration-none"><div class="stat-card h-100">
+      <small class="text-muted"><i class="bi bi-${icone} me-1" aria-hidden="true"></i>${escapeHtml(label)}</small>
+      <h3>${escapeHtml(valor ?? 0)}</h3><small class="text-muted">Abrir fila →</small>
+    </div></a></div>`;
+  }
+
+  function renderResumo(r, inicio, fim){
+    dados.resumo = r;
+    document.getElementById('resumo').innerHTML = `
+      <div class="col-md-3"><div class="stat-card"><small>Total usuários</small><h3>${r.totalUsuarios}</h3></div></div>
+      <div class="col-md-3"><div class="stat-card"><small>Ativos</small><h3>${r.usuariosAtivos}</h3></div></div>
+      <div class="col-md-3"><div class="stat-card"><small>Profissionais</small><h3>${r.totalProfissionais}</h3></div></div>
+      <div class="col-md-3"><div class="stat-card"><small>Média avaliações</small><h3>${r.mediaAvaliacoes}</h3></div></div>
+      <div class="col-12"><div class="card-elora p-3 small">
+        Validando ${r.profissionaisPendentes} | Contratos ativos ${r.contratosAtivos} | Em disputa ${r.contratosEmDisputa} |
+        Pagamentos pendentes ${r.pagamentosPendentes} | Repasses pendentes ${r.repassesPendentes} (${formatCurrency(r.valorRepassesPendentes)}) |
+        Denúncias abertas ${r.denunciasAbertas}
+        ${inicio && fim ? `<div class="mt-2"><strong>No período ${escapeHtml(rotuloPeriodo(inicio, fim))}:</strong>
+          novos usuários ${r.usuariosNovosNoPeriodo} | contratos ${r.contratosNoPeriodo} | pagamentos ${r.pagamentosNoPeriodo} |
+          denúncias ${r.denunciasNoPeriodo} | avaliações ${r.avaliacoesNoPeriodo}</div>` : ''}
+      </div></div>`;
+    document.getElementById('acoes').innerHTML =
+      acaoCard('Validação de cuidadores', r.profissionaisPendentes, '../dashboards/dashboard-admin.html', 'person-check') +
+      acaoCard('Denúncias abertas', r.denunciasAbertas, '../juridico/painel.html', 'flag') +
+      acaoCard('Pagamentos pendentes', Number(r.pagamentosPendentes)+Number(r.repassesPendentes), '#tab-financeiro', 'cash-stack') +
+      acaoCard('Contratos em disputa', r.contratosEmDisputa, '#tab-contratos', 'file-earmark-text');
+  }
+
   async function loadAll(){
     if(!authService.isAuthenticated()){ window.location.href=authService.getLoginUrl('relatorios/relatorios.html'); return; }
     const inicio=document.getElementById('inicio').value||null;
     const fim=document.getElementById('fim').value||null;
     try{
-      const r=await relatorioService.resumo();
-      document.getElementById('resumo').innerHTML=`
-        <div class="col-md-3"><div class="stat-card"><small>Total usuários</small><h3>${r.totalUsuarios}</h3></div></div>
-        <div class="col-md-3"><div class="stat-card"><small>Ativos</small><h3>${r.usuariosAtivos}</h3></div></div>
-        <div class="col-md-3"><div class="stat-card"><small>Profissionais pendentes</small><h3>${r.profissionaisPendentes}</h3></div></div>
-        <div class="col-md-3"><div class="stat-card"><small>Média avaliações</small><h3>${r.mediaAvaliacoes}</h3></div></div>
-        <div class="col-12"><div class="card-elora p-3 small">Contratos ativos ${r.contratosAtivos} | Em disputa ${r.contratosEmDisputa} | Pagamentos pendentes ${r.pagamentosPendentes} | Denúncias abertas ${r.denunciasAbertas}</div></div>
-      `;
-    }catch(e){ if(!show403(e)) document.getElementById('resumo').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
+      renderResumo(await relatorioService.resumo(inicio,fim), inicio, fim);
+    }catch(e){ dados.resumo=null; if(!show403(e)) document.getElementById('resumo').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
     try{
       const f=await relatorioService.financeiro(inicio,fim);
-      document.getElementById('financeiro').innerHTML=`<div class="card-elora p-3"><div class="row g-3"><div class="col-md-3"><small>Total</small><h4>${f.totalPagamentos}</h4></div><div class="col-md-3"><small>Bruto</small><h4>${formatCurrency(f.bruto)}</h4></div><div class="col-md-3"><small>Taxa</small><h4>${formatCurrency(f.taxa)}</h4></div><div class="col-md-3"><small>Líquido</small><h4>${formatCurrency(f.liquido)}</h4></div></div><div class="mt-2 dist-group"><span class="dist-label">Por método</span>${kv(f.porMetodo)}<span class="dist-label ms-2">Por status</span>${kv(f.porStatus)}</div></div>`;
-    }catch(e){ if(!show403(e)) document.getElementById('financeiro').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
+      dados.financeiro=f;
+      document.getElementById('financeiro').innerHTML=`<div class="card-elora p-3">
+        <div class="small text-muted mb-3">Período: ${escapeHtml(f.periodoInicio ? rotuloPeriodo(f.periodoInicio, f.periodoFim) : rotuloPeriodo(inicio,fim))}</div>
+        <div class="row g-3"><div class="col-md-3"><small>Total</small><h4>${f.totalPagamentos}</h4></div><div class="col-md-3"><small>Bruto</small><h4>${formatCurrency(f.totalBruto)}</h4></div><div class="col-md-3"><small>Taxa</small><h4>${formatCurrency(f.totalTaxa)}</h4></div><div class="col-md-3"><small>Líquido</small><h4>${formatCurrency(f.totalLiquido)}</h4></div></div>
+        <div class="row g-3 mt-1"><div class="col-md-3"><small>Ticket médio</small><h5>${formatCurrency(f.ticketMedio)}</h5></div><div class="col-md-3"><small>Repasses pendentes</small><h5>${f.repassesPendentes} (${formatCurrency(f.valorRepassesPendentes)})</h5></div><div class="col-md-3"><small>Repasses processados</small><h5>${f.repassesProcessados}</h5></div></div>
+        <div class="mt-2 dist-group"><span class="dist-label">Por método</span>${kv(f.porMetodo)}<span class="dist-label ms-2">Por status</span>${kv(f.porStatus)}</div>
+      </div>`;
+    }catch(e){ dados.financeiro=null; if(!show403(e)) document.getElementById('financeiro').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
     try{
       const u=await relatorioService.usuarios(inicio,fim);
-      document.getElementById('usuarios').innerHTML=`<div class="card-elora p-3"><div>Total ${u.total} | Ativos ${u.ativos} | Novos ${u.novos}</div><div class="mt-2 dist-group"><span class="dist-label">Perfis</span>${kv(u.porPerfil)}<span class="dist-label ms-2">Status</span>${kv(u.porStatus)}<span class="dist-label ms-2">Verificação</span>${kv(u.porVerificacao)}</div></div>`;
-    }catch(e){ if(!show403(e)) document.getElementById('usuarios').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
+      dados.usuarios=u;
+      document.getElementById('usuarios').innerHTML=`<div class="card-elora p-3"><div class="small text-muted mb-2">Período: ${escapeHtml(rotuloPeriodo(inicio,fim))}</div><div>Total ${u.total} | Ativos ${u.ativos} | Novos no período ${u.novosNoPeriodo}</div><div class="mt-2 dist-group"><span class="dist-label">Perfis</span>${kv(u.porPerfil)}<span class="dist-label ms-2">Status</span>${kv(u.porStatus)}<span class="dist-label ms-2">Verificação</span>${kv(u.cuidadoresPorVerificacao)}</div></div>`;
+    }catch(e){ dados.usuarios=null; if(!show403(e)) document.getElementById('usuarios').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
     try{
       const c=await relatorioService.contratos(inicio,fim);
-      document.getElementById('contratos').innerHTML=`<div class="card-elora p-3"><div>Total ${c.total} | Novos ${c.novos} | Média valor/hora ${formatCurrency(c.mediaValorHora)}</div><div class="mt-2 dist-group"><span class="dist-label">Por status</span>${kv(c.porStatus)}</div></div>`;
-    }catch(e){ if(!show403(e)) document.getElementById('contratos').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
+      dados.contratos=c;
+      document.getElementById('contratos').innerHTML=`<div class="card-elora p-3"><div class="small text-muted mb-2">Período: ${escapeHtml(rotuloPeriodo(inicio,fim))}</div><div>Total ${c.total} | Novos no período ${c.novosNoPeriodo} | Média valor/hora ${formatCurrency(c.valorMedioHora)}</div><div class="mt-2 dist-group"><span class="dist-label">Por status</span>${kv(c.porStatus)}</div></div>`;
+    }catch(e){ dados.contratos=null; if(!show403(e)) document.getElementById('contratos').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
     try{
-      const a=await relatorioService.avaliacoes();
-      document.getElementById('avaliacoes').innerHTML=`<div class="card-elora p-3"><div>Total ${a.total} | Média ${a.media}</div><div class="mt-2 dist-group"><span class="dist-label">Distribuição</span>${kv(a.distribuicao)}</div></div>`;
-    }catch(e){ if(!show403(e)) document.getElementById('avaliacoes').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
+      const a=await relatorioService.avaliacoes(inicio,fim);
+      dados.avaliacoes=a;
+      document.getElementById('avaliacoes').innerHTML=`<div class="card-elora p-3"><div class="small text-muted mb-2">Período: ${escapeHtml(a.periodoInicio ? rotuloPeriodo(a.periodoInicio, a.periodoFim) : rotuloPeriodo(inicio,fim))}</div><div>Total ${a.total} | Média ${a.mediaGeral}</div><div class="mt-2 dist-group"><span class="dist-label">Distribuição</span>${kv(a.distribuicao)}</div></div>`;
+    }catch(e){ dados.avaliacoes=null; if(!show403(e)) document.getElementById('avaliacoes').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
     try{
-      const d=await relatorioService.denuncias();
-      document.getElementById('denuncias').innerHTML=`<div class="card-elora p-3"><div>Total ${d.total} | Abertas ${d.abertas}</div><div class="mt-2 dist-group"><span class="dist-label">Por status</span>${kv(d.porStatus)}</div></div>`;
-    }catch(e){ if(!show403(e)) document.getElementById('denuncias').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
+      const d=await relatorioService.denuncias(inicio,fim);
+      dados.denuncias=d;
+      document.getElementById('denuncias').innerHTML=`<div class="card-elora p-3"><div class="small text-muted mb-2">Período: ${escapeHtml(d.periodoInicio ? rotuloPeriodo(d.periodoInicio, d.periodoFim) : rotuloPeriodo(inicio,fim))}</div><div>Total ${d.total} | Abertas/em análise ${d.abertas}</div><div class="mt-2 dist-group"><span class="dist-label">Por status</span>${kv(d.porStatus)}</div></div>`;
+    }catch(e){ dados.denuncias=null; if(!show403(e)) document.getElementById('denuncias').innerHTML='<div class="alert alert-danger">'+escapeHtml(e.message)+'</div>'; }
   }
+
+  function flatten(obj, prefixo){
+    return Object.entries(obj||{}).flatMap(([k,v])=>{
+      const chave = prefixo ? `${prefixo}.${k}` : k;
+      if(v && typeof v==='object' && !Array.isArray(v)) return flatten(v, chave);
+      return [[chave, Array.isArray(v) ? v.join(' | ') : (v ?? '')]];
+    });
+  }
+  function exportarCsv(){
+    const aba = document.querySelector('.tab-pane.active')?.id || 'tab-resumo';
+    const chave = TAB_KEY[aba] || 'resumo';
+    const obj = dados[chave];
+    if(!obj){ notificationService.showWarning('Sem dados para exportar nesta aba.'); return; }
+    const linhas = [['indicador','valor'], ...flatten(obj)];
+    const csv = '\uFEFF' + linhas.map(l => l.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `relatorio-${chave}.csv`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+
   document.getElementById('btnFiltrar')?.addEventListener('click', loadAll);
   document.getElementById('btnLimpar')?.addEventListener('click', ()=>{ document.getElementById('inicio').value=''; document.getElementById('fim').value=''; loadAll(); });
-  // Deep-link de abas (ex. dashboard-admin "Relatório de usuários" -> #tab-usuarios)
+  document.getElementById('btnCsv')?.addEventListener('click', exportarCsv);
   function activateHashTab(){
     const hash = window.location.hash;
     if(!hash) return;

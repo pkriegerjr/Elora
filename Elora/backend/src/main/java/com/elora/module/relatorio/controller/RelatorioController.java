@@ -34,8 +34,12 @@ public class RelatorioController {
     private final RelatorioService relatorioService;
 
     @GetMapping("/resumo")
-    public ResponseEntity<ApiResponse<ResumoOperacionalResponse>> resumo(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.ok(relatorioService.resumo(SecurityUtils.currentUserId(authentication))));
+    public ResponseEntity<ApiResponse<ResumoOperacionalResponse>> resumo(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.resumo(
+                SecurityUtils.currentUserId(authentication), inicio, fim)));
     }
 
     @GetMapping("/financeiro")
@@ -63,12 +67,20 @@ public class RelatorioController {
     }
 
     @GetMapping("/avaliacoes")
-    public ResponseEntity<ApiResponse<RelatorioAvaliacoesResponse>> avaliacoes(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.ok(relatorioService.avaliacoes(SecurityUtils.currentUserId(authentication))));
+    public ResponseEntity<ApiResponse<RelatorioAvaliacoesResponse>> avaliacoes(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.avaliacoes(
+                SecurityUtils.currentUserId(authentication), inicio, fim)));
     }
 
     @GetMapping("/denuncias")
-    public ResponseEntity<ApiResponse<RelatorioDenunciasResponse>> denuncias(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.ok(relatorioService.denuncias(SecurityUtils.currentUserId(authentication))));
+    public ResponseEntity<ApiResponse<RelatorioDenunciasResponse>> denuncias(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(relatorioService.denuncias(
+                SecurityUtils.currentUserId(authentication), inicio, fim)));
     }
 }

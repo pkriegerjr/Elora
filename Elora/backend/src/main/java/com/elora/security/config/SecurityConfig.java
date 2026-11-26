@@ -63,8 +63,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/payments/webhook").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
-                        // Denúncia (POST /analise) é canal do usuário: qualquer autenticado.
-                        .requestMatchers(HttpMethod.POST, "/juridico/analise").authenticated()
+                        // Denúncia (POST /analise ou /denuncias) é canal do usuário: qualquer autenticado.
+                        .requestMatchers(HttpMethod.POST, "/juridico/analise", "/juridico/denuncias").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/juridico/denuncias/minhas").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/juridico/denuncias/*").authenticated()
                         // Painel e rescisões: só equipe jurídica/administração.
                         .requestMatchers("/juridico/painel", "/juridico/rescisoes").hasAnyRole("ADMIN", "JURIDICO")
                         .requestMatchers("/juridico/**").hasAnyRole("ADMIN", "JURIDICO")

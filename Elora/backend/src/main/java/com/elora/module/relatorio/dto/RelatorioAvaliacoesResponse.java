@@ -16,4 +16,6 @@ public class RelatorioAvaliacoesResponse {
     private long total;
     private BigDecimal mediaGeral;
     private Map<String, Long> distribuicao;
+    private String periodoInicio;
+    private String periodoFim;
 }

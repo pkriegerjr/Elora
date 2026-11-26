@@ -33,6 +33,7 @@ Elora/
 ├── backend/database/postgres/elora_schema_v2_pg.sql  # CANÔNICO Neon
 ├── backend/database/postgres/elora_schema_v2_3_pg.sql  # UNIQUE avaliacao (Neon)
 ├── backend/database/postgres/elora_schema_v2_4_pg.sql  # Obrigatório: módulo Conhecimento (categoria_conteudo, tutorial, faq, categoria_id)
+├── backend/database/postgres/elora_schema_v2_5_pg.sql  # Obrigatório: denuncia.parecer (módulo Jurídico persistente)
 ├── backend/database/elora_schema_v2*.sql  # legado MySQL, não usar para subir
 ├── backend/.env / .env.example  # DB_* Neon + JWT_* (gitignore)
 └── infra/{docker,k8s,scripts}/  # reservados, vazios (sem compose)
@@ -62,6 +63,7 @@ psql "host=ep-xxx.us-east-2.aws.neon.tech dbname=neondb user=... password=... ss
   -f backend/database/postgres/elora_schema_v2_pg.sql
 psql "$NEON_URL" -f backend/database/postgres/elora_schema_v2_3_pg.sql
 psql "$NEON_URL" -f backend/database/postgres/elora_schema_v2_4_pg.sql
+psql "$NEON_URL" -f backend/database/postgres/elora_schema_v2_5_pg.sql
 ```
 
 ### 5.2 Backend
@@ -88,13 +90,17 @@ POST /api/clients {nome,email,cpf:"11122233344",senha:"Senha@123",consentimentoL
 POST /api/auth/login {identifier:"email ou 11122233344",password:"Senha@123"} -> {accessToken,refreshToken,user:{perfis:["cliente"]}}
 GET  /api/auth/me  # Header Bearer
 GET  /api/notifications?unreadOnly=true  # 200
-GET  /api/relatorios/resumo  # 403 se perfil cliente, 200 se admin/financeiro (RelatorioService.java)
+GET  /api/relatorios/resumo?inicio=2026-01-01&fim=2026-12-31  # 403 se perfil cliente, 200 se equipe; ?inicio&fim também em avaliacoes/denuncias
+POST /api/juridico/denuncias {denunciadoId,contratoId?,motivo,descricao}  # qualquer autenticado; grava em denuncia
+GET  /api/juridico/denuncias/minhas  # denunciante acompanha protocolo/status
+GET  /api/juridico/denuncias  # fila completa, só admin/jurídico
+PATCH /api/juridico/denuncias/{id}/status {status,parecer?}  # aberta → em_analise → resolvida/arquivada
 ```
 
 ## 6. Troubleshooting
 
 - `PSQL connection failed`: confira `DB_HOST` direto do Neon (sem `-pooler`), `sslmode=require`, senha com caracteres especiais entre aspas.
-- `ddl-auto=validate` falhou: schema Neon desatualizado → reaplique `elora_schema_v2_pg.sql` + `_v2_3_pg` + `elora_schema_v2_4_pg.sql`.
+- `ddl-auto=validate` falhou: schema Neon desatualizado → reaplique `elora_schema_v2_pg.sql` + `_v2_3_pg` + `elora_schema_v2_4_pg.sql` + `_v2_5_pg.sql`.
 - `Perfil não configurado`: seed de `perfil` não aplicado → reaplique o SQL canônico do Postgres (não o legado MySQL).
 - `401 Não autenticado`: `JWT_SECRET` vazio/curto ou expirado → gere 48 bytes e tente `POST /api/auth/refresh {refreshToken}`.
 - `CORS`: sirva o front via `npx serve` (não `file://`); backend permite `http://localhost:*`.

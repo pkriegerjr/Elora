@@ -47,7 +47,7 @@ public class RelatorioService {
     // ------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public ResumoOperacionalResponse resumo(Integer viewerId) {
+    public ResumoOperacionalResponse resumo(Integer viewerId, LocalDate inicio, LocalDate fim) {
         exigirPerfis(viewerId, STAFF);
 
         List<String> usuarios = jdbc.query("SELECT status FROM usuario WHERE deleted_at IS NULL",
@@ -64,12 +64,13 @@ public class RelatorioService {
         List<String> contratos = jdbc.query("SELECT status FROM contrato", (rs, i) -> rs.getString(1));
         List<String> pagStatuses = jdbc.query("SELECT status FROM pagamento", (rs, i) -> rs.getString(1));
         List<RepasseRow> repasses = fetchRepasses();
-        List<String> denuncias = jdbc.query("SELECT status FROM denuncia", (rs, i) -> rs.getString(1));
-        List<Integer> notas = fetchNotas();
+        List<String> denuncias = fetchDenuncias(null, null);
+        List<Integer> notas = fetchNotas(null, null);
 
         long profissionaisPendentes = verifs.stream().filter("pendente"::equals).count()
                 + verifs.stream().filter("correcao"::equals).count();
         BigDecimal media = media(notas.stream().map(BigDecimal::valueOf).toList());
+        boolean comPeriodo = inicio != null && fim != null;
 
         return new ResumoOperacionalResponse(
                 usuarios.size(),
@@ -82,7 +83,14 @@ public class RelatorioService {
                 repasses.stream().filter(r -> "pendente".equals(r.status())).count(),
                 soma(repasses.stream().filter(r -> "pendente".equals(r.status())).map(RepasseRow::valor).toList()),
                 denuncias.stream().filter(s -> "aberta".equals(s) || "em_analise".equals(s)).count(),
-                media
+                media,
+                inicio == null ? null : inicio.toString(),
+                fim == null ? null : fim.toString(),
+                comPeriodo ? contarUsuariosNoPeriodo(inicio, fim) : usuarios.size(),
+                comPeriodo ? fetchContratos(inicio, fim).size() : contratos.size(),
+                comPeriodo ? fetchPagamentos(inicio, fim).size() : pagStatuses.size(),
+                comPeriodo ? fetchDenuncias(inicio, fim).size() : denuncias.size(),
+                comPeriodo ? fetchNotas(inicio, fim).size() : notas.size()
         );
     }
 
@@ -119,15 +127,15 @@ public class RelatorioService {
     }
 
     @Transactional(readOnly = true)
-    public RelatorioAvaliacoesResponse avaliacoes(Integer viewerId) {
+    public RelatorioAvaliacoesResponse avaliacoes(Integer viewerId, LocalDate inicio, LocalDate fim) {
         exigirPerfis(viewerId, STAFF);
-        return agregarAvaliacoes(fetchNotas());
+        return agregarAvaliacoes(fetchNotas(inicio, fim), inicio, fim);
     }
 
     @Transactional(readOnly = true)
-    public RelatorioDenunciasResponse denuncias(Integer viewerId) {
+    public RelatorioDenunciasResponse denuncias(Integer viewerId, LocalDate inicio, LocalDate fim) {
         exigirPerfis(viewerId, STAFF);
-        return agregarDenuncias(jdbc.query("SELECT status FROM denuncia", (rs, i) -> rs.getString(1)));
+        return agregarDenuncias(fetchDenuncias(inicio, fim), inicio, fim);
     }
 
     // ------------------------------------------------------------------
@@ -164,8 +172,18 @@ public class RelatorioService {
                 (rs, i) -> new ContratoRow(rs.getString(1), rs.getBigDecimal(2)));
     }
 
-    private List<Integer> fetchNotas() {
-        return jdbc.query("SELECT nota FROM avaliacao", (rs, i) -> rs.getInt(1));
+    private List<Integer> fetchNotas(LocalDate inicio, LocalDate fim) {
+        String sql = "SELECT nota FROM avaliacao";
+        List<Object> args = new ArrayList<>();
+        sql += periodoWhere("criado_em", inicio, fim, args);
+        return jdbc.query(sql, args.toArray(), (rs, i) -> rs.getInt(1));
+    }
+
+    private List<String> fetchDenuncias(LocalDate inicio, LocalDate fim) {
+        String sql = "SELECT status FROM denuncia";
+        List<Object> args = new ArrayList<>();
+        sql += periodoWhere("criado_em", inicio, fim, args);
+        return jdbc.query(sql, args.toArray(), (rs, i) -> rs.getString(1));
     }
 
     private long contarUsuariosNoPeriodo(LocalDate inicio, LocalDate fim) {
@@ -234,18 +252,27 @@ public class RelatorioService {
         return new RelatorioContratosResponse(todos.size(), novos, media(valores), porStatus);
     }
 
-    static RelatorioAvaliacoesResponse agregarAvaliacoes(List<Integer> notas) {
+    static RelatorioAvaliacoesResponse agregarAvaliacoes(List<Integer> notas, LocalDate inicio, LocalDate fim) {
         Map<String, Long> dist = zerar("1", "2", "3", "4", "5");
         notas.forEach(n -> dist.computeIfPresent(String.valueOf(n), (k, v) -> v + 1));
         return new RelatorioAvaliacoesResponse(
-                notas.size(), media(notas.stream().map(BigDecimal::valueOf).toList()), dist);
+                notas.size(),
+                media(notas.stream().map(BigDecimal::valueOf).toList()),
+                dist,
+                inicio == null ? null : inicio.toString(),
+                fim == null ? null : fim.toString());
     }
 
-    static RelatorioDenunciasResponse agregarDenuncias(List<String> status) {
+    static RelatorioDenunciasResponse agregarDenuncias(List<String> status, LocalDate inicio, LocalDate fim) {
         Map<String, Long> porStatus = zerar("aberta", "em_analise", "resolvida", "arquivada");
         status.forEach(s -> porStatus.computeIfPresent(nvl(s), (k, v) -> v + 1));
         long abertas = status.stream().filter(s -> "aberta".equals(s) || "em_analise".equals(s)).count();
-        return new RelatorioDenunciasResponse(status.size(), abertas, porStatus);
+        return new RelatorioDenunciasResponse(
+                status.size(),
+                abertas,
+                porStatus,
+                inicio == null ? null : inicio.toString(),
+                fim == null ? null : fim.toString());
     }
 
     // ------------------------------------------------------------------

@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class ResumoOperacionalResponse {
 
+    // Saldo atual (sem filtro de período).
     private long totalUsuarios;
     private long usuariosAtivos;
     private long totalProfissionais;
@@ -23,4 +24,13 @@ public class ResumoOperacionalResponse {
     private BigDecimal valorRepassesPendentes;
     private long denunciasAbertas;
     private BigDecimal mediaAvaliacoes;
+
+    // Recortes do período informado (ou os mesmos totais quando não há filtro).
+    private String periodoInicio;
+    private String periodoFim;
+    private long usuariosNovosNoPeriodo;
+    private long contratosNoPeriodo;
+    private long pagamentosNoPeriodo;
+    private long denunciasNoPeriodo;
+    private long avaliacoesNoPeriodo;
 }

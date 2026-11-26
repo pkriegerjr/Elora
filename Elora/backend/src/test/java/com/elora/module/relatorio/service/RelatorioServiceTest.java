@@ -82,7 +82,7 @@ class RelatorioServiceTest {
 
     @Test
     void avaliacoesAgregaEDistribui() {
-        var r = RelatorioService.agregarAvaliacoes(List.of(5, 5, 4, 3));
+        var r = RelatorioService.agregarAvaliacoes(List.of(5, 5, 4, 3), null, null);
 
         assertEquals(4, r.getTotal());
         assertEquals(bd("4.25"), r.getMediaGeral());
@@ -92,7 +92,7 @@ class RelatorioServiceTest {
 
     @Test
     void denunciasAgrega() {
-        var r = RelatorioService.agregarDenuncias(List.of("aberta", "em_analise", "resolvida", "aberta"));
+        var r = RelatorioService.agregarDenuncias(List.of("aberta", "em_analise", "resolvida", "aberta"), null, null);
 
         assertEquals(4, r.getTotal());
         assertEquals(3, r.getAbertas());

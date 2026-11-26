@@ -78,7 +78,9 @@ class RelatorioFlowTest {
         jdbc.update("INSERT INTO repasse (pagamento_id, profissional_id, valor, status) VALUES (?, ?, 90.00, 'pendente')", p1, adminId);
         jdbc.update("INSERT INTO avaliacao (contrato_id, avaliador_id, avaliado_id, nota, criado_em) VALUES (?, ?, ?, 5, CURRENT_TIMESTAMP)", c1, clienteId, adminId);
         jdbc.update("INSERT INTO avaliacao (contrato_id, avaliador_id, avaliado_id, nota, criado_em) VALUES (?, ?, ?, 3, CURRENT_TIMESTAMP)", c2, adminId, clienteId);
-        jdbc.update("INSERT INTO denuncia (status) VALUES ('aberta')");
+        jdbc.update("INSERT INTO denuncia (denunciante_id, denunciado_id, motivo, descricao, status, criado_em, atualizado_em) "
+                + "VALUES (?, ?, 'Teste', 'Descricao de teste para relatorio', 'aberta', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                clienteId, adminId);
     }
     private void perfil(String nome) {
         if (perfilRepository.findByNome(nome).isEmpty()) {
@@ -99,7 +101,7 @@ class RelatorioFlowTest {
     }
     @Test
     void resumoConsolida() {
-        var r = relatorioService.resumo(adminId);
+        var r = relatorioService.resumo(adminId, null, null);
         assertEquals(2, r.getTotalUsuarios());
         assertEquals(2, r.getUsuariosAtivos());
         assertEquals(2, r.getContratosAtivos());
@@ -118,13 +120,49 @@ class RelatorioFlowTest {
     @Test
     void demaisRelatorios() {
         assertEquals(2, relatorioService.contratos(adminId, null, null).getTotal());
-        assertEquals(2, relatorioService.avaliacoes(adminId).getTotal());
-        assertEquals(1, relatorioService.denuncias(adminId).getTotal());
+        assertEquals(2, relatorioService.avaliacoes(adminId, null, null).getTotal());
+        assertEquals(1, relatorioService.denuncias(adminId, null, null).getTotal());
         assertEquals(2, relatorioService.usuarios(adminId, null, null).getTotal());
     }
+
+    @Test
+    void periodoFiltraResumoAvaliacoesEDenuncias() {
+        // Par avaliador/avaliado é único no schema; use um terceiro usuário para a avaliação antiga.
+        Integer terceiro = usuarioService.registerCliente(cadastro("terceiro@teste.com", "12345678909")).getId();
+        jdbc.update("INSERT INTO contrato (codigo, cliente_id, profissional_id, titulo, status, valor_hora, criado_em, atualizado_em) "
+                + "VALUES ('TST-OLD', ?, ?, 'Antigo', 'concluido', 50.00, DATEADD('DAY', -40, CURRENT_TIMESTAMP), DATEADD('DAY', -40, CURRENT_TIMESTAMP))",
+                terceiro, adminId);
+        Integer antigo = jdbc.queryForObject("SELECT id_contrato FROM contrato WHERE codigo='TST-OLD'", Integer.class);
+        jdbc.update("INSERT INTO avaliacao (contrato_id, avaliador_id, avaliado_id, nota, criado_em) "
+                + "VALUES (?, ?, ?, 2, DATEADD('DAY', -40, CURRENT_TIMESTAMP))", antigo, terceiro, adminId);
+        jdbc.update("INSERT INTO denuncia (denunciante_id, denunciado_id, motivo, descricao, status, criado_em, atualizado_em) "
+                + "VALUES (?, ?, 'Antiga', 'Descricao antiga do relatorio', 'arquivada', DATEADD('DAY', -40, CURRENT_TIMESTAMP), DATEADD('DAY', -40, CURRENT_TIMESTAMP))",
+                clienteId, adminId);
+
+        LocalDate inicio = LocalDate.now().minusDays(7);
+        LocalDate fim = LocalDate.now();
+        var r = relatorioService.resumo(adminId, inicio, fim);
+        assertEquals(inicio.toString(), r.getPeriodoInicio());
+        assertEquals(fim.toString(), r.getPeriodoFim());
+        assertEquals(1, r.getPagamentosNoPeriodo());
+        assertEquals(1, r.getDenunciasNoPeriodo());
+        assertEquals(2, r.getAvaliacoesNoPeriodo());
+        assertEquals(2, r.getContratosNoPeriodo());
+        assertEquals(3, r.getUsuariosNovosNoPeriodo());
+
+        var a = relatorioService.avaliacoes(adminId, inicio, fim);
+        assertEquals(2, a.getTotal());
+        assertEquals(inicio.toString(), a.getPeriodoInicio());
+        var d = relatorioService.denuncias(adminId, inicio, fim);
+        assertEquals(1, d.getTotal());
+        assertEquals(2, relatorioService.denuncias(adminId, null, null).getTotal());
+    }
+
     @Test
     void naoStaffNaoVe() {
-        assertThrows(ForbiddenException.class, () -> relatorioService.resumo(clienteId));
+        assertThrows(ForbiddenException.class, () -> relatorioService.resumo(clienteId, null, null));
         assertThrows(ForbiddenException.class, () -> relatorioService.financeiro(clienteId, null, null));
+        assertThrows(ForbiddenException.class, () -> relatorioService.avaliacoes(clienteId, null, null));
+        assertThrows(ForbiddenException.class, () -> relatorioService.denuncias(clienteId, null, null));
     }
 }

@@ -15,4 +15,6 @@ public class RelatorioDenunciasResponse {
     private long total;
     private long abertas;
     private Map<String, Long> porStatus;
+    private String periodoInicio;
+    private String periodoFim;
 }
