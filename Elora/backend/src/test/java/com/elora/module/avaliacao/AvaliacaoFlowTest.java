@@ -10,6 +10,7 @@ import com.elora.module.avaliacao.entity.Avaliacao;
 import com.elora.module.avaliacao.repository.AvaliacaoRepository;
 import com.elora.module.avaliacao.service.AvaliacaoService;
 import com.elora.module.contrato.dto.CriarContratoRequest;
+import com.elora.module.contrato.enums.StatusContrato;
 import com.elora.module.contrato.entity.Contrato;
 import com.elora.module.contrato.repository.ContratoRepository;
 import com.elora.module.contrato.service.ContratoService;
@@ -118,6 +119,12 @@ class AvaliacaoFlowTest {
     @Test
     void parUnicoNaApp() {
         avaliacaoService.criar(cliA, req(contratoAX, 5, "boa"));
+        // Encerra o primeiro para respeitar a regra de um contrato aberto por par.
+        contratoService.atualizarStatus(cliA, contratoAX, StatusContrato.proposta);
+        contratoService.atualizarStatus(cliA, contratoAX, StatusContrato.aguard_assinatura);
+        contratoService.atualizarStatus(cliA, contratoAX, StatusContrato.ativo);
+        contratoService.atualizarStatus(cliA, contratoAX, StatusContrato.concluido);
+
         // Segundo contrato entre os MESMOS dois: app barra pelo par (não pelo contrato).
         Integer contratoAX2 = contrato(cliA, cuidX);
         var ex = assertThrows(BusinessException.class,

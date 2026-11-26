@@ -20,17 +20,17 @@
   </div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../config/config.js?v=20261125-4"></script>
-<script src="../../services/apiService.js?v=20261125-4"></script>
-<script src="../../services/mockData.js?v=20261125-4"></script>
-<script src="../../services/authService.js?v=20261125-4"></script>
-<script src="../../services/notificationService.js?v=20261125-4"></script>
-<script src="../../services/clientService.js?v=20261125-4"></script>
-<script src="../../services/caregiverService.js?v=20261125-4"></script>
-<script src="../../services/contractService.js?v=20261125-4"></script>
-<script src="../../services/paymentService.js?v=20261125-4"></script>
-<script src="../../services/mapsService.js?v=20261125-4"></script>
-<script src="../../services/app.js?v=20261125-4"></script>
+<script src="../../config/config.js?v=20261126-4"></script>
+<script src="../../services/apiService.js?v=20261126-4"></script>
+<script src="../../services/mockData.js?v=20261126-4"></script>
+<script src="../../services/authService.js?v=20261126-4"></script>
+<script src="../../services/notificationService.js?v=20261126-4"></script>
+<script src="../../services/clientService.js?v=20261126-4"></script>
+<script src="../../services/caregiverService.js?v=20261126-4"></script>
+<script src="../../services/contractService.js?v=20261126-4"></script>
+<script src="../../services/paymentService.js?v=20261126-4"></script>
+<script src="../../services/mapsService.js?v=20261126-4"></script>
+<script src="../../services/app.js?v=20261126-4"></script>
 <script>
   const contractId = new URLSearchParams(window.location.search).get('contractId');
   const paymentIdParam = new URLSearchParams(window.location.search).get('paymentId');
@@ -78,13 +78,13 @@
         </ul>
         <div class="tab-content border rounded p-3">
           <div class="tab-pane fade show active" id="pix">
-            <p class="small text-muted">QR Code PIX (mock) — expira em 30 min</p>
+            <p class="small text-muted">QR Code PIX — expira em 30 min</p>
             <div class="text-center"><div class="bg-white border p-3 d-inline-block"><i class="bi bi-qr-code" style="font-size:5rem"></i></div><p class="small mt-2 font-monospace" id="pixCode"></p></div>
             <button id="btnPayPix" class="btn btn-elora-primary w-100 mt-2">Confirmar pagamento PIX</button>
           </div>
           <div class="tab-pane fade" id="card">
-            <div class="alert alert-warning small">Em produção o cartão é tokenizado no gateway. Aqui é simulação.</div>
-            <div class="mb-3"><label for="cardToken" class="form-label">Token do cartão (mock)</label><input id="cardToken" class="form-control" placeholder="tok_123"></div>
+            <div class="alert alert-warning small">Pagamento processado com segurança.</div>
+            <div class="mb-3"><label for="cardToken" class="form-label">Token do cartão</label><input id="cardToken" class="form-control" placeholder="Informe o token do cartão"></div>
             <div class="mb-3"><label for="installments" class="form-label">Parcelas</label><select id="installments" class="form-select"><option value="1">1x</option><option value="3">3x</option><option value="6">6x</option></select></div>
             <button id="btnPayCard" class="btn btn-elora-primary w-100">Pagar com cartão</button>
           </div>

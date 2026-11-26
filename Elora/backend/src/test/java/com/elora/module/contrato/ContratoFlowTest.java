@@ -98,6 +98,69 @@ class ContratoFlowTest {
     }
 
     @Test
+    void bloqueiaNovoContratoEnquantoExistirAbertoOuEmVigor() {
+        Integer primeiro = contratoService.criar(cli, novo(cli, prof)).getId();
+
+        String mensagem = assertThrows(BusinessException.class,
+                () -> contratoService.criar(cli, novo(cli, prof))).getMessage();
+        assertTrue(mensagem.contains("contrato em aberto"));
+        assertTrue(mensagem.contains("código"));
+
+        StatusContrato[] abertos = {
+                StatusContrato.proposta,
+                StatusContrato.negociacao,
+                StatusContrato.aguard_assinatura,
+                StatusContrato.ativo,
+                StatusContrato.em_disputa
+        };
+        for (StatusContrato statusAberto : abertos) {
+            status(primeiro, statusAberto);
+            assertThrows(BusinessException.class,
+                    () -> contratoService.criar(cli, novo(cli, prof)),
+                    "O bloqueio não funcionou com o contrato em " + statusAberto);
+        }
+    }
+
+    @Test
+    void permiteNovoContratoAposEncerramentoDoAnterior() {
+        Integer cancelado = contratoService.criar(cli, novo(cli, prof)).getId();
+        status(cancelado, StatusContrato.proposta);
+        status(cancelado, StatusContrato.cancelado);
+
+        Integer aposCancelado = contratoService.criar(cli, novo(cli, prof)).getId();
+        assertNotNull(aposCancelado);
+        status(aposCancelado, StatusContrato.proposta);
+        status(aposCancelado, StatusContrato.aguard_assinatura);
+        status(aposCancelado, StatusContrato.ativo);
+        status(aposCancelado, StatusContrato.concluido);
+
+        Integer aposConcluido = contratoService.criar(cli, novo(cli, prof)).getId();
+        assertNotNull(aposConcluido);
+        status(aposConcluido, StatusContrato.proposta);
+        status(aposConcluido, StatusContrato.aguard_assinatura);
+        status(aposConcluido, StatusContrato.ativo);
+        status(aposConcluido, StatusContrato.rescindido);
+
+        assertNotNull(contratoService.criar(cli, novo(cli, prof)).getId());
+    }
+
+    @Test
+    void bloqueioEValidoSomenteParaOMesmoPar() {
+        contratoService.criar(cli, novo(cli, prof));
+
+        Integer outroProfissional = cuidador("prof2@t.com", "111222333");
+        assertNotNull(contratoService.criar(cli, novo(cli, outroProfissional)).getId());
+        assertNotNull(contratoService.criar(estranho, novo(estranho, prof)).getId());
+    }
+
+    @Test
+    void staffNaoContornaBloqueioDeContratoAberto() {
+        contratoService.criar(cli, novo(cli, prof));
+
+        assertThrows(BusinessException.class, () -> contratoService.criar(admin, novo(cli, prof)));
+    }
+
+    @Test
     void cicloFeliz() {
         Integer id = contratoService.criar(cli, novo(cli, prof)).getId();
         assertEquals(StatusContrato.proposta, status(id, StatusContrato.proposta));

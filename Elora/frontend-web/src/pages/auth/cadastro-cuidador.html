@@ -30,15 +30,12 @@
           <div class="col-md-4"><label class="form-label">Anos experiência *</label><input type="number" min="0" class="form-control" name="experience" required aria-label="Anos experiência *"></div>
           <div class="col-md-4"><label class="form-label">Valor/hora (R$)</label><input type="number" step="0.01" class="form-control" name="hourlyRate" placeholder="45.00" aria-label="Valor/hora (R$)"></div>
           <div class="col-md-4"><label class="form-label">Formação</label><input class="form-control" name="education" placeholder="Técnico Enfermagem - Senac" aria-label="Formação"></div>
-          <div class="col-12"><label class="form-label">Especialidades</label>
-            <div class="d-flex gap-2 flex-wrap">
-              <label class="form-check"><input type="checkbox" value="idoso" class="form-check-input spec"> Idoso</label>
-              <label class="form-check"><input type="checkbox" value="alzheimer" class="form-check-input spec"> Alzheimer</label>
-              <label class="form-check"><input type="checkbox" value="parkinson" class="form-check-input spec"> Parkinson</label>
-              <label class="form-check"><input type="checkbox" value="mobilidade_reduzida" class="form-check-input spec"> Mobilidade reduzida</label>
-              <label class="form-check"><input type="checkbox" value="pos_operatorio" class="form-check-input spec"> Pós-operatório</label>
-              <label class="form-check"><input type="checkbox" value="medicacao" class="form-check-input spec"> Medicação</label>
+          <div class="col-12">
+            <label id="specCgLabel" class="form-label">Especialidades</label>
+            <div id="specCg" class="d-flex gap-2 flex-wrap" role="group" aria-labelledby="specCgLabel">
+              <span class="small text-muted">Carregando especialidades...</span>
             </div>
+            <div id="specCgError" class="small text-muted d-none mt-1" role="status"></div>
           </div>
           <div class="col-12"><label class="form-label">Bio</label><textarea class="form-control" name="bio" rows="2" placeholder="Conte sua experiência..." aria-label="Bio"></textarea></div>
         </div>
@@ -63,7 +60,7 @@
           <div class="col-md-3"><label class="form-label">Fim</label><input type="time" class="form-control" name="scheduleEnd" value="19:00" aria-label="Fim"></div>
           <div class="col-md-3"><label class="form-label">Raio máx (km)</label><input type="number" class="form-control" name="maxDistance" value="15" aria-label="Raio máx (km)"></div>
         </div>
-        <h5 class="mt-4">Documentos <small class="text-muted">(mock — envio real via multipart quando API online)</small></h5>
+        <h5 class="mt-4">Documentos</h5>
         <div class="row g-3">
           <div class="col-md-3"><label class="form-label">RG</label><input type="file" class="form-control" name="doc_rg" aria-label="RG"></div>
           <div class="col-md-3"><label class="form-label">CPF</label><input type="file" class="form-control" name="doc_cpf" aria-label="CPF"></div>
@@ -78,25 +75,57 @@
   </div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../config/config.js?v=20261125-4"></script>
-<script src="../../services/apiService.js?v=20261125-4"></script>
-<script src="../../services/mockData.js?v=20261125-4"></script>
-<script src="../../services/authService.js?v=20261125-4"></script>
-<script src="../../services/notificationService.js?v=20261125-4"></script>
-<script src="../../services/clientService.js?v=20261125-4"></script>
-<script src="../../services/caregiverService.js?v=20261125-4"></script>
-<script src="../../services/contractService.js?v=20261125-4"></script>
-<script src="../../services/paymentService.js?v=20261125-4"></script>
-<script src="../../services/mapsService.js?v=20261125-4"></script>
-<script src="../../services/app.js?v=20261125-4"></script>
+<script src="../../config/config.js?v=20261126-4"></script>
+<script src="../../services/apiService.js?v=20261126-4"></script>
+<script src="../../services/mockData.js?v=20261126-4"></script>
+<script src="../../services/authService.js?v=20261126-4"></script>
+<script src="../../services/notificationService.js?v=20261126-4"></script>
+<script src="../../services/clientService.js?v=20261126-4"></script>
+<script src="../../services/caregiverService.js?v=20261126-4"></script>
+<script src="../../services/contractService.js?v=20261126-4"></script>
+<script src="../../services/paymentService.js?v=20261126-4"></script>
+<script src="../../services/mapsService.js?v=20261126-4"></script>
+<script src="../../services/app.js?v=20261126-4"></script>
 <script>
+  // Mesmo catálogo usado na busca; em mock, derivado dos cuidadores demo.
+  const SPECIALTY_FALLBACK = [
+    { id:'idoso', nome:'Idoso' },
+    { id:'alzheimer', nome:'Alzheimer' },
+    { id:'parkinson', nome:'Parkinson' },
+    { id:'mobilidade_reduzida', nome:'Mobilidade reduzida' },
+    { id:'pos_operatorio', nome:'Pós-operatório' },
+    { id:'medicacao', nome:'Medicação' }
+  ];
+  function renderSpecialtyCheckboxes(lista){
+    const box=document.getElementById('specCg');
+    if(!box) return;
+    box.innerHTML = lista.map((e,i)=>{
+      const nome=String(e.nome ?? e.id ?? '').trim();
+      const valor=escapeHtml(nome);
+      return `<label class="form-check"><input type="checkbox" id="specCg-${i}" value="${valor}" data-nome="${valor}" class="form-check-input spec"> ${escapeHtml(nome)}</label>`;
+    }).join('') || '<span class="small text-muted">Nenhuma especialidade disponível no catálogo.</span>';
+  }
+  async function loadSpecialtyCheckboxes(){
+    try{
+      const lista=await caregiverService.getEspecialidades();
+      if(!lista || !lista.length) throw new Error('Catálogo vazio');
+      renderSpecialtyCheckboxes(lista);
+    }catch(err){
+      console.warn('Não foi possível carregar especialidades:', err.message);
+      renderSpecialtyCheckboxes(SPECIALTY_FALLBACK);
+      const aviso=document.getElementById('specCgError');
+      aviso.textContent='Não foi possível carregar o catálogo completo; exibindo especialidades básicas.';
+      aviso.classList.remove('d-none');
+    }
+  }
+  loadSpecialtyCheckboxes();
   document.getElementById('cepCg')?.addEventListener('blur', async e=>{
     const d=await fetchAddressFromCEP(e.target.value); if(d){ document.getElementById('cityCg').value=d.city; document.getElementById('neighCg').value=d.neighborhood; document.getElementById('streetCg').value=d.street; }
   });
   document.getElementById('formCg').addEventListener('submit', async e=>{
     e.preventDefault();
     const fd=new FormData(e.target);
-    const specialties=[...document.querySelectorAll('.spec:checked')].map(el=>el.value);
+    const specialties=[...document.querySelectorAll('#specCg .spec:checked')].map(el=>el.value);
     const days=[...document.querySelectorAll('.day:checked')].map(el=>parseInt(el.value));
     const payload={
       name:fd.get('name'), cpf:(fd.get('cpf')||'').trim(), birthDate:fd.get('birthDate'), phone:fd.get('phone'), email:fd.get('email'), password:fd.get('password'),

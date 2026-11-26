@@ -14,7 +14,7 @@
 <nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="#" data-action="dashboard" class="btn btn-elora-outline btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a></div></nav>
 <div class="container py-4" id="main">
   <h4>Ajuda e base de conhecimento</h4>
-  <p class="small text-muted">Conteúdo via GET /conhecimento/artigos e /conhecimento/faq (fallback local sem conexão).</p>
+  <p class="small text-muted">Conteúdo atualizado automaticamente, com versão local disponível sem conexão.</p>
   <div class="row g-4">
     <div class="col-lg-8">
       <div class="card-elora p-3 mb-3">
@@ -40,20 +40,20 @@
           <div><label class="form-label small" for="aCat">Categoria</label><select id="aCat" class="form-select"><option>Guias</option><option>LGPD</option><option>Pagamentos</option><option>Segurança</option></select></div>
           <div><label class="form-label small" for="aResumo">Resumo</label><input id="aResumo" class="form-control" maxlength="200"></div>
           <div><label class="form-label small" for="aCorpo">Conteúdo *</label><textarea id="aCorpo" class="form-control" rows="4" required></textarea></div>
-          <button class="btn btn-elora-primary btn-sm" type="submit">Publicar (POST /artigos)</button>
+          <button class="btn btn-elora-primary btn-sm" type="submit">Publicar</button>
         </form>
       </div>
     </div>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../config/config.js?v=20261125-4"></script>
-<script src="../../services/apiService.js?v=20261125-4"></script>
-<script src="../../services/mockData.js?v=20261125-4"></script>
-<script src="../../services/authService.js?v=20261125-4"></script>
-<script src="../../services/notificationService.js?v=20261125-4"></script>
-<script src="../../services/conhecimentoService.js?v=20261125-4"></script>
-<script src="../../services/app.js?v=20261125-4"></script>
+<script src="../../config/config.js?v=20261126-4"></script>
+<script src="../../services/apiService.js?v=20261126-4"></script>
+<script src="../../services/mockData.js?v=20261126-4"></script>
+<script src="../../services/authService.js?v=20261126-4"></script>
+<script src="../../services/notificationService.js?v=20261126-4"></script>
+<script src="../../services/conhecimentoService.js?v=20261126-4"></script>
+<script src="../../services/app.js?v=20261126-4"></script>
 <script>
   let artigos = [];
   async function load(){

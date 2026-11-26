@@ -27,14 +27,15 @@ class AvaliacaoService {
     async criar({ contratoId, nota, comentario }) {
         if (CONFIG.API.MOCK_MODE) {
             await new Promise(r => setTimeout(r, 500));
-            const cid = Number(contratoId);
-            if (!cid) throw new Error('Contrato não informado');
+            // IDs mock são strings (ex.: contract_001); não convertê-los para Number.
+            const cid = String(contratoId ?? '').trim();
+            if (!cid || cid === 'undefined') throw new Error('Contrato não informado');
             const n = Number(nota);
             if (!Number.isInteger(n) || n < 1 || n > 5) throw new Error('Nota deve ser de 1 a 5');
             if ((comentario || '').length > 2000) throw new Error('Comentário deve ter no máximo 2000 caracteres');
             const user = (window.authService && authService.getCurrentUser && authService.getCurrentUser()) || null;
             const list = this.load();
-            if (list.some(a => Number(a.contratoId) === cid)) throw new Error('Este contrato já foi avaliado');
+            if (list.some(a => String(a.contratoId) === cid)) throw new Error('Este contrato já foi avaliado');
             // resolve cuidador do contrato (mock)
             let cuidadorId = null;
             try {
@@ -91,7 +92,10 @@ class AvaliacaoService {
     }
 
     async jaAvaliada(contratoId) {
-        if (CONFIG.API.MOCK_MODE) return this.load().some(a => Number(a.contratoId) === Number(contratoId));
+        if (CONFIG.API.MOCK_MODE) {
+            const cid = String(contratoId ?? '').trim();
+            return this.load().some(a => String(a.contratoId) === cid);
+        }
         try { return false; } catch (e) { return false; }
     }
 }

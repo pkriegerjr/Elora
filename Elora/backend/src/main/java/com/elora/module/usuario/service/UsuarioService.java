@@ -5,6 +5,10 @@ import com.elora.common.exception.ForbiddenException;
 import com.elora.common.exception.ResourceNotFoundException;
 import com.elora.common.util.DocumentUtils;
 import com.elora.module.notificacao.service.AvisoSistemaService;
+import com.elora.module.profissional.entity.Especialidade;
+import com.elora.module.profissional.entity.UsuarioEspecialidade;
+import com.elora.module.profissional.repository.EspecialidadeRepository;
+import com.elora.module.profissional.repository.UsuarioEspecialidadeRepository;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
 import com.elora.module.usuario.dto.ClienteUpdateRequest;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
@@ -46,6 +50,8 @@ public class UsuarioService {
     private final UsuarioPerfilRepository usuarioPerfis;
     private final ProfissionalDetalhesRepository profissionalDetalhes;
     private final ContratanteDetalhesRepository contratanteDetalhes;
+    private final EspecialidadeRepository especialidades;
+    private final UsuarioEspecialidadeRepository usuarioEspecialidades;
     private final PasswordEncoder passwordEncoder;
     private final AvisoSistemaService avisos;
 
@@ -91,6 +97,17 @@ public class UsuarioService {
         detalhes.setStatusVerificacao(StatusVerificacao.pendente);
         detalhes.setNotaMedia(new BigDecimal("0.00"));
         profissionalDetalhes.save(detalhes);
+
+        // Especialidades selecionadas no cadastro entram no mesmo catálogo usado pela busca.
+        if (req.getEspecialidades() != null) {
+            for (String nome : req.getEspecialidades()) {
+                String trim = nome == null ? "" : nome.trim();
+                if (trim.isEmpty()) continue;
+                var esp = especialidades.findByNomeIgnoreCase(trim)
+                        .orElseGet(() -> especialidades.save(new Especialidade(null, trim)));
+                usuarioEspecialidades.save(new UsuarioEspecialidade(usuario.getId(), esp.getId(), null));
+            }
+        }
 
         avisos.notificarSeguro(AvisoSistemaService.ADMINISTRACAO,
                 "Cuidador aguardando validação",

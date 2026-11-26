@@ -2,6 +2,7 @@ package com.elora.module.usuario;
 
 import com.elora.common.exception.BusinessException;
 import com.elora.common.exception.UnauthorizedException;
+import com.elora.module.profissional.repository.UsuarioEspecialidadeRepository;
 import com.elora.module.usuario.dto.AuthResponse;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
@@ -55,6 +56,9 @@ class AuthFlowTest {
 
     @Autowired
     private UsuarioPerfilRepository usuarioPerfis;
+
+    @Autowired
+    private UsuarioEspecialidadeRepository usuarioEspecialidades;
 
     @BeforeEach
     void seeds() {
@@ -244,5 +248,23 @@ class AuthFlowTest {
         assertNull(authService.requestPasswordReset("fantasma@teste.com"));
         assertThrows(UnauthorizedException.class, () ->
                 authService.confirmPasswordReset("token-qualquer", "Nova@123"));
+    }
+
+    @Test
+    void cadastroCuidadorSalvaEspecialidadesDoCatalogo() {
+        CuidadorRegisterRequest req = new CuidadorRegisterRequest();
+        req.setNome("Cuidadora Especialidades");
+        req.setEmail("especialidades@teste.com");
+        req.setCpf("11144477735");
+        req.setSenha("Senha@123");
+        req.setConsentimentoLgpd(true);
+        req.setEspecialidades(List.of("Idoso", "Cuidados paliativos", "  "));
+
+        var criado = usuarioService.registerCuidador(req);
+        var nomes = usuarioEspecialidades.findNomesByUsuarioId(criado.getId());
+
+        assertEquals(2, nomes.size());
+        assertTrue(nomes.contains("Idoso"));
+        assertTrue(nomes.contains("Cuidados paliativos"));
     }
 }

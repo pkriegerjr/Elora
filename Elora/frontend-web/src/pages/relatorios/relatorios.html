@@ -54,13 +54,13 @@
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../config/config.js?v=20261125-4"></script>
-<script src="../../services/apiService.js?v=20261125-4"></script>
-<script src="../../services/mockData.js?v=20261125-4"></script>
-<script src="../../services/authService.js?v=20261125-4"></script>
-<script src="../../services/notificationService.js?v=20261125-4"></script>
-<script src="../../services/relatorioService.js?v=20261125-4"></script>
-<script src="../../services/app.js?v=20261125-4"></script>
+<script src="../../config/config.js?v=20261126-4"></script>
+<script src="../../services/apiService.js?v=20261126-4"></script>
+<script src="../../services/mockData.js?v=20261126-4"></script>
+<script src="../../services/authService.js?v=20261126-4"></script>
+<script src="../../services/notificationService.js?v=20261126-4"></script>
+<script src="../../services/relatorioService.js?v=20261126-4"></script>
+<script src="../../services/app.js?v=20261126-4"></script>
 <script>
   const dados = {};
   const TAB_KEY = {
@@ -71,9 +71,9 @@
   function show403(err){
     const el=document.getElementById('alert403');
     if(err && err.status===403){
-      el.textContent='Acesso negado (403) — relatórios restritos à equipe Elora. Faça login como admin/jurídico/financeiro.';
+      el.textContent='Você não tem permissão para visualizar este relatório.';
       el.classList.remove('d-none');
-      notificationService.showWarning(el.textContent,'403');
+      notificationService.showWarning(el.textContent);
       return true;
     }
     el.classList.add('d-none');

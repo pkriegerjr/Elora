@@ -34,6 +34,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * rescindido e em_disputa (a partir de ativo/disputa). Finais não saem do lugar.
  * Cria: cliente dono ou staff; vê: partes ou staff; edita: cliente/staff e só
  * não-finalizado; exclui fisicamente: só rascunho (histórico se preserva).</p>
+ *
+ * <p>Regra de unicidade: só um contrato não-final por cliente+profissional.
+ * Enquanto existir rascunho, proposta, negociação, aguard_assinatura, ativo ou
+ * em_disputa, um novo contrato entre o mesmo par é bloqueado.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -80,6 +84,7 @@ public class ContratoService {
             throw new BusinessException("O usuário contratado não possui perfil de profissional");
         }
         validarDatas(req.getDataInicio(), req.getDataFim());
+        validarContratoEmAberto(cliente.getId(), profissional.getId());
 
         Contrato contrato = new Contrato();
         contrato.setCodigo(gerarCodigoUnico());
@@ -241,6 +246,21 @@ public class ContratoService {
         if (inicio != null && fim != null && fim.isBefore(inicio)) {
             throw new BusinessException("dataFim não pode ser anterior à dataInicio");
         }
+    }
+
+    /**
+     * Bloqueia novo contrato entre o mesmo par enquanto o anterior não foi
+     * concluído, rescindido ou cancelado. Isso inclui contratos em vigor e
+     * contratos aguardando assinatura de qualquer uma das partes.
+     */
+    private void validarContratoEmAberto(Integer clienteId, Integer profissionalId) {
+        contratos.findFirstByCliente_IdAndProfissional_IdAndStatusNotInOrderByCriadoEmDesc(
+                        clienteId, profissionalId, FINAIS)
+                .ifPresent(aberto -> {
+                    throw new BusinessException(
+                            "Você já possui um contrato em aberto com este cuidador (código "
+                                    + aberto.getCodigo() + "). Encerre o contrato atual antes de criar outro.");
+                });
     }
 
     private String gerarCodigoUnico() {

@@ -80,7 +80,15 @@ class ApiService {
 
     async processResponse(response, meta={}){
         let data;
-        const context = meta.method && meta.url ? ` (${meta.method} ${meta.url} → ${response.status})` : "";
+        // Detalhes técnicos ficam apenas no erro para debug/log; nunca na mensagem do cliente.
+        const debug = { method: meta.method || null, url: meta.url || null, status: response.status };
+        const makeError = (message) => {
+            const err = new Error(message || "Não foi possível concluir a operação. Tente novamente.");
+            err.status = response.status;
+            err.data = data;
+            err.debug = debug;
+            return err;
+        };
         const ct=response.headers.get("content-type");
         if(ct && ct.includes("application/json")){
             const text=await response.text();
@@ -89,8 +97,7 @@ class ApiService {
             // Desembrulha automaticamente para compat com services que esperam data direto
             if(data && typeof data.success==='boolean' && 'data' in data){
                 if(!response.ok){
-                    const err=new Error((data.message || `HTTP ${response.status}`) + context);
-                    err.status=response.status; err.data=data;
+                    const err=makeError(data.message || data.error);
                     if(this.errorInterceptor) await this.errorInterceptor(err, response);
                     throw err;
                 }
@@ -104,8 +111,7 @@ class ApiService {
         }
         if(this.responseInterceptor) data=await this.responseInterceptor(data, response);
         if(!response.ok){
-            const err=new Error(((data && (data.message || data.error)) || `HTTP ${response.status}`) + context);
-            err.status=response.status; err.data=data;
+            const err=makeError(data && (data.message || data.error));
             if(this.errorInterceptor) await this.errorInterceptor(err, response);
             throw err;
         }
@@ -179,10 +185,14 @@ class ApiService {
             if(error.name==="TypeError" && String(error.message).includes("fetch")){
                 // Se MOCK_MODE e backend offline, não estoura erro em demo
                 if(this.shouldMock()){
-                    console.warn("[ELORA] Backend offline e MOCK_MODE=true — usando dados mock. Erro:", error.message);
-                    throw error;
+                    console.warn("[ELORA] Serviço indisponível; usando dados mock.");
+                    const err=new Error("Não foi possível conectar ao serviço. Verifique sua conexão e tente novamente.");
+                    err.debug={ method, url, baseURL:this.baseURL, cause:error.message };
+                    throw err;
                 }
-                throw new Error(`Erro de conexão com a API Spring Boot em ${this.baseURL} (${method} ${url})`);
+                const err=new Error("Não foi possível conectar ao serviço. Verifique sua conexão e tente novamente.");
+                err.debug={ method, url, baseURL:this.baseURL, cause:error.message };
+                throw err;
             }
             throw error;
         }
@@ -212,7 +222,12 @@ class ApiService {
         const qs=new URLSearchParams(params).toString();
         const url=this.buildUrl(qs?`${endpoint}?${qs}`:endpoint);
         const res=await fetch(url,{method:"GET",headers:{...this.getAuthHeaders()},credentials:"include"});
-        if(!res.ok) throw new Error(`Download failed: ${res.status}`);
+        if(!res.ok){
+            const err=new Error("Não foi possível baixar o arquivo. Tente novamente.");
+            err.status=res.status;
+            err.debug={ method:"GET", url, status:res.status };
+            throw err;
+        }
         return res.blob();
     }
 }
@@ -241,7 +256,7 @@ apiService.setErrorInterceptor(async (error)=>{
         }
     }
     if(error.status===403) console.warn("Acesso negado:", error.message);
-    if(error.status>=500) console.error("Erro servidor Spring:", error.message, error.data);
+    if(error.status>=500) console.error("Erro no servidor:", error.message);
 });
 
 window.ApiService=ApiService;

@@ -73,6 +73,12 @@ class ContractService {
      * @returns {Promise<Object>} Created contract
      */
     async createContract(contractData) {
+        // Regra do backend replicada no front para feedback imediato (e para o modo mock).
+        const aberto = await this.contratoEmAbertoCom(
+            contractData.caregiverId || contractData.profissionalId,
+            contractData.clientId || contractData.clienteId);
+        if (aberto) throw new Error(this.mensagemContratoEmAberto(aberto));
+
         if (!CONFIG.API.MOCK_MODE) {
             const valorHora = Number(contractData.valorHora ?? contractData.hourlyRate ?? 0);
             let valorTotal = contractData.valorTotal ?? contractData.totalValue?.total ?? null;
@@ -222,6 +228,47 @@ class ContractService {
         
         // Enrich with related data
         return Promise.all(userContracts.map(c => this.enrichContract(c)));
+    }
+
+    /**
+     * Status que ainda mantêm um contrato "em aberto": falta fechamento de
+     * alguma das partes, negociação, assinatura pendente, contrato em vigor
+     * ou disputa. Espelha FINAIS de ContratoService no backend.
+     */
+    openContractStatuses() {
+        return ['rascunho', 'proposta', 'negociacao', 'aguard_assinatura', 'ativo', 'em_disputa'];
+    }
+
+    /** Mensagem única para o bloqueio de contrato duplicado no mesmo par. */
+    mensagemContratoEmAberto(contrato) {
+        const codigo = contrato?.codigo || contrato?.id;
+        const trecho = codigo ? ` (código ${codigo})` : '';
+        return `Você já possui um contrato em aberto com este cuidador${trecho}. `
+            + 'Encerre o contrato atual antes de criar outro.';
+    }
+
+    /**
+     * Retorna o contrato não-final entre cliente e cuidador, ou null.
+     * Funciona nos formatos V1 (clientId/caregiverId) e V2 (clienteId/profissionalId).
+     */
+    async contratoEmAbertoCom(caregiverId, clienteId) {
+        const idCliente = clienteId ?? authService.getCurrentUser()?.id;
+        const idCuidador = caregiverId ?? null;
+        if (!idCliente || !idCuidador) return null;
+
+        const contratos = await this.getUserContracts({ papel: 'cliente' });
+        const abertos = this.openContractStatuses();
+
+        return contratos.find(c => {
+            const cCliente = c.clienteId ?? c.clientId ?? c.client?.id;
+            const cCuidador = c.profissionalId ?? c.caregiverId ?? c.caregiver?.id;
+            const rawStatus = c.statusV2 ?? c.status;
+            if (!rawStatus) return false;
+            const status = CONFIG.toV2ContractStatus(rawStatus);
+            return String(cCliente) === String(idCliente)
+                && String(cCuidador) === String(idCuidador)
+                && abertos.includes(status);
+        }) || null;
     }
 
     /**

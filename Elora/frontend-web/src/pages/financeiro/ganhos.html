@@ -15,7 +15,7 @@
 <nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="#" data-action="dashboard" class="btn btn-elora-outline btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a></div></nav>
 <div class="container py-4" id="main">
   <h4>Meus ganhos e repasses</h4>
-  <p class="small text-muted">Repasse = valor líquido por pagamento aprovado (taxa de 10%). Tabelas <code>pagamento</code>/<code>repasse</code> — em mock, calculado de <code>elora_mock_payments</code>.</p>
+  <p class="small text-muted">Repasse = valor líquido por pagamento aprovado (taxa de 10%).</p>
   <div class="row g-3 mb-4">
     <div class="col-md-4"><div class="stat-card"><small class="text-muted">Recebido (líquido)</small><h3 id="gTotal">R$ 0</h3></div></div>
     <div class="col-md-4"><div class="stat-card"><small class="text-muted">Pendente</small><h3 id="gPend">R$ 0</h3></div></div>
@@ -26,14 +26,14 @@
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../config/config.js?v=20261125-4"></script>
-<script src="../../services/apiService.js?v=20261125-4"></script>
-<script src="../../services/mockData.js?v=20261125-4"></script>
-<script src="../../services/authService.js?v=20261125-4"></script>
-<script src="../../services/notificationService.js?v=20261125-4"></script>
-<script src="../../services/caregiverService.js?v=20261125-4"></script>
-<script src="../../services/paymentService.js?v=20261125-4"></script>
-<script src="../../services/app.js?v=20261125-4"></script>
+<script src="../../config/config.js?v=20261126-4"></script>
+<script src="../../services/apiService.js?v=20261126-4"></script>
+<script src="../../services/mockData.js?v=20261126-4"></script>
+<script src="../../services/authService.js?v=20261126-4"></script>
+<script src="../../services/notificationService.js?v=20261126-4"></script>
+<script src="../../services/caregiverService.js?v=20261126-4"></script>
+<script src="../../services/paymentService.js?v=20261126-4"></script>
+<script src="../../services/app.js?v=20261126-4"></script>
 <script>
   async function load(){
     if(!authService.isCaregiver()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('financeiro/ganhos.html'); return; }

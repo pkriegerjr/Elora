@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * POST /caregivers (JSON). Upload de documentos (multipart) e vínculo de
@@ -70,4 +71,7 @@ public class CuidadorRegisterRequest {
     @NotNull(message = "Consentimento LGPD é obrigatório")
     @AssertTrue(message = "É necessário aceitar os termos (LGPD)")
     private Boolean consentimentoLgpd;
+
+    /** Nomes do catálogo (GET /busca/especialidades) selecionados no cadastro. */
+    private List<String> especialidades;
 }

@@ -4,6 +4,7 @@ import com.elora.module.contrato.entity.Contrato;
 import com.elora.module.contrato.enums.StatusContrato;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +23,13 @@ public interface ContratoRepository extends JpaRepository<Contrato, Integer> {
     Optional<Contrato> findByIdAndProfissional_Id(Integer id, Integer profissionalId);
 
     List<Contrato> findByStatusOrderByCriadoEmDesc(StatusContrato status);
+
+    /**
+     * Contrato mais recente entre o par que ainda não chegou a um status final.
+     * Usado para impedir mais de um contrato em aberto/ativo por cliente+cuidador.
+     */
+    Optional<Contrato> findFirstByCliente_IdAndProfissional_IdAndStatusNotInOrderByCriadoEmDesc(
+            Integer clienteId, Integer profissionalId, Collection<StatusContrato> status);
 
     boolean existsByCodigo(String codigo);
 }

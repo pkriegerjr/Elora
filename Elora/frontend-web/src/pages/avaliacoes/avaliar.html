@@ -20,16 +20,16 @@
   </div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../config/config.js?v=20261125-4"></script>
-<script src="../../services/apiService.js?v=20261125-4"></script>
-<script src="../../services/mockData.js?v=20261125-4"></script>
-<script src="../../services/authService.js?v=20261125-4"></script>
-<script src="../../services/notificationService.js?v=20261125-4"></script>
-<script src="../../services/clientService.js?v=20261125-4"></script>
-<script src="../../services/caregiverService.js?v=20261125-4"></script>
-<script src="../../services/contractService.js?v=20261125-4"></script>
-<script src="../../services/avaliacaoService.js?v=20261125-4"></script>
-<script src="../../services/app.js?v=20261125-4"></script>
+<script src="../../config/config.js?v=20261126-4"></script>
+<script src="../../services/apiService.js?v=20261126-4"></script>
+<script src="../../services/mockData.js?v=20261126-4"></script>
+<script src="../../services/authService.js?v=20261126-4"></script>
+<script src="../../services/notificationService.js?v=20261126-4"></script>
+<script src="../../services/clientService.js?v=20261126-4"></script>
+<script src="../../services/caregiverService.js?v=20261126-4"></script>
+<script src="../../services/contractService.js?v=20261126-4"></script>
+<script src="../../services/avaliacaoService.js?v=20261126-4"></script>
+<script src="../../services/app.js?v=20261126-4"></script>
 <script>
   const qs = new URLSearchParams(window.location.search);
   const contractId = qs.get('contractId') || qs.get('contratoId');
@@ -44,7 +44,7 @@
         const list = await avaliacaoService.listarPorCuidador(me.id);
         const media = await avaliacaoService.mediaPorCuidador(me.id);
         root.innerHTML = `<h4>Minhas avaliações</h4>
-          <p class="small text-muted">Média ${escapeHtml(media.media ?? 0)} (${escapeHtml(media.total ?? list.length)} avaliações) • GET /avaliacoes/cuidador/{id}</p>
+          <p class="small text-muted">Média ${escapeHtml(media.media ?? 0)} (${escapeHtml(media.total ?? list.length)} avaliações)</p>
           ${list.length ? list.map(r=>`<div class="border-bottom py-2"><span class="stars">${'★'.repeat(Number(r.rating)||0)}</span> <small class="text-muted">${r.createdAt?formatDate(r.createdAt):''}</small><p class="small mb-1">${escapeHtml(r.comment||'')}</p></div>`).join('') : '<p class="small text-muted">Ainda sem avaliações.</p>'}
           <a href="../escalas/agenda.html" class="btn btn-elora-outline w-100 mt-3">Voltar à agenda</a>`;
       }catch(err){ root.innerHTML = '<div class="alert alert-danger">'+escapeHtml(err.message)+'</div>'; }
@@ -65,7 +65,7 @@
       }
       root.innerHTML = `
         <h4>Avaliar cuidador</h4>
-        <p class="small text-muted">Contrato ${escapeHtml(c.id)} • ${escapeHtml(c.caregiver?.name||c.caregiverId||'')} • POST /avaliacoes (1 por contrato)</p>
+        <p class="small text-muted">Contrato ${escapeHtml(c.id)} • ${escapeHtml(c.caregiver?.name||c.caregiverId||'')} • 1 avaliação por contrato</p>
         <form id="formAvaliar">
           <div class="mb-3"><span class="form-label fw-semibold" id="notaLabel">Nota *</span><div class="d-flex gap-2" role="radiogroup" aria-labelledby="notaLabel">
             ${[1,2,3,4,5].map(n=>`<label class="form-check"><input type="radio" name="nota" value="${n}" class="form-check-input" ${n===5?'checked':''} required> ${n}★</label>`).join('')}
@@ -80,7 +80,7 @@
         const comentario = document.getElementById('comentario').value;
         const btn = e.target.querySelector('button[type="submit"]'); showLoading(btn, 'Enviando...');
         try{
-          await avaliacaoService.criar({ contratoId, nota, comentario });
+          await avaliacaoService.criar({ contratoId: contractId, nota, comentario });
           notificationService.showSuccess('Avaliação enviada!'); setTimeout(()=> window.location.href='../contratos/contrato.html?id='+encodeURIComponent(contractId), 700);
         }catch(err){ const al=document.getElementById('formAlert'); al.textContent=err.message; al.className='alert alert-danger'; al.classList.remove('d-none'); hideLoading(btn); }
       });

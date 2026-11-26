@@ -446,6 +446,8 @@ class AuthService {
         } else {
             base.descricaoPerfil = form.bio || form.descricaoPerfil || '';
             base.precoHora = form.hourlyRate ?? form.precoHora ?? null;
+            // Especialidades marcadas no cadastro (nomes/catálogo da busca).
+            base.especialidades = form.specialties ?? form.especialidades ?? [];
         }
         return base;
     }
