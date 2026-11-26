@@ -2,6 +2,8 @@ package com.elora.module.busca;
 
 import com.elora.common.exception.BusinessException;
 import com.elora.common.exception.ResourceNotFoundException;
+import com.elora.module.avaliacao.dto.CriarAvaliacaoRequest;
+import com.elora.module.avaliacao.service.AvaliacaoService;
 import com.elora.module.busca.dto.FavoritoRequest;
 import com.elora.module.busca.dto.ProfissionalResponse;
 import com.elora.module.busca.entity.Disponibilidade;
@@ -13,6 +15,8 @@ import com.elora.module.busca.repository.DisponibilidadeRepository;
 import com.elora.module.busca.repository.EspecialidadeRepository;
 import com.elora.module.busca.repository.UsuarioEspecialidadeRepository;
 import com.elora.module.busca.service.BuscaService;
+import com.elora.module.contrato.dto.CriarContratoRequest;
+import com.elora.module.contrato.service.ContratoService;
 import com.elora.module.usuario.dto.ClienteRegisterRequest;
 import com.elora.module.usuario.dto.CuidadorRegisterRequest;
 import com.elora.module.usuario.entity.Perfil;
@@ -47,6 +51,12 @@ class BuscaFlowTest {
 
     @Autowired
     private BuscaService buscaService;
+
+    @Autowired
+    private AvaliacaoService avaliacaoService;
+
+    @Autowired
+    private ContratoService contratoService;
 
     @Autowired
     private UsuarioService usuarioService;
@@ -109,6 +119,26 @@ class BuscaFlowTest {
         assertEquals(p3, r.get(0).getId());
         assertEquals(p1, r.get(1).getId());
         assertEquals(p2, r.get(2).getId());
+    }
+
+    @Test
+    void cartaoIncluiQuantidadeDeAvaliacoes() {
+        CriarContratoRequest ct = new CriarContratoRequest();
+        ct.setClienteId(cli);
+        ct.setProfissionalId(p1);
+        ct.setTitulo("Cuidado teste");
+        ct.setValorHora(new BigDecimal("40.00"));
+        Integer contratoId = contratoService.criar(cli, ct).getId();
+        avaliacaoService.criar(cli, new CriarAvaliacaoRequest(contratoId, 5, "boa"));
+
+        List<ProfissionalResponse> r =
+                buscaService.buscar(null, null, null, null, null, null, null, "nota", "DESC", 20);
+
+        assertEquals(1L, r.stream().filter(p -> p1.equals(p.getId())).findFirst()
+                .orElseThrow().getTotalAvaliacoes());
+        assertEquals(0L, r.stream().filter(p -> p2.equals(p.getId())).findFirst()
+                .orElseThrow().getTotalAvaliacoes());
+        assertEquals(1L, buscaService.detalhar(p1).getTotalAvaliacoes());
     }
 
     @Test

@@ -19,7 +19,8 @@ public final class BuscaMapper {
     }
 
     public static ProfissionalResponse toProfissionalResponse(
-            Usuario usuario, ProfissionalDetalhes detalhes, List<String> especialidades) {
+            Usuario usuario, ProfissionalDetalhes detalhes, List<String> especialidades,
+            long totalAvaliacoes) {
         BigDecimal preco = detalhes == null ? null : detalhes.getPrecoHora();
         BigDecimal nota = detalhes == null || detalhes.getNotaMedia() == null
                 ? new BigDecimal("0.00")
@@ -31,6 +32,7 @@ public final class BuscaMapper {
                 detalhes == null ? null : detalhes.getDescricaoPerfil(),
                 preco,
                 nota,
+                totalAvaliacoes,
                 especialidades,
                 detalhes != null && Boolean.TRUE.equals(detalhes.getDocumentoVerificado())
         );

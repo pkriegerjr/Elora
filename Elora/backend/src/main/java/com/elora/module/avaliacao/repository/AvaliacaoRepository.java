@@ -18,6 +18,9 @@ public interface AvaliacaoRepository extends JpaRepository<Avaliacao, Integer> {
     // Avaliações RECEBIDAS pelo cuidador (mais novas primeiro).
     List<Avaliacao> findByAvaliado_IdOrderByCriadoEmDesc(Integer avaliadoId);
 
+    // Quantidade de avaliações recebidas (exibida no cartão da busca).
+    long countByAvaliado_Id(Integer avaliadoId);
+
     // "Este usuário já avaliou este cuidador?" (regra do par único).
     boolean existsByAvaliador_IdAndAvaliado_Id(Integer avaliadorId, Integer avaliadoId);
 }

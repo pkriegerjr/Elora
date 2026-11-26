@@ -72,7 +72,7 @@ class CaregiverService {
             bio: p.descricaoPerfil ?? p.bio ?? '',
             hourlyRate: Number(p.precoHora ?? p.hourlyRate ?? 0),
             rating: Number(p.notaMedia ?? p.rating ?? 0),
-            reviewCount: Number(p.reviewCount ?? 0),
+            reviewCount: Number(p.reviewCount ?? p.totalAvaliacoes ?? 0),
             specialties: p.especialidades ?? p.specialties ?? [],
             verified: p.documentoVerificado === true || p.verified === true,
             status: this.mapStatusFromApi(status),

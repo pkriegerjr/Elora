@@ -2,6 +2,7 @@ package com.elora.module.busca.service;
 
 import com.elora.common.exception.BusinessException;
 import com.elora.common.exception.ResourceNotFoundException;
+import com.elora.module.avaliacao.repository.AvaliacaoRepository;
 import com.elora.module.busca.dto.EspecialidadeResponse;
 import com.elora.module.busca.dto.FavoritoRequest;
 import com.elora.module.busca.dto.FavoritoResponse;
@@ -59,6 +60,9 @@ public class BuscaService {
     private final ProfissionalDetalhesRepository profissionalDetalhes;
     private final UsuarioService usuarioService;
 
+    // Quantidade de avaliações (módulo avaliação, somente leitura).
+    private final AvaliacaoRepository avaliacoes;
+
     // Tabelas próprias da busca.
     private final EspecialidadeRepository especialidades;
     private final UsuarioEspecialidadeRepository usuarioEspecialidades;
@@ -99,7 +103,8 @@ public class BuscaService {
                 .filter(u -> livresNaAgenda == null || livresNaAgenda.contains(u.getId()))
                 .map(u -> BuscaMapper.toProfissionalResponse(
                         u, profissionalDetalhes.findByUsuarioId(u.getId()).orElse(null),
-                        nomesEspecialidadesDe(u.getId(), nomesEsp)))
+                        nomesEspecialidadesDe(u.getId(), nomesEsp),
+                        avaliacoes.countByAvaliado_Id(u.getId())))
                 .collect(Collectors.toList());
 
         ordenar(resultado, ordem, asc);
@@ -115,7 +120,8 @@ public class BuscaService {
         }
         return BuscaMapper.toProfissionalResponse(
                 u, profissionalDetalhes.findByUsuarioId(profissionalId).orElse(null),
-                nomesEspecialidadesDe(profissionalId, mapaEspecialidades()));
+                nomesEspecialidadesDe(profissionalId, mapaEspecialidades()),
+                avaliacoes.countByAvaliado_Id(profissionalId));
     }
 
     /** Catálogo de tags (A–Z, vem ordenado do repository). */
@@ -155,7 +161,8 @@ public class BuscaService {
                 .filter(u -> u != null && u.getDeletedAt() == null)
                 .map(u -> BuscaMapper.toProfissionalResponse(
                         u, profissionalDetalhes.findByUsuarioId(u.getId()).orElse(null),
-                        nomesEspecialidadesDe(u.getId(), nomesEsp)))
+                        nomesEspecialidadesDe(u.getId(), nomesEsp),
+                        avaliacoes.countByAvaliado_Id(u.getId())))
                 .toList();
     }
 
