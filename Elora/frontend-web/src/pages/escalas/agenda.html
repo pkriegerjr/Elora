@@ -15,15 +15,34 @@
 <nav class="navbar navbar-elora sticky-top"><div class="container"><a class="navbar-brand" href="../../../index.html">EL<span>ORA</span></a><a href="#" data-action="dashboard" class="btn btn-elora-outline btn-sm" aria-label="Voltar ao painel"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Voltar</a></div></nav>
 <div class="container py-4" id="main">
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h4 class="mb-0">Minha agenda semanal</h4>
-    <span class="small text-muted">Disponibilidade (matutino/vespertino/noturno) × contratos ativos</span>
+    <h4 class="mb-0">Minha agenda</h4>
+    <span class="small text-muted">Calendário mensal + grade semanal de disponibilidade</span>
   </div>
   <div id="alert" class="alert d-none" role="status"></div>
   <div class="row g-4">
     <div class="col-lg-8">
+      <div class="card-elora p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div><h5 class="mb-0">Calendário de contratos</h5><div class="small text-muted">Dias com contrato ativo assinado</div></div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-elora-outline btn-sm" id="calPrev" aria-label="Mês anterior"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+            <strong id="calTitle" class="small text-nowrap"></strong>
+            <button type="button" class="btn btn-elora-outline btn-sm" id="calNext" aria-label="Próximo mês"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="calToday">Hoje</button>
+          </div>
+        </div>
+        <div id="calendarGrid" class="elora-calendar" role="group" aria-label="Calendário de contratos ativos"></div>
+        <div class="d-flex flex-wrap gap-3 small text-muted mt-3">
+          <span><span class="cal-legend-dot cal-legend-contract" aria-hidden="true"></span>Contrato ativo</span>
+          <span><span class="cal-legend-dot cal-legend-today" aria-hidden="true"></span>Hoje</span>
+          <span><span class="cal-legend-dot cal-legend-selected" aria-hidden="true"></span>Selecionado</span>
+        </div>
+        <div id="calDayDetail" class="small mt-3 border-top pt-3" aria-live="polite">Selecione um dia para ver os contratos.</div>
+      </div>
       <div class="card-elora p-3">
         <h5>Grade semanal</h5>
         <p class="small text-muted mb-2"><span class="badge bg-success">Disponível</span> <span class="badge bg-secondary">Fora da disponibilidade</span> <span class="badge bg-warning text-dark">Com contrato</span> <span class="badge bg-primary">Executado</span> <span class="badge bg-danger">Falta</span></p>
+        <div class="small text-muted mb-2">Contrato ativo sem escala aparece em todos os turnos do dia; escala registrada substitui o marcador.</div>
         <div class="table-responsive"><table class="table table-bordered align-middle text-center"><caption class="sr-only">Agenda semanal por período</caption><thead><tr><th scope="col">Dia</th><th scope="col">Matutino</th><th scope="col">Vespertino</th><th scope="col">Noturno</th></tr></thead><tbody id="gradeBody"><tr><td colspan="4" class="text-muted small">Carregando...</td></tr></tbody></table></div>
         <div id="conflitos" class="mt-2"></div>
       </div>
@@ -60,18 +79,24 @@
 <script src="../../services/mapsService.js?v=20261126-5"></script>
 <script src="../../services/escalaService.js?v=20261126-5"></script>
 <script src="../../services/app.js?v=20261126-5"></script>
+<script src="../../services/calendarioService.js?v=20261126-6"></script>
 <script>
   const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   async function load(){
     if(!authService.isCaregiver()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('escalas/agenda.html'); return; }
+    const user=authService.getCurrentUser();
     try{
-      const agenda = await escalaService.getAgenda();
+      const [agenda, contratos] = await Promise.all([escalaService.getAgenda(), caregiverService.getContracts().catch(() => [])]);
       const d = agenda.disponibilidade || {};
       const diasSalvos = new Set((d.days||[]).map(Number));
       document.querySelectorAll('.day').forEach(el=>{ el.checked = diasSalvos.has(Number(el.value)); });
       if(d.schedule){ document.getElementById('dispStart').value=d.schedule.start||'07:00'; document.getElementById('dispEnd').value=d.schedule.end||'19:00'; }
       if(d.maxDistanceKm||d.maxDistance) document.getElementById('dispKm').value=d.maxDistanceKm||d.maxDistance||15;
       const g = agenda.grade;
+      calendarioService.montar({
+        contratos: calendarioService.filtrarContratos(contratos, user.id),
+        escalasPorData: calendarioService.indexarEscalas(agenda.escalas)
+      });
       document.getElementById('gradeBody').innerHTML = [1,2,3,4,5,6,0].map(dia=>{
         const tds = escalaService.periodos().map(p=>{
           const c = g[dia][p];

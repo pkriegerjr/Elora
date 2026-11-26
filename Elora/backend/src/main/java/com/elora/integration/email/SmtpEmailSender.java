@@ -39,5 +39,6 @@ public class SmtpEmailSender implements EmailSender {
         msg.setSubject(assunto);
         msg.setText(corpo);
         mailSender.send(msg);
+        log.info("E-mail enviado para {}", destinatario);
     }
 }

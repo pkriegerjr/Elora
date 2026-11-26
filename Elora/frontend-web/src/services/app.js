@@ -165,6 +165,7 @@ function updateAuthUI() {
     const userMenu = document.querySelectorAll("[data-user-menu]");
     const userNameElements = document.querySelectorAll("[data-user-name]");
     const userTypeElements = document.querySelectorAll("[data-user-type]");
+    const roleItems = document.querySelectorAll("[data-roles]");
     
     if (isAuth && user) {
         authButtons.forEach(el => el.classList.add("d-none"));
@@ -178,9 +179,15 @@ function updateAuthUI() {
             };
             el.textContent = labels[user.type] || user.type;
         });
+        // Itens do menu de perfil que espelham as abas do dashboard do perfil.
+        roleItems.forEach(el => {
+            const permitidos = (el.dataset.roles || '').split(/\s+/).filter(Boolean);
+            el.classList.toggle('d-none', !permitidos.includes(user.type));
+        });
     } else {
         authButtons.forEach(el => el.classList.remove("d-none"));
         userMenu.forEach(el => el.classList.add("d-none"));
+        roleItems.forEach(el => el.classList.add('d-none'));
     }
     
     // Update notification badge

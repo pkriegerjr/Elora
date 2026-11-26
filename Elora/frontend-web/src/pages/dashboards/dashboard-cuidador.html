@@ -13,6 +13,8 @@
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
   <nav class="sidebar d-none d-lg-block">
     <div class="brand mb-4">EL<span>ORA</span> <small>Cuidador</small></div>
+    <a class="nav-link" href="../../../index.html"><i class="bi bi-house-door"></i> Voltar ao início</a>
+    <hr class="border-secondary">
     <a class="nav-link active" href="../dashboards/dashboard-cuidador.html"><i class="bi bi-speedometer2"></i> Visão geral</a>
     <a class="nav-link" href="../escalas/agenda.html" id="navSchedule"><i class="bi bi-calendar-week"></i> Agenda</a>
     <a class="nav-link" href="../avaliacoes/avaliar.html"><i class="bi bi-star"></i> Avaliações</a>
@@ -33,6 +35,24 @@
       </div>
       <div class="row g-4">
         <div class="col-lg-8">
+          <div class="card-elora p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+              <div><h5 class="mb-0">Calendário de contratos</h5><div class="small text-muted">Dias com contrato ativo assinado</div></div>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-elora-outline btn-sm" id="calPrev" aria-label="Mês anterior"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+                <strong id="calTitle" class="small text-nowrap"></strong>
+                <button type="button" class="btn btn-elora-outline btn-sm" id="calNext" aria-label="Próximo mês"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="calToday">Hoje</button>
+              </div>
+            </div>
+            <div id="calendarGrid" class="elora-calendar" role="group" aria-label="Calendário de contratos ativos"></div>
+            <div class="d-flex flex-wrap gap-3 small text-muted mt-3">
+              <span><span class="cal-legend-dot cal-legend-contract" aria-hidden="true"></span>Contrato ativo</span>
+              <span><span class="cal-legend-dot cal-legend-today" aria-hidden="true"></span>Hoje</span>
+              <span><span class="cal-legend-dot cal-legend-selected" aria-hidden="true"></span>Selecionado</span>
+            </div>
+            <div id="calDayDetail" class="small mt-3 border-top pt-3" aria-live="polite">Selecione um dia para ver os contratos.</div>
+          </div>
           <div class="card-elora p-3">
             <h5>Contratos recebidos</h5>
             <div class="table-responsive"><table class="table"><caption class="sr-only">Contratos recebidos</caption><thead><tr><th scope="col">Cliente</th><th scope="col">Período</th><th scope="col">Status</th><th></th></tr></thead><tbody id="contractsBody"><tr><td colspan="4" class="text-center small text-muted">Carregando...</td></tr></tbody></table></div>
@@ -62,7 +82,7 @@
   </div>
   <div class="modal fade" id="docModal"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="docModalTitle">Enviar documentos</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div><div class="modal-body"><input type="file" id="doc1" class="form-control mb-2"><input type="file" id="doc2" class="form-control mb-2"><input type="file" id="doc3" class="form-control mb-2"><input type="file" id="doc4" class="form-control mb-2"></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button id="btnUploadDocs" class="btn btn-elora-primary">Enviar</button></div></div></div></div>
   <!-- offcanvas mobile -->
-  <div class="offcanvas offcanvas-start offcanvas-sidebar" id="off" aria-labelledby="offCuidadorTitle"><div class="offcanvas-header"><h5 id="offCuidadorTitle">Elora</h5><button class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button></div><div class="offcanvas-body"><a class="nav-link" href="../dashboards/dashboard-cuidador.html">Visão geral</a><a class="nav-link" href="../perfil/perfil.html">Meu perfil</a><a class="nav-link" href="../notificacoes/lista.html">Notificações</a><a class="nav-link" href="#" data-action="logout">Sair</a></div></div>
+  <div class="offcanvas offcanvas-start offcanvas-sidebar" id="off" aria-labelledby="offCuidadorTitle"><div class="offcanvas-header"><h5 id="offCuidadorTitle">Elora</h5><button class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button></div><div class="offcanvas-body"><a class="nav-link" href="../../../index.html">Voltar ao início</a><hr class="border-secondary"><a class="nav-link" href="../dashboards/dashboard-cuidador.html">Visão geral</a><a class="nav-link" href="../perfil/perfil.html">Meu perfil</a><a class="nav-link" href="../notificacoes/lista.html">Notificações</a><a class="nav-link" href="#" data-action="logout">Sair</a></div></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../config/config.js?v=20261126-5"></script>
 <script src="../../services/apiService.js?v=20261126-5"></script>
@@ -70,12 +90,13 @@
 <script src="../../services/authService.js?v=20261126-5"></script>
 <script src="../../services/notificationService.js?v=20261126-5"></script>
 <script src="../../services/clientService.js?v=20261126-5"></script>
-<script src="../../services/caregiverService.js?v=20261126-5"></script>
+<script src="../../services/caregiverService.js?v=20261126-8"></script>
 <script src="../../services/escalaService.js?v=20261126-5"></script>
 <script src="../../services/contractService.js?v=20261126-5"></script>
-<script src="../../services/paymentService.js?v=20261126-5"></script>
+<script src="../../services/paymentService.js?v=20261126-7"></script>
 <script src="../../services/mapsService.js?v=20261126-5"></script>
 <script src="../../services/app.js?v=20261126-5"></script>
+<script src="../../services/calendarioService.js?v=20261126-6"></script>
 <script>
   function notifTipoLabel(t){
     return ({denuncia:'Denúncia',validacao:'Validação',contrato:'Contrato',pagamento:'Pagamento',avaliacao:'Avaliação',sistema:'Sistema'})[t] || t || 'Sistema';
@@ -95,11 +116,15 @@
           : 'Complete documentos e aguarde aprovação do jurídico.';
         document.getElementById('statusAlert').innerHTML='<div class="alert alert-warning"><i class="bi bi-hourglass me-1"></i> Seu cadastro está <strong>'+escapeHtml(caregiverStatusLabel(profile.status))+'</strong>. '+hint+'</div>';
       }
-      const [contracts, earnings, schedule, reviews, verif] = await Promise.all([caregiverService.getContracts(), caregiverService.getEarnings(), caregiverService.getSchedule(), caregiverService.getReviews(), caregiverService.getVerificationStatus()]);
+      const [contracts, earnings, schedule, reviewResumo, verif] = await Promise.all([caregiverService.getContracts(), caregiverService.getEarnings(), caregiverService.getSchedule(), caregiverService.getReviewResumo(), caregiverService.getVerificationStatus()]);
+      const reviews = reviewResumo.avaliacoes;
       document.getElementById('statContracts').textContent=contracts.length;
       document.getElementById('statEarnings').textContent=formatCurrency(earnings.total||0);
-      document.getElementById('statRating').textContent=(profile.rating||0).toFixed(1) + ' ('+(profile.reviewCount||0)+')';
+      document.getElementById('statRating').textContent=Number(reviewResumo.media||0).toFixed(1) + ' (' + reviewResumo.total + ' avaliações)';
       document.getElementById('statAgenda').textContent=schedule.length;
+      calendarioService.montar({
+        contratos: calendarioService.filtrarContratos(contracts, user.id)
+      });
       document.getElementById('contractsBody').innerHTML = contracts.length? contracts.map(c=>`<tr><td>${escapeHtml(c.client?.name||c.clientId)}</td><td class="small">${formatDate(c.startDate)} - ${formatDate(c.endDate)}</td><td><span class="${contractStatusBadge(c.status)}">${escapeHtml(contractService.getStatusLabel(c.status))}</span></td><td><a href="../contratos/contrato.html?id=${c.id}" class="btn btn-sm btn-elora-outline">Ver</a></td></tr>`).join('') : '<tr><td colspan="4" class="text-center small text-muted">Nenhum contrato.</td></tr>';
       document.getElementById('docStatus').innerHTML = Object.entries(verif.documents).map(([k,v])=>`<div class="d-flex justify-content-between"><span>${escapeHtml(k)}</span><span class="badge ${v==='approved'?'bg-success': v==='pending_review'?'bg-warning text-dark':'bg-secondary'}">${v}</span></div>`).join('');
       document.getElementById('reviewsBox').innerHTML = reviews.slice(0,3).map(r=>`<div class="border-bottom py-2"><span class="stars">${'★'.repeat(r.rating)}</span> <small>${formatDate(r.createdAt)}</small><div>${escapeHtml(r.comment)}</div></div>`).join('') || '<span class="text-muted">Sem avaliações.</span>';

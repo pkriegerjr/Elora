@@ -23,6 +23,16 @@ class EscalaService {
         const dt = new Date(`${data}T00:00:00`);
         return isNaN(dt.getTime()) ? null : dt.getDay();
     }
+    /** Normaliza data de contrato (YYYY-MM-DD) sem deslocamento de fuso. */
+    isoDeValor(valor) {
+        if (!valor) return null;
+        if (typeof valor === 'string') {
+            const m = valor.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+        }
+        const dt = new Date(valor);
+        return isNaN(dt.getTime()) ? null : this.iso(dt);
+    }
     /** Semana corrente (segunda a domingo) em ISO yyyy-MM-dd. */
     semanaAtual(base = new Date()) {
         const dow = base.getDay(); // 0=Dom
@@ -106,9 +116,14 @@ class EscalaService {
             this.getDisponibilidade().catch(() => ({ days: [], schedule: null })),
             caregiverService.getContracts().catch(() => [])
         ]);
+        // Mesma regra do calendário mensal: somente contrato ativo assinado
+        // do cuidador (getContracts pode trazer também contratos como cliente).
+        const usuario = (typeof authService !== 'undefined' && authService.getCurrentUser)
+            ? authService.getCurrentUser() : null;
+        const uid = usuario ? String(usuario.id) : null;
         const ativos = (contracts || []).filter(c =>
-            ['SIGNED', 'ativo'].includes(c.status)
-            || (CONFIG.fromV2ContractStatus && CONFIG.fromV2ContractStatus(c.status) === 'SIGNED'));
+            ['ativo', 'signed'].includes(String(c.status || '').toLowerCase()) &&
+            (!uid || String(c.caregiverId ?? c.profissionalId ?? '') === uid));
         // Usa os períodos vindos do backend. Reconstruir a partir de um único
         // start/end pode incluir um turno que não foi salvo (ex.: matutino +
         // noturno passa a incluir vespertino).
@@ -125,16 +140,39 @@ class EscalaService {
             }
         }
 
+        const adicionarContrato = (dia, periodo, c) => {
+            if (!cells[dia] || !cells[dia][periodo]) return;
+            const jaTem = cells[dia][periodo].contratos.some(x => String(x.id) === String(c.id));
+            if (jaTem) return;
+            cells[dia][periodo].contratos.push({
+                id: c.id,
+                cliente: (c.client && c.client.name) || c.clienteNome || c.clientId || ''
+            });
+        };
+
         // Contratos (quando o contrato traz days/schedule, ex.: mock)
         for (const c of ativos) {
             for (const d of (c.days || [])) {
                 for (const p of this.periodosDe(c.schedule)) {
-                    if (cells[d] && cells[d][p]) {
-                        cells[d][p].contratos.push({
-                            id: c.id,
-                            cliente: (c.client && c.client.name) || c.clientId || ''
-                        });
-                    }
+                    adicionarContrato(d, p, c);
+                }
+            }
+        }
+
+        // Contratos reais: ContratoResponse traz só dataInicio/dataFim.
+        // Sem escala gerada, o dia inteiro ainda é coberto pelo contrato.
+        const { inicio: inicioSemana } = this.semanaAtual();
+        const [anoSeg, mesSeg, diaSeg] = inicioSemana.split('-').map(Number);
+        const segunda = new Date(anoSeg, mesSeg - 1, diaSeg);
+        for (const c of ativos) {
+            const ini = this.isoDeValor(c.startDate || c.dataInicio);
+            if (!ini) continue;
+            const fim = this.isoDeValor(c.endDate || c.dataFim) || ini;
+            for (let d = 0; d <= 6; d++) {
+                const data = new Date(segunda.getFullYear(), segunda.getMonth(), segunda.getDate() + ((d + 6) % 7));
+                const isoDia = this.iso(data);
+                if (isoDia >= ini && isoDia <= fim) {
+                    for (const p of this.periodos()) adicionarContrato(d, p, c);
                 }
             }
         }

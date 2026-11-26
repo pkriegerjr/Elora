@@ -62,6 +62,44 @@ class PaymentService {
         return ['aprovado', 'approved'].includes(s);
     }
 
+    /**
+     * Resumo de ganhos do cuidador — fonte única para dashboard e página Ganhos.
+     * Mantém a regra já exibida em financeiro/ganhos.html: taxa de 10%
+     * arredondada por pagamento e líquido = bruto - taxa.
+     */
+    resumoGanhos(pagamentos) {
+        const me = (typeof authService !== 'undefined' && authService.getCurrentUser)
+            ? authService.getCurrentUser()
+            : null;
+        const uid = me ? String(me.id) : null;
+        const linhas = (pagamentos || []).filter(p => {
+            if (!p) return false;
+            const profissional = p.caregiverId ?? p.profissionalId;
+            return profissional == null || String(profissional) === uid;
+        }).map(p => {
+            const bruto = Number(p.amount ?? p.valorBruto ?? 0);
+            const taxa = Math.round(bruto * 0.10 * 100) / 100;
+            return {
+                id: p.id,
+                contractId: p.contractId ?? p.contratoId,
+                data: p.paidAt || p.createdAt || p.criadoEm,
+                bruto,
+                taxa,
+                liquido: Math.round((bruto - taxa) * 100) / 100,
+                status: p.status ?? p.statusV2 ?? ''
+            };
+        });
+        const aprovados = linhas.filter(r => this.isApprovedPayment(r));
+        const pendentes = linhas.filter(r => !this.isApprovedPayment(r));
+        const soma = lista => Math.round(lista.reduce((s, r) => s + r.liquido, 0) * 100) / 100;
+        return {
+            total: soma(aprovados),
+            pendente: soma(pendentes),
+            aprovados: aprovados.length,
+            linhas
+        };
+    }
+
     /** 'PIX'/'CARD'/'BOLETO' (front) -> enum MetodoPagamento (pix/cartao/boleto). */
     normalizeMethod(method) {
         const m = String(method || 'pix').toLowerCase();

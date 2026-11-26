@@ -31,30 +31,20 @@
 <script src="../../services/mockData.js?v=20261126-5"></script>
 <script src="../../services/authService.js?v=20261126-5"></script>
 <script src="../../services/notificationService.js?v=20261126-5"></script>
-<script src="../../services/caregiverService.js?v=20261126-5"></script>
-<script src="../../services/paymentService.js?v=20261126-5"></script>
+<script src="../../services/caregiverService.js?v=20261126-7"></script>
+<script src="../../services/paymentService.js?v=20261126-7"></script>
 <script src="../../services/app.js?v=20261126-5"></script>
 <script>
   async function load(){
     if(!authService.isCaregiver()){ window.location.href='../auth/login.html?redirect='+encodeURIComponent('financeiro/ganhos.html'); return; }
     try{
-      const me = authService.getCurrentUser();
       let pays = [];
       try { pays = await paymentService.getUserPayments(); } catch (e) { pays = []; }
-      const mine = pays.filter(p => String(p.caregiverId) === String(me.id) || !p.caregiverId);
-      const rows = mine.map(p => {
-        const bruto = Number(p.amount ?? p.valorBruto ?? 0);
-        const taxa = Math.round(bruto * 0.10 * 100) / 100;
-        return { id: p.id, contractId: p.contractId ?? p.contratoId, data: p.paidAt || p.createdAt, bruto, taxa, liquido: bruto - taxa, status: p.status };
-      });
-      const ap = rows.filter(r => String(r.status).toLowerCase() === 'aprovado' || r.status === 'APPROVED');
-      const pend = rows.filter(r => !['aprovado', 'APPROVED'].includes(String(r.status)));
-      const tot = ap.reduce((s, r) => s + r.liquido, 0);
-      const totPend = pend.reduce((s, r) => s + r.liquido, 0);
-      document.getElementById('gTotal').textContent = formatCurrency(tot);
-      document.getElementById('gPend').textContent = formatCurrency(totPend);
-      document.getElementById('gCount').textContent = ap.length;
-      document.getElementById('gBody').innerHTML = rows.length ? rows.map(r=>`<tr><td class="small">${r.data?formatDate(r.data):'—'}</td><td class="small">${escapeHtml(r.contractId||'—')}</td><td class="small">${formatCurrency(r.bruto)}</td><td class="small">${formatCurrency(r.taxa)}</td><td><strong>${formatCurrency(r.liquido)}</strong></td><td><span class="badge ${String(r.status).toLowerCase()==='aprovado'?'bg-success':'bg-warning text-dark'}">${escapeHtml(r.status||'')}</span></td></tr>`).join('') : '<tr><td colspan="6" class="text-center small text-muted">Sem repasses ainda.</td></tr>';
+      const resumo = paymentService.resumoGanhos(pays);
+      document.getElementById('gTotal').textContent = formatCurrency(resumo.total);
+      document.getElementById('gPend').textContent = formatCurrency(resumo.pendente);
+      document.getElementById('gCount').textContent = resumo.aprovados;
+      document.getElementById('gBody').innerHTML = resumo.linhas.length ? resumo.linhas.map(r=>`<tr><td class="small">${r.data?formatDate(r.data):'—'}</td><td class="small">${escapeHtml(r.contractId||'—')}</td><td class="small">${formatCurrency(r.bruto)}</td><td class="small">${formatCurrency(r.taxa)}</td><td><strong>${formatCurrency(r.liquido)}</strong></td><td><span class="badge ${String(r.status).toLowerCase()==='aprovado'?'bg-success':'bg-warning text-dark'}">${escapeHtml(r.status||'')}</span></td></tr>`).join('') : '<tr><td colspan="6" class="text-center small text-muted">Sem repasses ainda.</td></tr>';
     }catch(err){ notificationService.showError(err.message); }
   }
   document.addEventListener('DOMContentLoaded', load);

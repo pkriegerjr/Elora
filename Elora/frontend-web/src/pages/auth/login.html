@@ -66,7 +66,7 @@
   <div class="modal-header"><h5 class="modal-title" id="resetModalTitle">Recuperar senha</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
   <div class="modal-body">
     <div class="mb-3"><label for="resetIdentifier" class="form-label">E-mail ou CPF</label><input type="text" id="resetIdentifier" class="form-control" aria-label="E-mail ou CPF para recuperação"></div>
-    <div id="resetMsg" class="small"></div>
+    <div id="resetMsg" class="small" aria-live="polite"></div>
   </div>
   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button class="btn btn-elora-primary" id="btnReset">Enviar link</button></div>
 </div></div></div>
@@ -124,9 +124,18 @@
 
   document.getElementById('btnReset')?.addEventListener('click', async()=>{
     const id=document.getElementById('resetIdentifier').value.trim();
-    if(!id) return;
-    try{ await authService.requestPasswordReset(id); document.getElementById('resetMsg').innerHTML='<span class="text-success">Se o usuário existir, um e-mail será enviado.</span>'; }
-    catch(err){ document.getElementById('resetMsg').innerHTML='<span class="text-danger">'+escapeHtml(err.message)+'</span>'; }
+    const msg=document.getElementById('resetMsg');
+    const btn=document.getElementById('btnReset');
+    if(!id){ msg.innerHTML='<span class="text-danger">Informe seu e-mail ou CPF.</span>'; return; }
+    showLoading(btn,'Enviando...');
+    try{
+      await authService.requestPasswordReset(id);
+      hideLoading(btn);
+      msg.innerHTML='<span class="text-success">Se existir um cadastro com este e-mail/CPF, as instruções de redefinição foram enviadas.</span>';
+    }catch(err){
+      hideLoading(btn);
+      msg.innerHTML='<span class="text-danger">'+escapeHtml(err.message || 'Não foi possível enviar as instruções.')+'</span>';
+    }
   });
 
   // Sessão já ativa vai para a homepage; com ?redirect, mantém a tela para o fluxo em andamento.

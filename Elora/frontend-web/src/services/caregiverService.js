@@ -547,59 +547,30 @@ class CaregiverService {
      * @returns {Promise<Object>} Earnings summary
      */
     async getEarnings(period = {}) {
-        if (!CONFIG.API.MOCK_MODE) {
-            const repasses = await apiService.get(`${CONFIG.ENDPOINTS.payments}/repasses`).catch(() => []);
-            const payments = window.paymentService
-                ? await paymentService.getUserPayments().catch(() => [])
-                : [];
-            const total = (repasses || []).filter(r => r.status === 'processado')
-                .reduce((s, r) => s + Number(r.valor || 0), 0);
-            const pending = (repasses || []).filter(r => r.status === 'pendente')
-                .reduce((s, r) => s + Number(r.valor || 0), 0);
-            return { total, pending, available: total, payments, period };
+        // Mesma fonte da página Ganhos: pagamentos do cuidador, com o líquido
+        // calculado em paymentService.resumoGanhos(). Não usar /repasses aqui:
+        // repasse processado != pagamento aprovado e gerava números divergentes.
+        let payments = [];
+        if (window.paymentService) {
+            payments = await window.paymentService.getUserPayments().catch(() => []);
         }
-
-        await this.delay(400);
-        
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser || currentUser.type !== CONFIG.USER_TYPES.CAREGIVER) {
-            throw new Error("Usuário não autenticado");
-        }
-        
-        const payments = this.getMockPayments();
-        const contracts = this.getMockContracts();
-        
-        // Get completed contracts for this caregiver
-        const completedContracts = contracts.filter(c => 
-            c.caregiverId === currentUser.id && 
-            c.status === CONFIG.CONTRACT_STATUS.SIGNED
-        );
-        
-        const contractIds = completedContracts.map(c => c.id);
-        const relevantPayments = payments.filter(p => 
-            contractIds.includes(p.contractId) && 
-            p.status === CONFIG.PAYMENT_STATUS.APPROVED
-        );
-        
-        // Filter by period if provided
-        let filteredPayments = relevantPayments;
+        let selecionados = payments;
         if (period.start) {
-            filteredPayments = filteredPayments.filter(p => new Date(p.createdAt) >= new Date(period.start));
+            selecionados = selecionados.filter(p =>
+                new Date(p.createdAt || p.criadoEm || 0) >= new Date(period.start));
         }
         if (period.end) {
-            filteredPayments = filteredPayments.filter(p => new Date(p.createdAt) <= new Date(period.end));
+            selecionados = selecionados.filter(p =>
+                new Date(p.createdAt || p.criadoEm || 0) <= new Date(period.end));
         }
-        
-        const total = filteredPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-        const pending = relevantPayments
-            .filter(p => p.status === CONFIG.PAYMENT_STATUS.PENDING || p.status === CONFIG.PAYMENT_STATUS.PROCESSING)
-            .reduce((sum, p) => sum + (p.amount || 0), 0);
-        
+        const resumo = (window.paymentService && typeof window.paymentService.resumoGanhos === 'function')
+            ? window.paymentService.resumoGanhos(selecionados)
+            : { total: 0, pendente: 0 };
         return {
-            total,
-            pending,
-            available: total,
-            payments: filteredPayments,
+            total: resumo.total,
+            pending: resumo.pendente,
+            available: resumo.total,
+            payments: selecionados,
             period
         };
     }
@@ -654,6 +625,46 @@ class CaregiverService {
             schedule: contract.schedule,
             status: contract.status
         }));
+    }
+
+    /**
+     * Resumo de avaliações do cuidador (média + total), reaproveitando a
+     * resposta de GET /avaliacoes/cuidador/{id}. Usado pelo card "Avaliação"
+     * da dashboard: /caregivers/me traz notaMedia, mas não traz totalAvaliacoes.
+     * @returns {Promise<{media:number,total:number,avaliacoes:Array}>}
+     */
+    async getReviewResumo() {
+        if (!CONFIG.API.MOCK_MODE) {
+            const user = authService.getCurrentUser();
+            if (!user || !user.id) return { media: 0, total: 0, avaliacoes: [] };
+            const res = await apiService.get(`${CONFIG.ENDPOINTS.avaliacoes}/cuidador/${user.id}`);
+            const bruta = Array.isArray(res) ? res : (res?.avaliacoes ?? res?.content ?? []);
+            const avaliacoes = (bruta || []).map(r => this.mapReviewFromApi(r))
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const mediaResposta = Array.isArray(res) ? null : (res?.media ?? res?.notaMedia ?? null);
+            const totalResposta = Array.isArray(res) ? null : (res?.totalAvaliacoes ?? res?.total ?? null);
+            const media = mediaResposta != null
+                ? Number(mediaResposta)
+                : (avaliacoes.length
+                    ? avaliacoes.reduce((s, r) => s + (Number(r.rating) || 0), 0) / avaliacoes.length
+                    : 0);
+            const total = totalResposta != null ? totalResposta : avaliacoes.length;
+            return {
+                media: Number(media) || 0,
+                total: Number(total) || 0,
+                avaliacoes
+            };
+        }
+
+        const avaliacoes = await this.getReviews();
+        const media = avaliacoes.length
+            ? avaliacoes.reduce((s, r) => s + (Number(r.rating) || 0), 0) / avaliacoes.length
+            : 0;
+        return {
+            media: Number(media.toFixed(1)),
+            total: avaliacoes.length,
+            avaliacoes
+        };
     }
 
     /**
