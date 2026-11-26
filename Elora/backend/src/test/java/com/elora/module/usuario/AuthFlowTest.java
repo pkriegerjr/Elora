@@ -216,6 +216,30 @@ class AuthFlowTest {
     }
 
     @Test
+    void loginUnicoSemUserTypeAceitaClienteECuidador() {
+        Integer clienteId = usuarioService.registerCliente(cadastro("unico-cliente@teste.com", "52998224725")).getId();
+
+        CuidadorRegisterRequest cg = new CuidadorRegisterRequest();
+        cg.setNome("Ana Login Único");
+        cg.setEmail("unico-cuidador@teste.com");
+        cg.setCpf("11144477735");
+        cg.setSenha("Senha@123");
+        cg.setConsentimentoLgpd(true);
+        cg.setPrecoHora(new java.math.BigDecimal("45.00"));
+        Integer cuidadorId = usuarioService.registerCuidador(cg).getId();
+
+        AuthResponse cliente = authService.login(
+                new LoginRequest("unico-cliente@teste.com", "Senha@123", null), "127.0.0.1", "teste");
+        assertEquals(clienteId, cliente.getUser().getId());
+        assertEquals(List.of("cliente"), cliente.getUser().getPerfis());
+
+        AuthResponse cuidador = authService.login(
+                new LoginRequest("unico-cuidador@teste.com", "Senha@123", null), "127.0.0.1", "teste");
+        assertEquals(cuidadorId, cuidador.getUser().getId());
+        assertTrue(cuidador.getUser().getPerfis().contains("profissional"));
+    }
+
+    @Test
     void resetSenhaTrocaSenhaEDerrubaSessao() {
         var criado = usuarioService.registerCliente(cadastro("reset@teste.com", "52998224725"));
         AuthResponse login = authService.login(

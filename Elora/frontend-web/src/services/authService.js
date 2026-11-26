@@ -92,8 +92,66 @@ class AuthService {
     }
 
     /**
-     * Login real: envia a aba escolhida e só cria a sessão se o perfil
-     * retornado pelo backend for compatível com ela.
+     * Login único: o back-end já aceita requisição sem userType. O destino é
+     * decidido pelos perfis reais da conta, não por uma aba escolhida.
+     */
+    async login(credentials){
+        if(!credentials?.identifier || !credentials?.password){
+            throw new Error("CPF/E-mail e senha são obrigatórios");
+        }
+        if(!CONFIG.API.MOCK_MODE){
+            const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, {
+                identifier: credentials.identifier,
+                password: credentials.password
+            });
+            const perfis = res.user?.perfis || [];
+            const type = this.resolverTipoLogin(perfis);
+            const userData = { ...res.user, name: res.user.nome, type, perfis };
+            this.setSession(userData, res.accessToken, credentials.rememberMe, res.refreshToken);
+            return { user: userData, token: res.accessToken };
+        }
+
+        await this.delay(800);
+        const mockUsers = this.getMockUsers();
+        const candidatos = [
+            ...mockUsers.admins.map(u => ({ user: u, type: CONFIG.USER_TYPES.ADMIN })),
+            ...mockUsers.caregivers.map(u => ({ user: u, type: CONFIG.USER_TYPES.CAREGIVER })),
+            ...mockUsers.clients.map(u => ({ user: u, type: CONFIG.USER_TYPES.CLIENT }))
+        ];
+        const encontrado = candidatos.find(({user}) =>
+            (user.email === credentials.identifier || user.cpf === credentials.identifier || user.username === credentials.identifier)
+            && user.password === credentials.password);
+        if(!encontrado){
+            throw new Error("CPF/E-mail ou senha incorretos");
+        }
+        if(encontrado.type===CONFIG.USER_TYPES.CAREGIVER && encontrado.user.status!==CONFIG.CAREGIVER_STATUS.APPROVED){
+            const statusMessages = {
+                [CONFIG.CAREGIVER_STATUS.PENDING]: "Seu cadastro está pendente de análise",
+                [CONFIG.CAREGIVER_STATUS.UNDER_REVIEW]: "Seu cadastro está em análise pela nossa equipe",
+                [CONFIG.CAREGIVER_STATUS.REJECTED]: "Seu cadastro foi reprovado. Entre em contato com o suporte",
+                [CONFIG.CAREGIVER_STATUS.NEEDS_CORRECTION]: "Seu cadastro precisa de correções. Verifique seus documentos"
+            };
+            throw new Error(statusMessages[encontrado.user.status] || "Cadastro não aprovado");
+        }
+        const token = this.generateMockToken(encontrado.user);
+        const userData = this.sanitizeUser(encontrado.user, encontrado.type);
+        this.setSession(userData, token, credentials.rememberMe);
+        return { user: userData, token };
+    }
+
+    /**
+     * Prioridade do login único para contas com múltiplos perfis:
+     * equipe interna > cuidador > cliente.
+     */
+    resolverTipoLogin(perfis){
+        const p = (perfis||[]).map(x=>String(x).toLowerCase());
+        if(p.some(x=>['admin','moderador','juridico','financeiro'].includes(x))) return CONFIG.USER_TYPES.ADMIN;
+        if(p.includes('profissional')) return CONFIG.USER_TYPES.CAREGIVER;
+        return CONFIG.USER_TYPES.CLIENT;
+    }
+
+    /**
+     * Legado: mantém as telas/serviços que ainda chamam por aba específica.
      */
     async loginComPerfil(credentials, expectedType){
         const res = await apiService.post(CONFIG.ENDPOINTS.auth.login, {
@@ -365,40 +423,28 @@ class AuthService {
     }
 
     /**
-     * Simulate password reset request
-     * @param {string} identifier - Email or CPF
-     * @param {string} userType - User type
+     * Recuperação de senha também é única: o back-end aceita só identifier.
+     * @param {string} identifier - E-mail ou CPF
      * @returns {Promise<void>}
      */
-    async requestPasswordReset(identifier, userType) {
+    async requestPasswordReset(identifier) {
+        if (!identifier) throw new Error("Informe e-mail ou CPF");
         if (!CONFIG.API.MOCK_MODE) {
-            // PasswordResetRequest aceita apenas identifier (e-mail ou CPF).
             return await apiService.post("/auth/password/reset", { identifier });
         }
         await this.delay(1000);
-        
-        
+
         const mockUsers = this.getMockUsers();
-        let user;
-        
-        switch (userType) {
-            case CONFIG.USER_TYPES.CLIENT:
-                user = mockUsers.clients.find(u => u.email === identifier || u.cpf === identifier);
-                break;
-            case CONFIG.USER_TYPES.CAREGIVER:
-                user = mockUsers.caregivers.find(u => u.email === identifier || u.cpf === identifier);
-                break;
-            case CONFIG.USER_TYPES.ADMIN:
-                user = mockUsers.admins.find(u => u.email === identifier || u.username === identifier);
-                break;
-        }
-        
+        const todos = [...mockUsers.admins, ...mockUsers.caregivers, ...mockUsers.clients];
+        const user = todos.find(u =>
+            u.email === identifier || u.cpf === identifier || u.username === identifier);
+
         if (!user) {
             // Don't reveal if user exists for security
             console.log("Password reset requested for:", identifier);
             return;
         }
-        
+
         // In production, send email with reset link
         console.log("Password reset email would be sent to:", user.email);
     }

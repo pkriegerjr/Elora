@@ -25,54 +25,33 @@
       <div class="card-elora p-4 p-md-5">
         <div class="text-center mb-4">
           <h2 class="section-title mb-1">Bem-vindo de volta</h2>
-          <p class="text-muted small mb-0">Escolha seu perfil para entrar</p>
+          <p class="text-muted small mb-0">Entre com sua conta Elora</p>
         </div>
 
-        <ul class="nav nav-pills nav-fill mb-4" id="loginTabs" role="tablist" aria-label="Escolha o perfil">
-          <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-client" type="button" role="tab" aria-selected="true" aria-controls="tab-client" id="tabbtn-client">Cliente</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-caregiver" type="button" role="tab" aria-selected="false" aria-controls="tab-caregiver" id="tabbtn-caregiver">Cuidador</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-admin" type="button" role="tab" aria-selected="false" aria-controls="tab-admin" id="tabbtn-admin">Admin</button></li>
-        </ul>
-
-        <div class="tab-content">
-          <!-- Cliente -->
-          <div class="tab-pane fade show active" id="tab-client">
-            <form id="loginClientForm" novalidate>
-              <div class="mb-3">
-                <label class="form-label">E-mail ou CPF</label><input type="text" class="form-control" name="identifier" placeholder="maria@email.com ou 123.456.789-00" required aria-label="E-mail ou CPF">
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required aria-label="Senha">
-              </div>
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="form-check"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberClient"><label class="form-check-label small" for="rememberClient">Lembrar-me</label></div>
-                <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#resetModal">Esqueci a senha</a>
-              </div>
-              <button type="submit" class="btn btn-elora-primary w-100 btn-lg">Entrar como Cliente</button>
-              <div class="small text-muted mt-2">Demo: cliente.demo@elora.local / Senha@123</div>
-            </form>
+        <form id="loginForm" novalidate>
+          <div class="mb-3">
+            <label for="loginIdentifier" class="form-label">E-mail ou CPF</label>
+            <input id="loginIdentifier" type="text" class="form-control" name="identifier" placeholder="maria@email.com ou 123.456.789-00" required aria-label="E-mail ou CPF">
           </div>
-          <!-- Cuidador -->
-          <div class="tab-pane fade" id="tab-caregiver">
-            <form id="loginCaregiverForm" novalidate>
-              <div class="mb-3"><label class="form-label">E-mail ou CPF</label><input type="text" class="form-control" name="identifier" placeholder="ana.ferreira@email.com" required aria-label="E-mail ou CPF"></div>
-              <div class="mb-3"><label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required aria-label="Senha"></div>
-              <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberCg"><label class="form-check-label small" for="rememberCg">Lembrar-me</label></div>
-              <button type="submit" class="btn btn-elora-primary w-100 btn-lg">Entrar como Cuidador</button>
-              <div class="small text-muted mt-2">Demo: ana.souza@elora.local / Senha@123</div>
-            </form>
+          <div class="mb-3">
+            <label for="loginPassword" class="form-label">Senha</label>
+            <input id="loginPassword" type="password" class="form-control" name="password" placeholder="••••••••" required aria-label="Senha">
           </div>
-          <!-- Admin -->
-          <div class="tab-pane fade" id="tab-admin">
-            <form id="loginAdminForm" novalidate>
-              <div class="mb-3"><label class="form-label">E-mail ou CPF</label><input type="text" class="form-control" name="identifier" placeholder="admin@elora.local" required aria-label="E-mail ou CPF"></div>
-              <div class="mb-3"><label class="form-label">Senha</label><input type="password" class="form-control" name="password" placeholder="••••••••" required aria-label="Senha"></div>
-              <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="rememberMe" id="rememberAdmin"><label class="form-check-label small" for="rememberAdmin">Lembrar-me</label></div>
-              <button type="submit" class="btn btn-dark w-100 btn-lg">Entrar como Admin</button>
-              <div class="small text-muted mt-2">Demo: admin@elora.local / Senha@123</div>
-            </form>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="rememberMe" id="rememberLogin">
+              <label class="form-check-label small" for="rememberLogin">Lembrar-me</label>
+            </div>
+            <a href="#" class="small" id="linkForgot" data-bs-toggle="modal" data-bs-target="#resetModal">Esqueci a senha</a>
           </div>
-        </div>
+          <button type="submit" class="btn btn-elora-primary w-100 btn-lg">Entrar</button>
+          <div class="small text-muted mt-3">
+            <div class="fw-semibold mb-1">Contas de demonstração</div>
+            <div>Cliente: cliente.demo@elora.local / Senha@123</div>
+            <div>Cuidador: ana.souza@elora.local / Senha@123</div>
+            <div>Admin: admin@elora.local / Senha@123</div>
+          </div>
+        </form>
 
         <hr class="my-4">
         <p class="text-center small mb-0">Não tem conta? <a href="cadastro-cliente.html">Cadastre-se como Cliente</a> • <a href="cadastro-cuidador.html">Sou Cuidador</a></p>
@@ -86,8 +65,7 @@
 <div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetModalTitle"><div class="modal-dialog"><div class="modal-content">
   <div class="modal-header"><h5 class="modal-title" id="resetModalTitle">Recuperar senha</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
   <div class="modal-body">
-    <div class="mb-3"><label for="resetIdentifier" class="form-label">E-mail ou CPF</label><input type="text" id="resetIdentifier" class="form-control"></div>
-    <div class="mb-3"><label for="resetType" class="form-label">Perfil</label><select id="resetType" class="form-select"><option value="client">Cliente</option><option value="caregiver">Cuidador</option><option value="admin">Admin</option></select></div>
+    <div class="mb-3"><label for="resetIdentifier" class="form-label">E-mail ou CPF</label><input type="text" id="resetIdentifier" class="form-control" aria-label="E-mail ou CPF para recuperação"></div>
     <div id="resetMsg" class="small"></div>
   </div>
   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button><button class="btn btn-elora-primary" id="btnReset">Enviar link</button></div>
@@ -97,7 +75,7 @@
 <script src="../../config/config.js?v=20261126-4"></script>
 <script src="../../services/apiService.js?v=20261126-4"></script>
 <script src="../../services/mockData.js?v=20261126-4"></script>
-<script src="../../services/authService.js?v=20261126-4"></script>
+<script src="../../services/authService.js?v=20261126-5"></script>
 <script src="../../services/notificationService.js?v=20261126-4"></script>
 <script src="../../services/clientService.js?v=20261126-4"></script>
 <script src="../../services/caregiverService.js?v=20261126-4"></script>
@@ -108,39 +86,53 @@
 <script>
   function params(){ return new URLSearchParams(window.location.search); }
   function showErr(msg){ const el=document.getElementById('loginAlert'); el.textContent=msg; el.classList.remove('d-none'); }
-  function handleLogin(formId, fn){
-    document.getElementById(formId)?.addEventListener('submit', async e=>{
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const btn = e.target.querySelector('button[type="submit"]');
-      showLoading(btn,'Entrando...');
-      try{
-        await fn({ identifier: fd.get('identifier')?.trim(), password: fd.get('password'), rememberMe: fd.get('rememberMe')==='on' });
-        notificationService.showSuccess('Login realizado!');
-        const redirect = params().get('redirect');
-        // redirect vem como 'contratos/contrato.html?id=..' (relativo a src/pages/) — resolve a partir de src/pages/auth/
-        const target = redirect
-          ? (redirect.startsWith('../') || redirect.startsWith('/') || redirect.startsWith('http') ? redirect : '../' + redirect)
-          // Primeira tela após qualquer login é a homepage; o painel continua acessível via "Voltar ao painel".
-          : authService.resolveUrl('/index.html');
-        setTimeout(()=> window.location.href = target, 600);
-      }catch(err){ showErr(err.message); notificationService.showError(err.message); hideLoading(btn); }
-    });
+  function clearErr(){ const el=document.getElementById('loginAlert'); el.textContent=''; el.classList.add('d-none'); }
+
+  // redirect explícito (denúncia, avaliação, agenda...) tem prioridade; senão, dashboard do perfil.
+  function resolveTarget(){
+    const redirect = params().get('redirect');
+    if(!redirect) return authService.getDashboardUrl();
+    return (redirect.startsWith('../') || redirect.startsWith('/') || redirect.startsWith('http'))
+      ? redirect
+      : '../' + redirect;
   }
-  handleLogin('loginClientForm', c=> authService.loginCliente(c));
-  handleLogin('loginCaregiverForm', c=> authService.loginCuidador(c));
-  handleLogin('loginAdminForm', c=> authService.loginAdministrador(c));
+
+  document.getElementById('loginForm')?.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const btn = e.target.querySelector('button[type="submit"]');
+    clearErr();
+    showLoading(btn,'Entrando...');
+    try{
+      await authService.login({
+        identifier: fd.get('identifier')?.trim(),
+        password: fd.get('password'),
+        rememberMe: fd.get('rememberMe')==='on'
+      });
+      notificationService.showSuccess('Login realizado!');
+      setTimeout(()=> window.location.href = resolveTarget(), 600);
+    }catch(err){ showErr(err.message); notificationService.showError(err.message); hideLoading(btn); }
+  });
+
+  document.getElementById('linkForgot')?.addEventListener('click', ()=>{
+    const atual = document.getElementById('loginIdentifier')?.value.trim();
+    const campo = document.getElementById('resetIdentifier');
+    if(atual && campo) campo.value = atual;
+    const msg = document.getElementById('resetMsg');
+    if(msg) msg.innerHTML = '';
+  });
 
   document.getElementById('btnReset')?.addEventListener('click', async()=>{
     const id=document.getElementById('resetIdentifier').value.trim();
-    const type=document.getElementById('resetType').value;
     if(!id) return;
-    try{ await authService.requestPasswordReset(id, type); document.getElementById('resetMsg').innerHTML='<span class="text-success">Se o usuário existir, um e-mail será enviado.</span>'; }
+    try{ await authService.requestPasswordReset(id); document.getElementById('resetMsg').innerHTML='<span class="text-success">Se o usuário existir, um e-mail será enviado.</span>'; }
     catch(err){ document.getElementById('resetMsg').innerHTML='<span class="text-danger">'+escapeHtml(err.message)+'</span>'; }
   });
 
-  // se já autenticado, redireciona
-  if(authService.isAuthenticated()){ /* não força, deixa escolher */ }
+  // Sessão já ativa vai direto ao painel; com ?redirect, mantém a tela para o fluxo em andamento.
+  if(authService.isAuthenticated() && !params().get('redirect')){
+    window.location.href = authService.getDashboardUrl();
+  }
 </script>
 </body>
 </html>
