@@ -48,18 +48,18 @@
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../config/config.js?v=20261126-4"></script>
-<script src="../../services/apiService.js?v=20261126-4"></script>
-<script src="../../services/mockData.js?v=20261126-4"></script>
-<script src="../../services/authService.js?v=20261126-4"></script>
-<script src="../../services/notificationService.js?v=20261126-4"></script>
-<script src="../../services/clientService.js?v=20261126-4"></script>
-<script src="../../services/caregiverService.js?v=20261126-4"></script>
-<script src="../../services/contractService.js?v=20261126-4"></script>
-<script src="../../services/paymentService.js?v=20261126-4"></script>
-<script src="../../services/mapsService.js?v=20261126-4"></script>
-<script src="../../services/escalaService.js?v=20261126-4"></script>
-<script src="../../services/app.js?v=20261126-4"></script>
+<script src="../../config/config.js?v=20261126-5"></script>
+<script src="../../services/apiService.js?v=20261126-5"></script>
+<script src="../../services/mockData.js?v=20261126-5"></script>
+<script src="../../services/authService.js?v=20261126-5"></script>
+<script src="../../services/notificationService.js?v=20261126-5"></script>
+<script src="../../services/clientService.js?v=20261126-5"></script>
+<script src="../../services/caregiverService.js?v=20261126-5"></script>
+<script src="../../services/contractService.js?v=20261126-5"></script>
+<script src="../../services/paymentService.js?v=20261126-5"></script>
+<script src="../../services/mapsService.js?v=20261126-5"></script>
+<script src="../../services/escalaService.js?v=20261126-5"></script>
+<script src="../../services/app.js?v=20261126-5"></script>
 <script>
   const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   async function load(){
@@ -67,38 +67,50 @@
     try{
       const agenda = await escalaService.getAgenda();
       const d = agenda.disponibilidade || {};
-      (d.days||[]).forEach(v=> document.querySelectorAll('.day').forEach(el=>{ if(Number(el.value)===v) el.checked=true; }));
+      const diasSalvos = new Set((d.days||[]).map(Number));
+      document.querySelectorAll('.day').forEach(el=>{ el.checked = diasSalvos.has(Number(el.value)); });
       if(d.schedule){ document.getElementById('dispStart').value=d.schedule.start||'07:00'; document.getElementById('dispEnd').value=d.schedule.end||'19:00'; }
       if(d.maxDistanceKm||d.maxDistance) document.getElementById('dispKm').value=d.maxDistanceKm||d.maxDistance||15;
       const g = agenda.grade;
       document.getElementById('gradeBody').innerHTML = [1,2,3,4,5,6,0].map(dia=>{
         const tds = escalaService.periodos().map(p=>{
           const c = g[dia][p];
-          const esc = c.escalas || [];
+          const todasEscalas = c.escalas || [];
+          const esc = todasEscalas.filter(e=>String(e.status||'').toLowerCase() !== 'cancelada');
+          const canceladas = todasEscalas.length - esc.length;
           let cls, txt;
           if (esc.length) {
             const st = esc.map(e=>String(e.status||'').toLowerCase());
             if (st.includes('faltou')) { cls='bg-danger text-white'; }
-            else if (st.includes('cancelada')) { cls='bg-secondary text-white'; }
             else if (st.includes('executada')) { cls='bg-primary text-white'; }
             else { cls='bg-warning text-dark'; }
-            txt = esc.map(e=>escalaService.statusLabel(e.status)).join(', ');
-          } else if (c.contratos.length) {
+            txt = 'Ocupado · ' + esc.map(e=>escalaService.statusLabel(e.status)).join(', ');
+          } else if (canceladas) {
+            cls='bg-light text-muted'; txt='Cancelado';
+          } else if ((c.contratos||[]).length) {
             cls='bg-warning text-dark';
-            txt = c.contratos.map(x=>x.cliente||x.id).join(', ');
+            txt = 'Ocupado · ' + c.contratos.map(x=>x.cliente||x.id).join(', ');
           } else if (c.disponivel) {
             cls='bg-success text-white'; txt='Livre';
           } else {
-            cls='bg-light text-muted'; txt='—';
+            cls='bg-light text-muted'; txt='Indisponível';
           }
           return `<td class="${cls} small">${escapeHtml(txt)}</td>`;
         }).join('');
         return `<tr><th scope="row">${DIAS[dia]}</th>${tds}</tr>`;
       }).join('');
-      const fora = agenda.contratosAtivos.filter(c=> !(d.days||[]).includes((c.days||[])[0]) && (c.days||[]).length);
-      document.getElementById('conflitos').innerHTML = agenda.contratosAtivos.length
-        ? `<div class="alert alert-info small mb-0">${agenda.contratosAtivos.length} contrato(s) ativo(s) na grade. Ajuste a disponibilidade se algum período conflitar.</div>`
-        : '<p class="small text-muted mb-0">Nenhum contrato ativo.</p>';
+      let dentro = 0, fora = 0;
+      Object.values(g).forEach(linha => Object.values(linha).forEach(c=>{
+        const ativas = (c.escalas||[]).filter(e=>String(e.status||'').toLowerCase() !== 'cancelada');
+        if (!ativas.length && !(c.contratos||[]).length) return;
+        if (c.disponivel) dentro++; else fora++;
+      }));
+      let htmlConflitos;
+      if (fora) htmlConflitos = `<div class="alert alert-warning small mb-0">${fora} horário(s) com contrato fora da sua disponibilidade. Ajuste os dias/períodos ou contate o cliente.</div>`;
+      else if (dentro) htmlConflitos = `<div class="alert alert-info small mb-0">${dentro} horário(s) com contrato dentro da sua disponibilidade.</div>`;
+      else if (agenda.contratosAtivos.length) htmlConflitos = `<div class="alert alert-info small mb-0">${agenda.contratosAtivos.length} contrato(s) ativo(s), sem turnos nesta semana.</div>`;
+      else htmlConflitos = '<p class="small text-muted mb-0">Nenhum contrato ativo.</p>';
+      document.getElementById('conflitos').innerHTML = htmlConflitos;
       document.getElementById('contratosBox').innerHTML = agenda.contratosAtivos.length
         ? agenda.contratosAtivos.map(c=>`<div class="border-bottom py-2"><strong>${escapeHtml(c.client?.name||c.clientId||'')}</strong> <span class="text-muted">${formatDate(c.startDate)} – ${formatDate(c.endDate)}</span> <a href="../contratos/contrato.html?id=${encodeURIComponent(c.id)}" class="btn btn-sm btn-elora-outline ms-2">Ver</a></div>`).join('')
         : '<p class="text-muted mb-0">Sem contratos ativos.</p>';

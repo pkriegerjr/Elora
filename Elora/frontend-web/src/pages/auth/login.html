@@ -72,26 +72,26 @@
 </div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../config/config.js?v=20261126-4"></script>
-<script src="../../services/apiService.js?v=20261126-4"></script>
-<script src="../../services/mockData.js?v=20261126-4"></script>
+<script src="../../config/config.js?v=20261126-5"></script>
+<script src="../../services/apiService.js?v=20261126-5"></script>
+<script src="../../services/mockData.js?v=20261126-5"></script>
 <script src="../../services/authService.js?v=20261126-5"></script>
-<script src="../../services/notificationService.js?v=20261126-4"></script>
-<script src="../../services/clientService.js?v=20261126-4"></script>
-<script src="../../services/caregiverService.js?v=20261126-4"></script>
-<script src="../../services/contractService.js?v=20261126-4"></script>
-<script src="../../services/paymentService.js?v=20261126-4"></script>
-<script src="../../services/mapsService.js?v=20261126-4"></script>
-<script src="../../services/app.js?v=20261126-4"></script>
+<script src="../../services/notificationService.js?v=20261126-5"></script>
+<script src="../../services/clientService.js?v=20261126-5"></script>
+<script src="../../services/caregiverService.js?v=20261126-5"></script>
+<script src="../../services/contractService.js?v=20261126-5"></script>
+<script src="../../services/paymentService.js?v=20261126-5"></script>
+<script src="../../services/mapsService.js?v=20261126-5"></script>
+<script src="../../services/app.js?v=20261126-5"></script>
 <script>
   function params(){ return new URLSearchParams(window.location.search); }
   function showErr(msg){ const el=document.getElementById('loginAlert'); el.textContent=msg; el.classList.remove('d-none'); }
   function clearErr(){ const el=document.getElementById('loginAlert'); el.textContent=''; el.classList.add('d-none'); }
 
-  // redirect explícito (denúncia, avaliação, agenda...) tem prioridade; senão, dashboard do perfil.
+  // redirect explícito (denúncia, avaliação, agenda...) tem prioridade; senão, homepage.
   function resolveTarget(){
     const redirect = params().get('redirect');
-    if(!redirect) return authService.getDashboardUrl();
+    if(!redirect) return authService.resolveUrl('/index.html');
     return (redirect.startsWith('../') || redirect.startsWith('/') || redirect.startsWith('http'))
       ? redirect
       : '../' + redirect;
@@ -129,9 +129,9 @@
     catch(err){ document.getElementById('resetMsg').innerHTML='<span class="text-danger">'+escapeHtml(err.message)+'</span>'; }
   });
 
-  // Sessão já ativa vai direto ao painel; com ?redirect, mantém a tela para o fluxo em andamento.
+  // Sessão já ativa vai para a homepage; com ?redirect, mantém a tela para o fluxo em andamento.
   if(authService.isAuthenticated() && !params().get('redirect')){
-    window.location.href = authService.getDashboardUrl();
+    window.location.href = authService.resolveUrl('/index.html');
   }
 </script>
 </body>

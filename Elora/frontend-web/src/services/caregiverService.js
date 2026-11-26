@@ -323,6 +323,23 @@ class CaregiverService {
     }
 
     /**
+     * Datas concretas das próximas 4 semanas nos dias escolhidos.
+     * Começa amanhã para evitar divergência de fuso com o LocalDate do backend.
+     */
+    proximasDatasDisponibilidade(days, semanas = 4) {
+        const alvo = new Set((days || []).map(Number));
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const out = [];
+        for (let i = 1; i <= 7 * semanas; i++) {
+            const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
+            if (!alvo.has(d.getDay())) continue;
+            out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+        }
+        return out;
+    }
+
+    /**
      * Update caregiver availability
      * @param {Object} availability - Availability data
      * @returns {Promise<Object>} Updated caregiver
@@ -330,21 +347,23 @@ class CaregiverService {
     async updateAvailability(availability) {
         if (!CONFIG.API.MOCK_MODE) {
             // A API guarda disponibilidade por DATA + período. A tela informa dias
-            // da semana + faixa de horário; materializamos as próximas 8 semanas.
-            const days = availability.days || [];
+            // da semana + faixa de horário; materializamos as próximas 4 semanas.
+            const days = [...new Set((availability.days || []).map(Number))];
             const start = availability.schedule?.start;
             const end = availability.schedule?.end;
             let periodos = (start && end) ? CONFIG.scheduleToPeriodos(start, end) : [];
-            if (!periodos.length) periodos = ['matutino', 'vespertino', 'noturno'];
+            if (!periodos.length) periodos = ['matutino'];
 
+            // O backend tem UNIQUE (usuario_id, data, periodo): nunca envie a
+            // mesma chave duas vezes na mesma requisição.
+            const vistos = new Set();
             const body = [];
-            if (days.length) {
-                const hoje = new Date();
-                for (let i = 0; i < 56; i++) {
-                    const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
-                    if (!days.includes(d.getDay())) continue;
-                    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    periodos.forEach(p => body.push({ data: iso, periodo: p }));
+            for (const data of this.proximasDatasDisponibilidade(days, 4)) {
+                for (const periodo of periodos) {
+                    const chave = `${data}|${periodo}`;
+                    if (vistos.has(chave)) continue;
+                    vistos.add(chave);
+                    body.push({ data, periodo });
                 }
             }
             await apiService.put(`${CONFIG.ENDPOINTS.caregivers}/me/disponibilidade`, body);

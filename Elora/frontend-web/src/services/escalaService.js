@@ -31,19 +31,6 @@ class EscalaService {
         const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
         return { inicio: this.iso(monday), fim: this.iso(sunday) };
     }
-    /** Próximas N semanas de datas (a partir de amanhã) nos dias da semana escolhidos. */
-    proximasDatas(days, semanas = 4) {
-        const alvo = new Set(days || []);
-        const out = [];
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        // Começa em amanhã para evitar fuso: o backend rejeita data < hoje (LocalDate do servidor).
-        for (let i = 1; i <= 7 * semanas; i++) {
-            const dt = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
-            if (alvo.has(dt.getDay())) out.push(this.iso(dt));
-        }
-        return out;
-    }
     /** Aproxima um horário a partir dos períodos salvos (para preencher o formulário). */
     scheduleFromPeriodos(periodos) {
         const janelas = { matutino: ['06:00', '12:00'], vespertino: ['12:00', '18:00'], noturno: ['18:00', '23:59'] };
@@ -83,17 +70,9 @@ class EscalaService {
     }
 
     async salvarDisponibilidade({ days, schedule, maxDistanceKm }) {
-        if (CONFIG.API.MOCK_MODE) {
-            return await caregiverService.updateAvailability({ days, schedule, maxDistanceKm });
-        }
-
-        // Backend grava por data concreta: expande os dias escolhidos nas
-        // próximas 4 semanas × períodos derivados do horário.
-        const periodos = this.periodosDe(schedule);
-        const listaPeriodos = periodos.length ? periodos : ['matutino'];
-        const body = this.proximasDatas(days, 4)
-            .flatMap(data => listaPeriodos.map(periodo => ({ data, periodo })));
-        return await apiService.put(`${CONFIG.ENDPOINTS.caregivers}/me/disponibilidade`, body);
+        // Único ponto de gravação: caregiverService já materializa as datas e
+        // deduplica (data, periodo) no modo real e no modo demonstração.
+        return await caregiverService.updateAvailability({ days, schedule, maxDistanceKm });
     }
 
     // ---------- escalas (EscalaController) ----------
@@ -130,7 +109,12 @@ class EscalaService {
         const ativos = (contracts || []).filter(c =>
             ['SIGNED', 'ativo'].includes(c.status)
             || (CONFIG.fromV2ContractStatus && CONFIG.fromV2ContractStatus(c.status) === 'SIGNED'));
-        const dispPeriodos = this.periodosDe(disp.schedule);
+        // Usa os períodos vindos do backend. Reconstruir a partir de um único
+        // start/end pode incluir um turno que não foi salvo (ex.: matutino +
+        // noturno passa a incluir vespertino).
+        const dispPeriodos = (disp.periodos && disp.periodos.length)
+            ? disp.periodos.map(p => String(p).toLowerCase())
+            : this.periodosDe(disp.schedule);
 
         const cells = {};
         for (const d of this.dias()) {

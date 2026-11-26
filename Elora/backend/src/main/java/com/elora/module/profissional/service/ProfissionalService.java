@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor; import org.springframework.beans.factory.
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException; import java.util.*;
+import java.io.IOException; import java.time.LocalDate; import java.util.*;
 
 @Service @RequiredArgsConstructor
 public class ProfissionalService {
@@ -192,17 +192,41 @@ public class ProfissionalService {
     return getById(profId);
   }
 
+  /**
+   * Substitui a disponibilidade do profissional. O delete precisa ser enviado ao
+   * banco antes dos inserts: a entidade usa IDENTITY, então cada save() executa
+   * um INSERT imediato. Sem o flush, o UNIQUE (usuario_id, data, periodo) barra
+   * o próprio registro que ainda está sendo removido.
+   */
   @Transactional public void salvarDisponibilidade(Integer profId, List<Map<String,String>> body){
-  dispRepo.deleteByUsuarioId(profId);
-  for(var p: body){
-    var disp=new Disponibilidade(); disp.setUsuarioId(profId);
-    java.time.LocalDate data;
-    try{data=java.time.LocalDate.parse(p.get("data"));}catch(Exception e){throw new BusinessException("data inválida, use yyyy-MM-dd");}
-    if(data.isBefore(java.time.LocalDate.now())) throw new BusinessException("data no passado");
-    disp.setData(data);
-    try{disp.setPeriodo(Periodo.valueOf(p.get("periodo").toLowerCase().trim()));}catch(Exception e){throw new BusinessException("periodo use: matutino|vespertino|noturno");}
-    dispRepo.save(disp);
+    LocalDate hoje = LocalDate.now();
+    Map<LocalDate, Set<Periodo>> porData = new LinkedHashMap<>();
+
+    for(var p: body == null ? List.<Map<String,String>>of() : body){
+      if(p == null) continue;
+      LocalDate data;
+      try{ data = LocalDate.parse(p.get("data")); }catch(Exception e){ throw new BusinessException("data inválida, use yyyy-MM-dd"); }
+      if(data.isBefore(hoje)) throw new BusinessException("data no passado");
+
+      Periodo periodo;
+      try{ periodo = Periodo.valueOf(p.get("periodo").toLowerCase().trim()); }
+      catch(Exception e){ throw new BusinessException("periodo use: matutino|vespertino|noturno"); }
+      porData.computeIfAbsent(data, k -> new LinkedHashSet<>()).add(periodo);
+    }
+
+    dispRepo.deleteByUsuarioId(profId);
+    dispRepo.flush();
+
+    for(var entry : porData.entrySet()){
+      for(Periodo periodo : entry.getValue()){
+        var disp = new Disponibilidade();
+        disp.setUsuarioId(profId);
+        disp.setData(entry.getKey());
+        disp.setPeriodo(periodo);
+        disp.setStatus("disponivel");
+        dispRepo.save(disp);
+      }
+    }
   }
-}
   @Transactional(readOnly=true) public List<Disponibilidade> getDisponibilidade(Integer profId){ return dispRepo.findByUsuarioId(profId); }
 }
